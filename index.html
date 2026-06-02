@@ -1607,7 +1607,7 @@ const GameState = {
 
         const statusSpan = document.getElementById('ui-status');
         const statusBox = document.getElementById('ui-status-box');
-        const statusMap = { GENERATING: '挖掘中', EXPLORING: '自动寻路', COMBAT: 'RPG 战斗模式!' };
+        const statusMap = { GENERATING: '挖掘中', EXPLORING: '自动寻路', COMBAT: 'RPG 战斗模式!', SELFTEST: '自测场景' };
         statusSpan.innerText = statusMap[this.phase] || '就绪';
 
         if (this.phase === 'COMBAT') {
@@ -2390,18 +2390,73 @@ class VisualEngine {
     }
 
     updateOccluders() {
-        const revealEnabled = this.renderPlayerOcclusionMask();
         for (const occluder of this.occluders) {
             for (const material of [occluder.boxMesh.material, occluder.edgeMesh.material]) {
                 const shader = material.userData.shader;
-                if (!shader) continue;
-                shader.uniforms.uRevealEnabled.value = revealEnabled ? 1 : 0;
-                shader.uniforms.uPlayerMaskTexture.value = this.playerOcclusionTarget.texture;
-                shader.uniforms.uPlayerDepthTexture.value = this.playerOcclusionTarget.depthTexture;
-                shader.uniforms.uRevealResolution.value.set(this.playerOcclusionTarget.width, this.playerOcclusionTarget.height);
+                if (shader) {
+                    shader.uniforms.uRevealEnabled.value = 0;
+                    shader.uniforms.uPlayerMaskTexture.value = this.playerOcclusionTarget.texture;
+                    shader.uniforms.uPlayerDepthTexture.value = this.playerOcclusionTarget.depthTexture;
+                    shader.uniforms.uRevealResolution.value.set(this.playerOcclusionTarget.width, this.playerOcclusionTarget.height);
+                }
             }
+            occluder.boxMesh.material.opacity = 1;
             occluder.edgeMesh.material.opacity = occluder.baseEdgeOpacity;
         }
+
+        const subjects = [];
+        if (this.playerObj?.visible) subjects.push(this.playerObj);
+        for (const entity of this.entities) {
+            if (entity.mesh?.visible) subjects.push(entity.mesh);
+        }
+        if (subjects.length === 0) return;
+
+        const hitOccluders = new Set();
+        for (const subject of subjects) {
+            for (const samplePoint of this.getOcclusionSamplePointsForObject(subject)) {
+                const dir = samplePoint.clone().sub(this.camera.position);
+                const distance = dir.length();
+                if (distance <= 0.01) continue;
+                this.raycaster.set(this.camera.position, dir.normalize());
+                this.raycaster.far = distance;
+                const hits = this.raycaster.intersectObjects(this.occluders.map((item) => item.boxMesh), false);
+                for (const hit of hits) {
+                    const occluder = this.occluderLookup.get(hit.object.uuid);
+                    if (occluder) hitOccluders.add(occluder);
+                }
+            }
+        }
+
+        for (const occluder of hitOccluders) {
+            occluder.boxMesh.material.opacity = 0.22;
+            occluder.edgeMesh.material.opacity = 0.16;
+        }
+    }
+
+    getOcclusionSamplePointsForObject(object3D) {
+        object3D.updateWorldMatrix(true, true);
+        const box = new THREE.Box3().setFromObject(object3D);
+        if (box.isEmpty()) return [object3D.position.clone()];
+        const sphere = box.getBoundingSphere(new THREE.Sphere());
+        const center = sphere.center.clone();
+        const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
+        const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
+        const radius = Math.max(0.12, sphere.radius * 0.9);
+        const sampleOffsets = [
+            [0, 0],
+            [0, 0.62],
+            [0, -0.62],
+            [0.68, 0],
+            [-0.68, 0],
+            [0.46, 0.46],
+            [-0.46, 0.46],
+            [0.46, -0.46],
+            [-0.46, -0.46]
+        ];
+        return sampleOffsets.map(([offsetX, offsetY]) => center.clone()
+            .addScaledVector(right, radius * offsetX)
+            .addScaledVector(up, radius * offsetY)
+        );
     }
 
     buildPlayerModel() {
@@ -2783,6 +2838,10 @@ class VisualEngine {
                 desiredCamPos.set(0, 18, 4);
                 desiredTarget.set(0, 0, 0);
                 this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 55, dt * 2);
+            } else if (GameState.phase === 'SELFTEST') {
+                desiredCamPos.set(0, 2.85, 0.62);
+                desiredTarget.set(0, 0.05, -1.12);
+                this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 50, dt * 4);
             } else {
                 const pPos = this.playerObj.position;
                 desiredCamPos.set(pPos.x, 9, pPos.z + 4);
@@ -2867,6 +2926,48 @@ class GameController {
 
     getWorldPos(c, r) {
         return new THREE.Vector3(c + this.offsetC, 0, r + this.offsetR);
+    }
+
+    runOcclusionSelfTest(mode = 'player') {
+        clearInterval(this.genInterval);
+        clearTimeout(this.combatUiHideTimer);
+        this.hideCombatUI();
+        this.path = [];
+        this.exploreNext = () => {};
+        this.currentEnemy = null;
+        this.engine.tweens.tweens = [];
+
+        while (this.mazeGroup.children.length > 0) this.mazeGroup.remove(this.mazeGroup.children[0]);
+        this.engine.entities.forEach((entity) => this.engine.scene.remove(entity.mesh));
+        this.engine.entities = [];
+        this.engine.occluders = [];
+        this.engine.occluderLookup.clear();
+
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), this.engine.materials.floor);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = 0;
+        this.mazeGroup.add(floor);
+
+        const wallGeo = new THREE.BoxGeometry(1, 0.5, 1);
+        const edgesGeo = new THREE.EdgesGeometry(wallGeo);
+        const primaryWall = this.engine.createWallCell(wallGeo, edgesGeo, new THREE.Vector3(0, 0, -0.92));
+        this.mazeGroup.add(primaryWall);
+        const sideWall = this.engine.createWallCell(wallGeo, edgesGeo, new THREE.Vector3(1.05, 0, -0.18));
+        this.mazeGroup.add(sideWall);
+
+        const testChest = this.createChestEntity(1, 1);
+        testChest.mesh.position.set(0, -0.02, -1.12);
+        testChest.baseY = -0.02;
+        testChest.mesh.visible = mode === 'chest';
+        this.engine.entities.push(testChest);
+
+        this.engine.playerObj.position.set(0, -0.18, -1.12);
+        this.engine.playerObj.visible = mode === 'player';
+        this.engine.lastPlayerAudioPos = this.engine.playerObj.position.clone();
+
+        GameState.phase = 'SELFTEST';
+        GameState.updateUI();
+        document.body.dataset.selftestReady = '1';
     }
 
     startLevel() {
@@ -4514,6 +4615,21 @@ window.onload = () => {
     window.soundEditor = new SoundEditor(window.soundEngine);
     window.gameController = new GameController(window.engine);
     GameState.updateUI();
+
+    const selfTestMode = window.location.hash.replace('#', '');
+    if (selfTestMode === 'selftest-player' || selfTestMode === 'selftest-chest') {
+        const mode = selfTestMode === 'selftest-chest' ? 'chest' : 'player';
+        const selfTestTimer = setInterval(() => {
+            if (window.gameController) {
+                try {
+                    window.gameController.runOcclusionSelfTest(mode);
+                    clearInterval(selfTestTimer);
+                } catch (error) {
+                    console.warn('Self-test scene not ready yet:', error);
+                }
+            }
+        }, 250);
+    }
 };
 </script>
 </body>
