@@ -44,6 +44,8 @@
         ::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 2px; }
         .upgrade-btn { transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
         .upgrade-btn:active { transform: scale(0.96); filter: brightness(1.2); }
+        .settings-slider { accent-color: #22d3ee; }
+        .settings-panel-enter { animation: settings-pop 0.18s ease-out; transform-origin: top right; }
 
         /* RPG UI 专属动画 */
         .typewriter::after {
@@ -51,6 +53,10 @@
             animation: blink 1s step-end infinite;
         }
         @keyframes blink { 50% { opacity: 0; } }
+        @keyframes settings-pop {
+            from { opacity: 0; transform: translateY(-6px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
         
         .hp-bar-fill { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     </style>
@@ -63,12 +69,38 @@
         <div id="floating-text-container"></div>
         
         <!-- 常规悬浮状态 -->
-        <div class="absolute top-3 left-3 right-3 flex justify-between pointer-events-none drop-shadow-2xl z-20">
+        <div class="absolute top-3 left-3 right-16 md:right-20 flex justify-between pointer-events-none drop-shadow-2xl z-20">
             <div class="bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]">
                 层数 <span id="ui-level" class="text-blue-400 font-black text-lg ml-1">1</span>
             </div>
             <div class="bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)] transition-colors duration-300" id="ui-status-box">
                 状态 <span id="ui-status" class="text-emerald-400 font-bold ml-1">初始化</span>
+            </div>
+        </div>
+
+        <div class="absolute top-3 right-3 z-40 pointer-events-auto">
+            <button id="btn-settings" class="h-11 w-11 rounded-xl border-2 border-slate-700 bg-slate-900/95 text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.45)] flex items-center justify-center hover:bg-slate-800 transition-colors" aria-label="打开设置">
+                <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3.2"></circle>
+                    <path d="M12 2.8v2.1"></path>
+                    <path d="M12 19.1v2.1"></path>
+                    <path d="m4.93 4.93 1.49 1.49"></path>
+                    <path d="m17.58 17.58 1.49 1.49"></path>
+                    <path d="M2.8 12h2.1"></path>
+                    <path d="M19.1 12h2.1"></path>
+                    <path d="m4.93 19.07 1.49-1.49"></path>
+                    <path d="m17.58 6.42 1.49-1.49"></path>
+                </svg>
+            </button>
+            <div id="settings-panel" class="hidden settings-panel-enter mt-2 w-56 rounded-xl border-2 border-slate-700 bg-slate-900/95 p-3 shadow-[0_10px_30px_rgba(0,0,0,0.6)] backdrop-blur-sm">
+                <div class="flex items-center justify-between text-xs font-bold tracking-wide text-slate-200">
+                    <span>设置</span>
+                    <span id="val-volume" class="text-cyan-300">70%</span>
+                </div>
+                <div class="mt-3">
+                    <label for="slider-volume" class="mb-2 block text-[11px] font-bold text-slate-400">音效强度</label>
+                    <input id="slider-volume" class="settings-slider w-full" type="range" min="0" max="100" step="1" value="70">
+                </div>
             </div>
         </div>
 
@@ -254,6 +286,25 @@ class SoundEngine {
     constructor() {
         this.ctx = null;
         this.enabled = true;
+        this.volume = this.readStoredVolume();
+    }
+
+    readStoredVolume() {
+        try {
+            const raw = window.localStorage.getItem('jkp-master-volume');
+            if (raw === null) return 0.7;
+            const parsed = Number(raw);
+            return Number.isFinite(parsed) ? THREE.MathUtils.clamp(parsed, 0, 1) : 0.7;
+        } catch {
+            return 0.7;
+        }
+    }
+
+    setVolume(value) {
+        this.volume = THREE.MathUtils.clamp(value, 0, 1);
+        try {
+            window.localStorage.setItem('jkp-master-volume', String(this.volume));
+        } catch {}
     }
 
     getContext() {
@@ -281,7 +332,7 @@ class SoundEngine {
         delay = 0,
         q = 3
     } = {}) {
-        if (!this.enabled) return;
+        if (!this.enabled || this.volume <= 0.001) return;
         const ctx = this.getContext();
         if (!ctx || ctx.state !== 'running') return;
 
@@ -299,7 +350,7 @@ class SoundEngine {
         if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(40, slideTo), now + duration);
 
         gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(volume, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(volume * this.volume, now + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
         osc.connect(filter);
@@ -535,6 +586,9 @@ class VisualEngine {
         this.floatingTexts = [];
         this.trauma = 0;
         this.motionTime = 0;
+        this.occluders = [];
+        this.occluderLookup = new Map();
+        this.raycaster = new THREE.Raycaster();
 
         this.materials = {
             floor: new THREE.MeshBasicMaterial({ color: 0x1e293b }),
@@ -578,6 +632,238 @@ class VisualEngine {
         return group;
     }
 
+    sampleIndices(count, maxVisible) {
+        if (count <= maxVisible) return Array.from({ length: count }, (_, index) => index);
+        const result = [];
+        for (let i = 0; i < maxVisible; i++) {
+            const index = Math.floor(i * count / maxVisible);
+            if (!result.includes(index)) result.push(index);
+        }
+        return result;
+    }
+
+    createLineLoop(points, color, opacity = 1) {
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        return new THREE.LineLoop(geometry, new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity }));
+    }
+
+    createLinePath(points, color, opacity = 1) {
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity }));
+    }
+
+    createSparseCylinderLines(radiusTop, radiusBottom, height, radialSegments, color) {
+        if (radialSegments <= 14) {
+            return new THREE.LineSegments(
+                new THREE.EdgesGeometry(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments)),
+                new THREE.LineBasicMaterial({ color })
+            );
+        }
+
+        const group = new THREE.Group();
+        const rimSamples = this.sampleIndices(radialSegments, 16);
+        const verticalSamples = this.sampleIndices(radialSegments, 8);
+        const halfHeight = height / 2;
+
+        const makeCircle = (radius, y) => rimSamples.map((index) => {
+            const angle = index / radialSegments * Math.PI * 2;
+            return new THREE.Vector3(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+        });
+
+        group.add(this.createLineLoop(makeCircle(radiusTop, halfHeight), color));
+        group.add(this.createLineLoop(makeCircle(radiusBottom, -halfHeight), color));
+
+        if (Math.abs(radiusTop - radiusBottom) > 0.02) {
+            const midRadius = (radiusTop + radiusBottom) * 0.5;
+            group.add(this.createLineLoop(makeCircle(midRadius, 0), color, 0.85));
+        }
+
+        for (const index of verticalSamples) {
+            const angle = index / radialSegments * Math.PI * 2;
+            const top = new THREE.Vector3(Math.cos(angle) * radiusTop, halfHeight, Math.sin(angle) * radiusTop);
+            const bottom = new THREE.Vector3(Math.cos(angle) * radiusBottom, -halfHeight, Math.sin(angle) * radiusBottom);
+            group.add(this.createLinePath([top, bottom], color, 0.9));
+        }
+
+        return group;
+    }
+
+    createSparseSphereDomeLines(radius, widthSegments, heightSegments, color) {
+        if (widthSegments <= 14) {
+            return new THREE.LineSegments(
+                new THREE.EdgesGeometry(new THREE.SphereGeometry(radius, widthSegments, heightSegments, 0, Math.PI * 2, 0, Math.PI / 2)),
+                new THREE.LineBasicMaterial({ color })
+            );
+        }
+
+        const group = new THREE.Group();
+        const latitudes = this.sampleIndices(heightSegments, 5).filter((index) => index > 0);
+        const longitudes = this.sampleIndices(widthSegments, 8);
+
+        for (const latIndex of latitudes) {
+            const theta = latIndex / heightSegments * (Math.PI / 2);
+            const y = Math.cos(theta) * radius;
+            const ringRadius = Math.sin(theta) * radius;
+            const ringPoints = [];
+            const segments = widthSegments <= 18 ? widthSegments : 18;
+            for (let i = 0; i < segments; i++) {
+                const phi = i / segments * Math.PI * 2;
+                ringPoints.push(new THREE.Vector3(Math.cos(phi) * ringRadius, y, Math.sin(phi) * ringRadius));
+            }
+            group.add(this.createLineLoop(ringPoints, color, 0.9));
+        }
+
+        for (const lonIndex of longitudes) {
+            const phi = lonIndex / widthSegments * Math.PI * 2;
+            const points = [];
+            const segments = heightSegments <= 10 ? heightSegments : 8;
+            for (let i = 0; i <= segments; i++) {
+                const theta = i / segments * (Math.PI / 2);
+                points.push(new THREE.Vector3(
+                    Math.cos(phi) * Math.sin(theta) * radius,
+                    Math.cos(theta) * radius,
+                    Math.sin(phi) * Math.sin(theta) * radius
+                ));
+            }
+            group.add(this.createLinePath(points, color, 0.85));
+        }
+
+        return group;
+    }
+
+    createSparseTorusLines(radius, tube, radialSegments, tubularSegments, color) {
+        if (Math.max(radialSegments, tubularSegments) <= 16) {
+            return new THREE.LineSegments(
+                new THREE.EdgesGeometry(new THREE.TorusGeometry(radius, tube, radialSegments, tubularSegments)),
+                new THREE.LineBasicMaterial({ color })
+            );
+        }
+
+        const group = new THREE.Group();
+        const radialIndices = this.sampleIndices(radialSegments, radialSegments > 18 ? 6 : radialSegments);
+        const tubularIndices = this.sampleIndices(tubularSegments, tubularSegments > 20 ? 10 : tubularSegments);
+
+        for (const radialIndex of radialIndices) {
+            const v = radialIndex / radialSegments * Math.PI * 2;
+            const points = [];
+            for (let i = 0; i < tubularSegments; i++) {
+                const u = i / tubularSegments * Math.PI * 2;
+                points.push(new THREE.Vector3(
+                    (radius + tube * Math.cos(v)) * Math.cos(u),
+                    tube * Math.sin(v),
+                    (radius + tube * Math.cos(v)) * Math.sin(u)
+                ));
+            }
+            group.add(this.createLineLoop(points, color, 0.82));
+        }
+
+        for (const tubularIndex of tubularIndices) {
+            const u = tubularIndex / tubularSegments * Math.PI * 2;
+            const points = [];
+            for (let i = 0; i < radialSegments; i++) {
+                const v = i / radialSegments * Math.PI * 2;
+                points.push(new THREE.Vector3(
+                    (radius + tube * Math.cos(v)) * Math.cos(u),
+                    tube * Math.sin(v),
+                    (radius + tube * Math.cos(v)) * Math.sin(u)
+                ));
+            }
+            group.add(this.createLineLoop(points, color, 0.9));
+        }
+
+        return group;
+    }
+
+    createAssemblyWithCustomLines(geometry, material, lines) {
+        const group = new THREE.Group();
+        const mesh = new THREE.Mesh(geometry, material);
+        group.add(mesh);
+        group.add(lines);
+        group.userData.mesh = mesh;
+        return group;
+    }
+
+    createWallMaterial() {
+        const material = this.materials.wallBox.clone();
+        material.transparent = true;
+        material.onBeforeCompile = (shader) => {
+            shader.uniforms.uRevealCenter = { value: new THREE.Vector3() };
+            shader.uniforms.uRevealRadius = { value: 0.82 };
+            shader.uniforms.uRevealOpacity = { value: 0.2 };
+            shader.uniforms.uRevealEnabled = { value: 0 };
+
+            shader.vertexShader = shader.vertexShader.replace(
+                '#include <common>',
+                '#include <common>\nvarying vec3 vWorldPos;'
+            ).replace(
+                '#include <begin_vertex>',
+                '#include <begin_vertex>\nvec4 jkpWorldPos = modelMatrix * vec4( transformed, 1.0 );\nvWorldPos = jkpWorldPos.xyz;'
+            );
+
+            shader.fragmentShader = shader.fragmentShader.replace(
+                '#include <common>',
+                '#include <common>\nvarying vec3 vWorldPos;\nuniform vec3 uRevealCenter;\nuniform float uRevealRadius;\nuniform float uRevealOpacity;\nuniform float uRevealEnabled;'
+            ).replace(
+                'vec4 diffuseColor = vec4( diffuse, opacity );',
+                'vec4 diffuseColor = vec4( diffuse, opacity );\nfloat revealDist = distance(vWorldPos, uRevealCenter);\nfloat revealMask = 1.0 - smoothstep(uRevealRadius * 0.45, uRevealRadius, revealDist);\ndiffuseColor.a = mix(diffuseColor.a, uRevealOpacity, revealMask * uRevealEnabled);'
+            );
+
+            material.userData.shader = shader;
+        };
+        return material;
+    }
+
+    createWallCell(wallGeo, edgesGeo, pos) {
+        const group = new THREE.Group();
+        const boxMaterial = this.createWallMaterial();
+        const boxMesh = new THREE.Mesh(wallGeo, boxMaterial);
+        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2, transparent: true, opacity: 1 });
+        const edgeMesh = new THREE.LineSegments(edgesGeo, edgeMaterial);
+        group.add(boxMesh);
+        group.add(edgeMesh);
+        group.position.set(pos.x, 0.25, pos.z);
+
+        const occluder = {
+            group,
+            boxMesh,
+            edgeMesh,
+            baseEdgeOpacity: 1
+        };
+        this.occluders.push(occluder);
+        this.occluderLookup.set(boxMesh.uuid, occluder);
+        return group;
+    }
+
+    updateOccluders() {
+        for (const occluder of this.occluders) {
+            const shader = occluder.boxMesh.material.userData.shader;
+            if (shader) shader.uniforms.uRevealEnabled.value = 0;
+            occluder.edgeMesh.material.opacity = occluder.baseEdgeOpacity;
+        }
+
+        if (!this.playerObj?.visible) return;
+
+        const playerPos = this.playerObj.position.clone();
+        const dir = playerPos.clone().sub(this.camera.position);
+        const distance = dir.length();
+        if (distance <= 0.01) return;
+
+        this.raycaster.set(this.camera.position, dir.normalize());
+        this.raycaster.far = distance;
+        const hits = this.raycaster.intersectObjects(this.occluders.map((item) => item.boxMesh), false);
+
+        for (const hit of hits) {
+            const occluder = this.occluderLookup.get(hit.object.uuid);
+            if (!occluder) continue;
+            const shader = occluder.boxMesh.material.userData.shader;
+            if (shader) {
+                shader.uniforms.uRevealEnabled.value = 1;
+                shader.uniforms.uRevealCenter.value.copy(playerPos);
+            }
+            occluder.edgeMesh.material.opacity = 0.25;
+        }
+    }
+
     setupPlayer() {
         this.playerObj = new THREE.Group();
         this.playerBody = new THREE.Group();
@@ -588,33 +874,38 @@ class VisualEngine {
         this.playerTopRotor.position.y = 0.12;
         this.playerBottomRotor.position.y = -0.1;
 
-        const topDisk = this.createOutlinedAssembly(
-            new THREE.CylinderGeometry(0.2, 0.55, 0.12, 32),
+        const topDiskGeo = new THREE.CylinderGeometry(0.2, 0.55, 0.12, 32);
+        const topDisk = this.createAssemblyWithCustomLines(
+            topDiskGeo,
             this.materials.playerMain,
-            0x0f172a
+            this.createSparseCylinderLines(0.2, 0.55, 0.12, 32, 0x0f172a)
         );
-        const bottomDisk = this.createOutlinedAssembly(
-            new THREE.CylinderGeometry(0.55, 0.18, 0.12, 32),
+        const bottomDiskGeo = new THREE.CylinderGeometry(0.55, 0.18, 0.12, 32);
+        const bottomDisk = this.createAssemblyWithCustomLines(
+            bottomDiskGeo,
             this.materials.playerShadow,
-            0x020617
+            this.createSparseCylinderLines(0.55, 0.18, 0.12, 32, 0x020617)
         );
-        const upperRing = this.createOutlinedAssembly(
-            new THREE.TorusGeometry(0.4, 0.055, 12, 32),
+        const upperRingGeo = new THREE.TorusGeometry(0.4, 0.055, 12, 32);
+        const upperRing = this.createAssemblyWithCustomLines(
+            upperRingGeo,
             this.materials.playerAccent,
-            0x0f172a
+            this.createSparseTorusLines(0.4, 0.055, 12, 32, 0x0f172a)
         );
         upperRing.rotation.x = Math.PI / 2;
-        const lowerRing = this.createOutlinedAssembly(
-            new THREE.TorusGeometry(0.34, 0.045, 10, 28),
+        const lowerRingGeo = new THREE.TorusGeometry(0.34, 0.045, 10, 28);
+        const lowerRing = this.createAssemblyWithCustomLines(
+            lowerRingGeo,
             this.materials.playerMain,
-            0x0f172a
+            this.createSparseTorusLines(0.34, 0.045, 10, 28, 0x0f172a)
         );
         lowerRing.rotation.x = Math.PI / 2;
 
-        const cabin = this.createOutlinedAssembly(
-            new THREE.SphereGeometry(0.2, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+        const cabinGeo = new THREE.SphereGeometry(0.2, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        const cabin = this.createAssemblyWithCustomLines(
+            cabinGeo,
             this.materials.playerCabin,
-            0x38bdf8
+            this.createSparseSphereDomeLines(0.2, 20, 16, 0x38bdf8)
         );
         cabin.position.y = 0.19;
 
@@ -650,7 +941,8 @@ class VisualEngine {
 
         if (archetype.id === 'scout') {
             const core = this.createOutlinedAssembly(new THREE.OctahedronGeometry(0.24), baseMat, 0x431407);
-            const ring = this.createOutlinedAssembly(new THREE.TorusGeometry(0.34, 0.03, 10, 28), accentMat, 0x7c2d12);
+            const ringGeo = new THREE.TorusGeometry(0.34, 0.03, 10, 28);
+            const ring = this.createAssemblyWithCustomLines(ringGeo, accentMat, this.createSparseTorusLines(0.34, 0.03, 10, 28, 0x7c2d12));
             ring.rotation.x = Math.PI / 2;
             spinGroup = new THREE.Group();
             spinGroup.add(ring);
@@ -670,7 +962,8 @@ class VisualEngine {
         } else if (archetype.id === 'spine') {
             const spine = this.createOutlinedAssembly(new THREE.ConeGeometry(0.26, 0.6, 6), baseMat, 0x3b0764);
             spine.position.y = 0.1;
-            const ring = this.createOutlinedAssembly(new THREE.TorusGeometry(0.26, 0.028, 8, 24), accentMat, 0x581c87);
+            const ringGeo = new THREE.TorusGeometry(0.26, 0.028, 8, 24);
+            const ring = this.createAssemblyWithCustomLines(ringGeo, accentMat, this.createSparseTorusLines(0.26, 0.028, 8, 24, 0x581c87));
             ring.rotation.x = Math.PI / 2;
             ring.position.y = -0.02;
             spinGroup = new THREE.Group();
@@ -678,20 +971,24 @@ class VisualEngine {
             group.add(spine, spinGroup);
         } else if (archetype.id === 'warden') {
             const hub = this.createOutlinedAssembly(new THREE.IcosahedronGeometry(0.22, 0), baseMat, 0x042f2e);
-            const halo = this.createOutlinedAssembly(new THREE.TorusGeometry(0.38, 0.04, 10, 30), accentMat, 0x134e4a);
+            const haloGeo = new THREE.TorusGeometry(0.38, 0.04, 10, 30);
+            const halo = this.createAssemblyWithCustomLines(haloGeo, accentMat, this.createSparseTorusLines(0.38, 0.04, 10, 30, 0x134e4a));
             halo.rotation.x = Math.PI / 2;
             spinGroup = new THREE.Group();
             counterSpinGroup = new THREE.Group();
             spinGroup.add(halo);
-            const verticalHalo = this.createOutlinedAssembly(new THREE.TorusGeometry(0.28, 0.03, 10, 24), accentMat, 0x134e4a);
+            const verticalHaloGeo = new THREE.TorusGeometry(0.28, 0.03, 10, 24);
+            const verticalHalo = this.createAssemblyWithCustomLines(verticalHaloGeo, accentMat, this.createSparseTorusLines(0.28, 0.03, 10, 24, 0x134e4a));
             verticalHalo.rotation.y = Math.PI / 2;
             counterSpinGroup.add(verticalHalo);
             group.add(hub, spinGroup, counterSpinGroup);
         } else if (archetype.id === 'boss') {
             const core = this.createOutlinedAssembly(new THREE.DodecahedronGeometry(0.35, 0), baseMat, 0x78350f);
-            const outerRing = this.createOutlinedAssembly(new THREE.TorusGeometry(0.58, 0.055, 12, 40), accentMat, 0x92400e);
+            const outerRingGeo = new THREE.TorusGeometry(0.58, 0.055, 12, 40);
+            const outerRing = this.createAssemblyWithCustomLines(outerRingGeo, accentMat, this.createSparseTorusLines(0.58, 0.055, 12, 40, 0x92400e));
             outerRing.rotation.x = Math.PI / 2;
-            const innerRing = this.createOutlinedAssembly(new THREE.TorusGeometry(0.4, 0.035, 10, 32), baseMat, 0x92400e);
+            const innerRingGeo = new THREE.TorusGeometry(0.4, 0.035, 10, 32);
+            const innerRing = this.createAssemblyWithCustomLines(innerRingGeo, baseMat, this.createSparseTorusLines(0.4, 0.035, 10, 32, 0x92400e));
             innerRing.rotation.y = Math.PI / 2;
             spinGroup = new THREE.Group();
             counterSpinGroup = new THREE.Group();
@@ -855,6 +1152,7 @@ class VisualEngine {
             }
         }
 
+        this.updateOccluders();
         this.composer.render();
     }
 }
@@ -873,6 +1171,7 @@ class GameController {
         this.path = [];
         this.genStack = [];
         this.currentEnemy = null;
+        this.combatUiHideTimer = null;
 
         ['speed', 'atk', 'hp', 'chest', 'monster'].forEach((type) => {
             document.getElementById(`btn-up-${type}`).addEventListener('click', async () => {
@@ -889,6 +1188,31 @@ class GameController {
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
+    showCombatUI() {
+        const ui = document.getElementById('rpg-combat-ui');
+        if (this.combatUiHideTimer) {
+            clearTimeout(this.combatUiHideTimer);
+            this.combatUiHideTimer = null;
+        }
+        ui.classList.remove('hidden');
+        void ui.offsetWidth;
+        ui.classList.remove('opacity-0');
+        return ui;
+    }
+
+    hideCombatUI() {
+        const ui = document.getElementById('rpg-combat-ui');
+        if (this.combatUiHideTimer) {
+            clearTimeout(this.combatUiHideTimer);
+        }
+        ui.classList.add('opacity-0');
+        this.combatUiHideTimer = setTimeout(() => {
+            ui.classList.add('hidden');
+            this.combatUiHideTimer = null;
+        }, 300);
+        return ui;
+    }
+
     getWorldPos(c, r) {
         return new THREE.Vector3(c + this.offsetC, 0, r + this.offsetR);
     }
@@ -901,6 +1225,8 @@ class GameController {
         while (this.mazeGroup.children.length > 0) this.mazeGroup.remove(this.mazeGroup.children[0]);
         this.engine.entities.forEach((entity) => this.engine.scene.remove(entity.mesh));
         this.engine.entities = [];
+        this.engine.occluders = [];
+        this.engine.occluderLookup.clear();
         this.grid = [];
 
         const floorGeo = new THREE.PlaneGeometry(this.cols + 2, this.rows + 2);
@@ -914,11 +1240,8 @@ class GameController {
         for (let r = 0; r < this.rows; r++) {
             const row = [];
             for (let c = 0; c < this.cols; c++) {
-                const group = new THREE.Group();
                 const pos = this.getWorldPos(c, r);
-                group.add(new THREE.Mesh(wallGeo, this.engine.materials.wallBox));
-                group.add(new THREE.LineSegments(edgesGeo, this.engine.materials.wallEdge));
-                group.position.set(pos.x, 0.25, pos.z);
+                const group = this.engine.createWallCell(wallGeo, edgesGeo, pos);
                 this.mazeGroup.add(group);
                 row.push({ c, r, isWall: true, mesh: group, visited: false, entity: null });
             }
@@ -1223,10 +1546,7 @@ class GameController {
         enemyMesh.lookAt(playerMesh.position);
         playerMesh.lookAt(enemyMesh.position);
 
-        const ui = document.getElementById('rpg-combat-ui');
-        ui.classList.remove('hidden');
-        void ui.offsetWidth;
-        ui.classList.remove('opacity-0');
+        this.showCombatUI();
 
         this.updateRPG_HP(enemyHp, profile.maxHp, enemyObj);
 
@@ -1307,8 +1627,7 @@ class GameController {
             if (entIdx > -1) this.engine.entities.splice(entIdx, 1);
 
             await this.sleep(profile.boss ? 1900 : 1400);
-            ui.classList.add('opacity-0');
-            setTimeout(() => ui.classList.add('hidden'), 300);
+            this.hideCombatUI();
 
             this.currentEnemy = null;
             GameState.phase = 'EXPLORING';
@@ -1320,8 +1639,7 @@ class GameController {
             this.engine.glitchPass.enabled = true;
             await this.sleep(2000);
 
-            ui.classList.add('opacity-0');
-            setTimeout(() => ui.classList.add('hidden'), 300);
+            this.hideCombatUI();
             this.engine.glitchPass.enabled = false;
             this.currentEnemy = null;
             this.startLevel();
@@ -1334,6 +1652,39 @@ window.onload = () => {
     const unlockAudio = () => window.soundEngine.unlock();
     window.addEventListener('pointerdown', unlockAudio, { passive: true });
     window.addEventListener('keydown', unlockAudio);
+    const settingsButton = document.getElementById('btn-settings');
+    const settingsPanel = document.getElementById('settings-panel');
+    const volumeSlider = document.getElementById('slider-volume');
+    const volumeValue = document.getElementById('val-volume');
+
+    const syncVolumeUI = () => {
+        const percent = Math.round(window.soundEngine.volume * 100);
+        volumeSlider.value = String(percent);
+        volumeValue.innerText = `${percent}%`;
+    };
+
+    settingsButton.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        await window.soundEngine.unlock();
+        settingsPanel.classList.toggle('hidden');
+    });
+
+    settingsPanel.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+
+    document.addEventListener('click', () => {
+        settingsPanel.classList.add('hidden');
+    });
+
+    volumeSlider.addEventListener('input', async () => {
+        await window.soundEngine.unlock();
+        window.soundEngine.setVolume(Number(volumeSlider.value) / 100);
+        syncVolumeUI();
+        window.soundEngine.beep({ freq: 520, slideTo: 700, duration: 0.08, volume: 0.035, type: 'triangle' });
+    });
+
+    syncVolumeUI();
     window.engine = new VisualEngine();
     window.gameController = new GameController(window.engine);
     GameState.updateUI();
