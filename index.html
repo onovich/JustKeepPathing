@@ -72,6 +72,145 @@
         }
         
         .hp-bar-fill { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        @media (max-width: 767px) {
+            #game-container {
+                min-height: 100dvh;
+                border-right: 0;
+                border-bottom: 0;
+            }
+
+            #ui-container {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 45;
+                height: auto;
+                width: auto;
+                background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.96));
+                backdrop-filter: blur(16px);
+                box-shadow: 0 -18px 36px rgba(0, 0, 0, 0.35);
+                border-top: 1px solid rgba(51, 65, 85, 0.9);
+            }
+
+            #ui-titlebar {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 10px 16px;
+                border-bottom: 1px solid rgba(30, 41, 59, 0.95);
+                background: rgba(30, 41, 59, 0.78);
+            }
+
+            #ui-titlebar h1 {
+                font-size: 1rem;
+                line-height: 1.1;
+            }
+
+            #ui-mobile-dock {
+                display: flex;
+                align-items: stretch;
+                gap: 12px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+                background: transparent;
+                scrollbar-width: none;
+                -webkit-overflow-scrolling: touch;
+                scroll-snap-type: x proximity;
+            }
+
+            #ui-mobile-dock::-webkit-scrollbar {
+                display: none;
+            }
+
+            #ui-mobile-dock > :not([hidden]) ~ :not([hidden]),
+            #upgrade-strip > :not([hidden]) ~ :not([hidden]) {
+                margin-top: 0;
+            }
+
+            #ui-score-card {
+                flex: 0 0 124px;
+                min-width: 124px;
+                margin: 0;
+                padding: 12px;
+                border-radius: 18px;
+                scroll-snap-align: start;
+            }
+
+            #ui-score-card #ui-score {
+                font-size: 1.5rem;
+                line-height: 1;
+            }
+
+            #upgrade-strip {
+                display: flex;
+                align-items: stretch;
+                gap: 12px;
+                margin: 0;
+                padding: 0;
+                flex: 0 0 auto;
+            }
+
+            #upgrade-strip > .upgrade-btn {
+                flex: 0 0 220px;
+                width: 220px;
+                min-height: 92px;
+                margin: 0;
+                padding: 12px 14px;
+                border-radius: 18px;
+                align-items: flex-start;
+                scroll-snap-align: start;
+            }
+
+            #upgrade-strip > .upgrade-btn > div:first-child {
+                min-width: 0;
+            }
+
+            #upgrade-strip > .upgrade-btn > div:first-child .font-bold {
+                font-size: 1rem;
+                line-height: 1.15;
+            }
+
+            #upgrade-strip > .upgrade-btn > div:first-child .text-\[10px\] {
+                font-size: 0.72rem;
+                line-height: 1.2;
+            }
+
+            #upgrade-strip > .upgrade-btn > div:last-child {
+                flex: 0 0 auto;
+                align-self: center;
+            }
+
+            #upgrade-strip > .upgrade-btn > div:last-child .text-sm {
+                font-size: 1.5rem;
+                line-height: 1;
+            }
+
+            #rpg-combat-ui {
+                padding: 12px;
+            }
+
+            #rpg-combat-ui > div:first-child {
+                margin-top: 56px;
+            }
+
+            #rpg-combat-ui > div:first-child > div {
+                width: 124px;
+                padding: 8px 10px;
+            }
+
+            #rpg-combat-ui > div:last-child {
+                margin-bottom: calc(148px + env(safe-area-inset-bottom));
+            }
+
+            #rpg-dialogue {
+                font-size: 0.92rem;
+                line-height: 1.45;
+                min-height: 1.45rem;
+            }
+        }
     </style>
 </head>
 <body class="flex flex-col h-[100dvh] w-screen md:flex-row">
@@ -163,18 +302,18 @@
 
     <!-- UI 控制区 -->
     <div id="ui-container" class="h-[45vh] md:h-full md:w-80 lg:w-96 bg-slate-950 flex flex-col shrink-0 relative z-40">
-        <div class="p-4 border-b-4 border-slate-900 text-center shrink-0 bg-slate-800">
+        <div id="ui-titlebar" class="p-4 border-b-4 border-slate-900 text-center shrink-0 bg-slate-800">
             <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-wider">地牢收割者 <span class="text-xs text-slate-400 font-bold">RPG</span></h1>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-4 pb-8 space-y-4 bg-slate-900">
-            <div class="bg-slate-800 rounded-xl p-4 border-2 border-slate-700 flex justify-between items-center shadow-inner">
+        <div id="ui-mobile-dock" class="flex-1 overflow-y-auto p-4 pb-8 space-y-4 bg-slate-900">
+            <div id="ui-score-card" class="bg-slate-800 rounded-xl p-4 border-2 border-slate-700 flex justify-between items-center shadow-inner">
                 <span class="text-slate-400 font-bold text-sm">魂能积分</span>
                 <span id="ui-score" class="text-2xl font-black text-yellow-400 transition-all origin-right">0</span>
             </div>
 
             <!-- 升级面板 -->
-            <div class="space-y-3">
+            <div id="upgrade-strip" class="space-y-3">
                 <button id="btn-up-speed" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
                         <div class="font-bold text-blue-300 flex items-center gap-2">走得更快 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span></div>
@@ -1522,6 +1661,7 @@ class VisualEngine {
         this.trauma = 0;
         this.motionTime = 0;
         this.lastPlayerAudioPos = null;
+        this.playerRevealRadius = 0.58;
         this.occluders = [];
         this.occluderLookup = new Map();
         this.raycaster = new THREE.Raycaster();
@@ -2060,25 +2200,23 @@ class VisualEngine {
         const material = this.materials.wallBox.clone();
         material.transparent = true;
         material.onBeforeCompile = (shader) => {
-            shader.uniforms.uRevealCenter = { value: new THREE.Vector3() };
-            shader.uniforms.uRevealRadius = { value: 0.82 };
+            shader.uniforms.uRevealScreenPos = { value: new THREE.Vector2(0.5, 0.5) };
+            shader.uniforms.uRevealScreenRadius = { value: new THREE.Vector2(0.08, 0.08) };
+            shader.uniforms.uResolution = { value: new THREE.Vector2(1, 1) };
             shader.uniforms.uRevealOpacity = { value: 0.18 };
             shader.uniforms.uRevealEnabled = { value: 0 };
 
             shader.vertexShader = shader.vertexShader.replace(
                 '#include <common>',
-                '#include <common>\nvarying vec3 vWorldPos;'
-            ).replace(
-                '#include <begin_vertex>',
-                '#include <begin_vertex>\nvec4 jkpWorldPos = modelMatrix * vec4( transformed, 1.0 );\nvWorldPos = jkpWorldPos.xyz;'
+                '#include <common>'
             );
 
             shader.fragmentShader = shader.fragmentShader.replace(
                 '#include <common>',
-                '#include <common>\nvarying vec3 vWorldPos;\nuniform vec3 uRevealCenter;\nuniform float uRevealRadius;\nuniform float uRevealOpacity;\nuniform float uRevealEnabled;\nfloat jkpHalftone(vec2 uv, float scale, float radius) {\n    vec2 cell = fract(uv * scale) - 0.5;\n    float dist = length(cell);\n    return 1.0 - smoothstep(radius, radius + 0.08, dist);\n}'
+                '#include <common>\nuniform vec2 uRevealScreenPos;\nuniform vec2 uRevealScreenRadius;\nuniform vec2 uResolution;\nuniform float uRevealOpacity;\nuniform float uRevealEnabled;\nfloat jkpEllipseMask(vec2 uv, vec2 center, vec2 radius) {\n    vec2 safeRadius = max(radius, vec2(0.0001));\n    vec2 delta = (uv - center) / safeRadius;\n    float dist = length(delta);\n    return 1.0 - smoothstep(0.72, 1.04, dist);\n}\nfloat jkpHalftone(vec2 screenUv, vec2 resolution) {\n    vec2 gridUv = screenUv * resolution / 11.0;\n    vec2 cell = fract(gridUv) - 0.5;\n    float dist = length(cell);\n    return 1.0 - smoothstep(0.14, 0.34, dist);\n}'
             ).replace(
                 'vec4 diffuseColor = vec4( diffuse, opacity );',
-                'vec4 diffuseColor = vec4( diffuse, opacity );\nfloat revealDist = distance(vWorldPos, uRevealCenter);\nfloat revealMask = 1.0 - smoothstep(uRevealRadius * 0.45, uRevealRadius, revealDist);\nfloat revealStrength = revealMask * uRevealEnabled;\nfloat halftone = jkpHalftone(vWorldPos.xz + vWorldPos.y * 0.35, 8.0, 0.18);\nfloat patternAlpha = mix(uRevealOpacity * 0.55, uRevealOpacity + 0.26, halftone);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.82, 0.96), halftone * revealStrength * 0.28);\ndiffuseColor.a = mix(diffuseColor.a, patternAlpha, revealStrength);'
+                'vec4 diffuseColor = vec4( diffuse, opacity );\nvec2 screenUv = gl_FragCoord.xy / max(uResolution, vec2(1.0));\nfloat revealMask = jkpEllipseMask(screenUv, uRevealScreenPos, uRevealScreenRadius);\nfloat revealStrength = revealMask * uRevealEnabled;\nfloat halftone = jkpHalftone(screenUv, uResolution);\nfloat targetAlpha = mix(uRevealOpacity * 0.45, uRevealOpacity + 0.22, halftone);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.80, 0.89, 1.0), revealStrength * (0.14 + halftone * 0.18));\ndiffuseColor.a = mix(diffuseColor.a, targetAlpha, revealStrength);'
             );
 
             material.userData.shader = shader;
@@ -2116,24 +2254,34 @@ class VisualEngine {
 
         if (!this.playerObj?.visible) return;
 
-        const playerPos = this.playerObj.position.clone();
-        const dir = playerPos.clone().sub(this.camera.position);
-        const distance = dir.length();
-        if (distance <= 0.01) return;
+        const revealState = this.getPlayerRevealState();
+        if (!revealState) return;
 
-        this.raycaster.set(this.camera.position, dir.normalize());
-        this.raycaster.far = distance;
-        const hits = this.raycaster.intersectObjects(this.occluders.map((item) => item.boxMesh), false);
+        const occluderMeshes = this.occluders.map((item) => item.boxMesh);
+        const hitOccluders = new Set();
+        for (const samplePoint of this.getPlayerOcclusionSamplePoints(revealState)) {
+            const dir = samplePoint.clone().sub(this.camera.position);
+            const distance = dir.length();
+            if (distance <= 0.01) continue;
+            this.raycaster.set(this.camera.position, dir.normalize());
+            this.raycaster.far = distance;
+            const hits = this.raycaster.intersectObjects(occluderMeshes, false);
+            for (const hit of hits) {
+                const occluder = this.occluderLookup.get(hit.object.uuid);
+                if (occluder) hitOccluders.add(occluder);
+            }
+        }
 
-        for (const hit of hits) {
-            const occluder = this.occluderLookup.get(hit.object.uuid);
-            if (!occluder) continue;
+        const resolution = new THREE.Vector2(this.renderer.domElement.width, this.renderer.domElement.height);
+        for (const occluder of hitOccluders) {
             const shader = occluder.boxMesh.material.userData.shader;
             if (shader) {
                 shader.uniforms.uRevealEnabled.value = 1;
-                shader.uniforms.uRevealCenter.value.copy(playerPos);
+                shader.uniforms.uRevealScreenPos.value.copy(revealState.screenCenter);
+                shader.uniforms.uRevealScreenRadius.value.copy(revealState.screenRadius);
+                shader.uniforms.uResolution.value.copy(resolution);
             }
-            occluder.edgeMesh.material.opacity = 0.25;
+            occluder.edgeMesh.material.opacity = 0.38;
         }
     }
 
@@ -2218,6 +2366,59 @@ class VisualEngine {
         this.playerTopRotor = built.topRotor;
         this.playerBottomRotor = built.bottomRotor;
         this.scene.add(this.playerObj);
+        const playerBounds = new THREE.Box3().setFromObject(this.playerObj);
+        this.playerRevealRadius = Math.max(0.42, playerBounds.getBoundingSphere(new THREE.Sphere()).radius * 0.92);
+    }
+
+    getPlayerRevealState() {
+        if (!this.playerObj?.visible) return null;
+
+        const center = this.playerObj.position.clone();
+        const projectedCenter = center.clone().project(this.camera);
+        if (!Number.isFinite(projectedCenter.x) || !Number.isFinite(projectedCenter.y) || projectedCenter.z < -1.2 || projectedCenter.z > 1.2) {
+            return null;
+        }
+
+        const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0).normalize();
+        const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1).normalize();
+        const radius = this.playerRevealRadius;
+        const projectedRight = center.clone().addScaledVector(right, radius).project(this.camera);
+        const projectedLeft = center.clone().addScaledVector(right, -radius).project(this.camera);
+        const projectedUp = center.clone().addScaledVector(up, radius).project(this.camera);
+        const projectedDown = center.clone().addScaledVector(up, -radius).project(this.camera);
+        const screenCenter = new THREE.Vector2(projectedCenter.x * 0.5 + 0.5, projectedCenter.y * 0.5 + 0.5);
+        const radiusX = Math.max(Math.abs(projectedRight.x - projectedCenter.x), Math.abs(projectedLeft.x - projectedCenter.x)) * 0.5 * 1.18;
+        const radiusY = Math.max(Math.abs(projectedUp.y - projectedCenter.y), Math.abs(projectedDown.y - projectedCenter.y)) * 0.5 * 1.24;
+
+        return {
+            center,
+            right,
+            up,
+            radius,
+            screenCenter,
+            screenRadius: new THREE.Vector2(
+                THREE.MathUtils.clamp(radiusX, 0.035, 0.22),
+                THREE.MathUtils.clamp(radiusY, 0.035, 0.24)
+            )
+        };
+    }
+
+    getPlayerOcclusionSamplePoints(revealState) {
+        const sampleOffsets = [
+            [0, 0],
+            [0, 0.62],
+            [0, -0.7],
+            [0.7, 0],
+            [-0.7, 0],
+            [0.46, 0.46],
+            [-0.46, 0.46],
+            [0.5, -0.42],
+            [-0.5, -0.42]
+        ];
+        return sampleOffsets.map(([offsetX, offsetY]) => revealState.center.clone()
+            .addScaledVector(revealState.right, revealState.radius * offsetX)
+            .addScaledVector(revealState.up, revealState.radius * offsetY)
+        );
     }
 
     buildEnemyModel(archetype) {
@@ -3035,7 +3236,11 @@ class ModelEditor {
         this.previewRaycaster = new THREE.Raycaster();
         this.previewRig = null;
         this.previewModel = null;
-        this.selectionDots = null;
+        this.selectionOverlayItems = [];
+        this.selectionFaceMaterial = null;
+        this.selectionFaceEdgeMaterial = null;
+        this.selectionLineOuterMaterial = null;
+        this.selectionLineInnerMaterial = null;
         this.selection = [];
         this.previewDistance = 3.4;
         this.isOpen = false;
@@ -3095,13 +3300,34 @@ class ModelEditor {
         const grid = new THREE.GridHelper(8, 16, 0x334155, 0x0f172a);
         grid.position.y = -0.7;
         this.previewScene.add(grid);
-
-        this.selectionDots = new THREE.Points(
-            new THREE.BufferGeometry(),
-            new THREE.PointsMaterial({ color: 0xfacc15, size: 0.06, sizeAttenuation: true, transparent: true, opacity: 0.95 })
-        );
-        this.selectionDots.visible = false;
-        this.previewScene.add(this.selectionDots);
+        this.selectionFaceMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.24,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            polygonOffset: true,
+            polygonOffsetFactor: -2,
+            polygonOffsetUnits: -2
+        });
+        this.selectionFaceEdgeMaterial = new THREE.LineBasicMaterial({
+            color: 0x7dd3fc,
+            transparent: true,
+            opacity: 0.95,
+            depthWrite: false
+        });
+        this.selectionLineOuterMaterial = new THREE.MeshBasicMaterial({
+            color: 0x38bdf8,
+            transparent: true,
+            opacity: 0.92,
+            depthWrite: false
+        });
+        this.selectionLineInnerMaterial = new THREE.MeshBasicMaterial({
+            color: 0xe0f2fe,
+            transparent: true,
+            opacity: 0.55,
+            depthWrite: false
+        });
 
         this.canvas.addEventListener('contextmenu', (event) => event.preventDefault());
         this.canvas.addEventListener('pointerdown', (event) => this.handlePointerDown(event));
@@ -3150,13 +3376,13 @@ class ModelEditor {
 
     renderPreview() {
         if (!this.previewRenderer || !this.previewCamera) return;
-        if (this.selection.length > 0) this.updateHighlight();
         this.previewCamera.position.set(0, 0.5, this.previewDistance);
         this.previewCamera.lookAt(0, 0, 0);
         this.previewRenderer.render(this.previewScene, this.previewCamera);
     }
 
     clearPreviewModel() {
+        this.clearSelectionOverlay();
         if (!this.previewModel || !this.previewRig) return;
         this.previewRig.remove(this.previewModel);
         this.previewModel = null;
@@ -3310,9 +3536,29 @@ class ModelEditor {
 
     clearSelection(shouldLog = true) {
         this.selection = [];
-        if (this.selectionDots) this.selectionDots.visible = false;
+        this.clearSelectionOverlay();
         this.syncSelectionUi();
         if (shouldLog) this.log('Selection cleared.');
+    }
+
+    clearSelectionOverlay() {
+        for (const overlay of this.selectionOverlayItems) {
+            if (overlay.parent) overlay.parent.remove(overlay);
+            if (overlay.geometry) overlay.geometry.dispose();
+        }
+        this.selectionOverlayItems = [];
+    }
+
+    createLineSelectionCylinder(start, end, radius, material) {
+        const dir = new THREE.Vector3().subVectors(end, start);
+        const length = dir.length();
+        if (length <= 0.0001) return null;
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 10), material);
+        mesh.position.copy(start).lerp(end, 0.5);
+        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+        mesh.renderOrder = 60;
+        mesh.userData.editorOverlay = true;
+        return mesh;
     }
 
     handlePointerDown(event) {
@@ -3483,13 +3729,11 @@ class ModelEditor {
     }
 
     updateHighlight() {
+        this.clearSelectionOverlay();
         if (this.selection.length === 0) {
-            if (this.selectionDots) this.selectionDots.visible = false;
             return;
         }
 
-        this.previewScene.updateMatrixWorld(true);
-        const points = [];
         const a = new THREE.Vector3();
         const b = new THREE.Vector3();
         const c = new THREE.Vector3();
@@ -3497,45 +3741,65 @@ class ModelEditor {
 
         for (const item of this.selection) {
             const positions = item.object.geometry.getAttribute('position');
-            const matrix = item.object.matrixWorld;
             if (item.kind === 'mesh') {
                 const start = item.index * 3;
                 if (start + 2 >= positions.count) continue;
-                a.fromBufferAttribute(positions, start).applyMatrix4(matrix);
-                b.fromBufferAttribute(positions, start + 1).applyMatrix4(matrix);
-                c.fromBufferAttribute(positions, start + 2).applyMatrix4(matrix);
+                a.fromBufferAttribute(positions, start);
+                b.fromBufferAttribute(positions, start + 1);
+                c.fromBufferAttribute(positions, start + 2);
                 normal.copy(
                     new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).normalize()
-                ).multiplyScalar(0.01);
+                ).multiplyScalar(0.008);
+                const p0 = a.clone().add(normal);
+                const p1 = b.clone().add(normal);
+                const p2 = c.clone().add(normal);
+                const fillGeometry = new THREE.BufferGeometry();
+                fillGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+                    p0.x, p0.y, p0.z,
+                    p1.x, p1.y, p1.z,
+                    p2.x, p2.y, p2.z
+                ], 3));
+                const fillMesh = new THREE.Mesh(fillGeometry, this.selectionFaceMaterial);
+                fillMesh.renderOrder = 58;
+                fillMesh.userData.editorOverlay = true;
+                item.object.add(fillMesh);
+                this.selectionOverlayItems.push(fillMesh);
 
-                const samples = [
-                    [0.2, 0.2, 0.6], [0.2, 0.6, 0.2], [0.6, 0.2, 0.2],
-                    [0.33, 0.33, 0.34], [0.15, 0.45, 0.4], [0.45, 0.15, 0.4]
-                ];
-                for (const [wa, wb, wc] of samples) {
-                    const point = new THREE.Vector3()
-                        .addScaledVector(a, wa)
-                        .addScaledVector(b, wb)
-                        .addScaledVector(c, wc)
-                        .add(normal);
-                    points.push(point.x, point.y, point.z);
-                }
+                const edgeGeometry = new THREE.BufferGeometry();
+                edgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute([
+                    p0.x, p0.y, p0.z,
+                    p1.x, p1.y, p1.z,
+                    p1.x, p1.y, p1.z,
+                    p2.x, p2.y, p2.z,
+                    p2.x, p2.y, p2.z,
+                    p0.x, p0.y, p0.z
+                ], 3));
+                const edgeLines = new THREE.LineSegments(edgeGeometry, this.selectionFaceEdgeMaterial);
+                edgeLines.renderOrder = 59;
+                edgeLines.userData.editorOverlay = true;
+                item.object.add(edgeLines);
+                this.selectionOverlayItems.push(edgeLines);
                 continue;
             }
 
             const start = item.index * 2;
             if (start + 1 >= positions.count) continue;
-            a.fromBufferAttribute(positions, start).applyMatrix4(matrix);
-            b.fromBufferAttribute(positions, start + 1).applyMatrix4(matrix);
-            for (let i = 0; i <= 8; i++) {
-                const point = new THREE.Vector3().lerpVectors(a, b, i / 8);
-                points.push(point.x, point.y, point.z);
+            a.fromBufferAttribute(positions, start);
+            b.fromBufferAttribute(positions, start + 1);
+            const entry = this.getSelectionEntry(item);
+            const outerRadius = 0.012 + entry.width * 0.004;
+            const innerRadius = outerRadius * 0.52;
+            const outerMesh = this.createLineSelectionCylinder(a, b, outerRadius, this.selectionLineOuterMaterial);
+            const innerMesh = this.createLineSelectionCylinder(a, b, innerRadius, this.selectionLineInnerMaterial);
+            if (outerMesh) {
+                item.object.add(outerMesh);
+                this.selectionOverlayItems.push(outerMesh);
+            }
+            if (innerMesh) {
+                item.object.add(innerMesh);
+                this.selectionOverlayItems.push(innerMesh);
             }
         }
-
-        this.selectionDots.geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-        this.selectionDots.geometry.computeBoundingSphere();
-        this.selectionDots.visible = points.length > 0;
     }
 
     cleanupWorkingConfig(assetKey, partKey) {
