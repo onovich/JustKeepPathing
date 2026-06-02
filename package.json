@@ -1,0 +1,13 @@
+{
+  "name": "just-keep-pathing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A 2.5D auto-pathing maze idle game prototype preserved from the original Gemini Canvas HTML.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/local-static-server.mjs",
+    "start": "node scripts/local-static-server.mjs",
+    "check": "node --check scripts/local-static-server.mjs"
+  }
+}
+

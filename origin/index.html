@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>深渊迷宫：2.5D 回合制视效版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <style>
+        body { 
+            background-color: #000; 
+            color: #f8fafc; 
+            overflow: hidden; 
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        #game-container { touch-action: none; position: relative; }
+
+        #floating-text-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; overflow: hidden;
+        }
+        .floating-text {
+            position: absolute; transform: translate(-50%, -50%); font-weight: 900;
+            text-shadow: 0 2px 0 #000, 2px 0 0 #000, 0 -2px 0 #000, -2px 0 0 #000;
+            will-change: transform, opacity;
+        }
+
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #38bdf8; border-radius: 2px; }
+        .upgrade-btn { transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
+        .upgrade-btn:active { transform: scale(0.96); filter: brightness(1.2); }
+
+        /* RPG UI 专属动画 */
+        .typewriter::after {
+            content: '|';
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+        
+        .hp-bar-fill { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="flex flex-col h-[100dvh] w-screen md:flex-row">
+
+    <!-- 3D 画布区 -->
+    <div id="game-container" class="flex-1 relative border-b md:border-b-0 md:border-r border-slate-800 bg-black">
+        <canvas id="webgl-canvas" class="block w-full h-full absolute top-0 left-0"></canvas>
+        <div id="floating-text-container"></div>
+        
+        <!-- 常规悬浮状态 -->
+        <div class="absolute top-3 left-3 right-3 flex justify-between pointer-events-none drop-shadow-2xl z-20">
+            <div class="bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]">
+                层数 <span id="ui-level" class="text-blue-400 font-black text-lg ml-1">1</span>
+            </div>
+            <div class="bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)] transition-colors duration-300" id="ui-status-box">
+                状态 <span id="ui-status" class="text-emerald-400 font-bold ml-1">初始化</span>
+            </div>
+        </div>
+
+        <!-- 传统 RPG 回合制战斗 UI 遮罩层 (隐藏状态) -->
+        <div id="rpg-combat-ui" class="absolute inset-0 pointer-events-none z-30 hidden flex-col justify-between p-4 md:p-6 transition-opacity duration-300 opacity-0 bg-black/20">
+            <!-- 顶部：对阵双方血条 -->
+            <div class="flex justify-between items-start w-full mt-14">
+                <!-- 玩家状态 -->
+                <div class="bg-blue-900/90 border-2 border-blue-400 p-2 md:p-3 rounded-lg w-32 md:w-56 shadow-[0_0_15px_rgba(96,165,250,0.4)] transform -skew-x-6 backdrop-blur-sm">
+                    <div class="text-blue-100 font-bold italic mb-1 text-xs md:text-sm tracking-widest">玩家 (LV.<span id="rpg-p-lv">1</span>)</div>
+                    <div class="w-full bg-slate-900 h-2 md:h-3 rounded overflow-hidden border border-slate-700">
+                        <div id="rpg-p-hp-bar" class="bg-blue-400 h-full w-full hp-bar-fill"></div>
+                    </div>
+                    <div id="rpg-p-hp-text" class="text-right text-[10px] md:text-xs text-blue-200 mt-1 font-mono">50/50</div>
+                </div>
+                
+                <!-- 怪物状态 -->
+                <div class="bg-red-900/90 border-2 border-red-500 p-2 md:p-3 rounded-lg w-32 md:w-56 shadow-[0_0_15px_rgba(248,113,113,0.4)] transform skew-x-6 backdrop-blur-sm">
+                    <div class="text-red-100 font-bold italic mb-1 text-xs md:text-sm tracking-widest text-right">深渊魔物</div>
+                    <div class="w-full bg-slate-900 h-2 md:h-3 rounded overflow-hidden border border-slate-700">
+                        <div id="rpg-m-hp-bar" class="bg-red-500 h-full w-full hp-bar-fill origin-right"></div>
+                    </div>
+                    <div id="rpg-m-hp-text" class="text-left text-[10px] md:text-xs text-red-200 mt-1 font-mono">100/100</div>
+                </div>
+            </div>
+
+            <!-- 底部：经典 RPG 对话文本框 -->
+            <div class="w-full max-w-2xl mx-auto mb-2 md:mb-8">
+                <div class="bg-slate-900/95 border-4 border-slate-300 p-4 md:p-6 rounded shadow-[0_10px_30px_rgba(0,0,0,0.8)] relative">
+                    <!-- 下一步指示箭头 -->
+                    <div class="absolute right-4 bottom-4 w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-t-8 border-t-white animate-bounce"></div>
+                    <p id="rpg-dialogue" class="text-white text-sm md:text-lg font-bold tracking-widest font-mono typewriter min-h-[1.5rem] md:min-h-[1.75rem]"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI 控制区 -->
+    <div id="ui-container" class="h-[45vh] md:h-full md:w-80 lg:w-96 bg-slate-950 flex flex-col shrink-0 relative z-40">
+        <div class="p-4 border-b-4 border-slate-900 text-center shrink-0 bg-slate-800">
+            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-wider">深渊迷宫 <span class="text-xs text-slate-400 font-bold">RPG</span></h1>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 pb-8 space-y-4 bg-slate-900">
+            <div class="bg-slate-800 rounded-xl p-4 border-2 border-slate-700 flex justify-between items-center shadow-inner">
+                <span class="text-slate-400 font-bold text-sm">魂能积分</span>
+                <span id="ui-score" class="text-2xl font-black text-yellow-400 transition-all origin-right">0</span>
+            </div>
+
+            <!-- 升级面板 -->
+            <div class="space-y-3">
+                <button id="btn-up-speed" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-blue-300 flex items-center gap-2">寻路引擎 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">提升穿梭能力</div>
+                    </div>
+                    <div class="text-right"><div id="cost-speed" class="text-yellow-400 font-bold text-sm">10</div></div>
+                </button>
+                <button id="btn-up-atk" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-red-400 flex items-center gap-2">深渊打击 <span id="val-atk" class="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">强化战斗伤害</div>
+                    </div>
+                    <div class="text-right"><div id="cost-atk" class="text-yellow-400 font-bold text-sm">20</div></div>
+                </button>
+                <button id="btn-up-hp" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-green-400 flex items-center gap-2">矩阵护盾 <span id="val-hp" class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">提升生命容错率</div>
+                    </div>
+                    <div class="text-right"><div id="cost-hp" class="text-yellow-400 font-bold text-sm">20</div></div>
+                </button>
+                <button id="btn-up-chest" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-yellow-300 flex items-center gap-2">数据宝藏 <span id="val-chest" class="text-[10px] bg-yellow-950 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">增加宝箱刷出率</div>
+                    </div>
+                    <div class="text-right"><div id="cost-chest" class="text-yellow-400 font-bold text-sm">50</div></div>
+                </button>
+                <button id="btn-up-monster" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-purple-400 flex items-center gap-2">高风险信标 <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">吸引高收益怪物</div>
+                    </div>
+                    <div class="text-right"><div id="cost-monster" class="text-yellow-400 font-bold text-sm">100</div></div>
+                </button>
+            </div>
+            <div class="h-4"></div>
+        </div>
+    </div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// --- 状态与核心逻辑 ---
+const GameState = {
+    phase: 'INIT', level: 1, score: 0,
+    player: { lvSpeed: 1, baseSpeed: 0.15, lvAtk: 1, baseAtk: 10, lvHp: 1, baseHp: 50, currentHp: 50 },
+    maze: { lvChest: 1, baseChestRate: 0.05, lvMonster: 1, baseMonsterRate: 0.03 },
+    costs: {
+        speed: () => Math.floor(10 * Math.pow(1.5, GameState.player.lvSpeed - 1)),
+        atk: () => Math.floor(20 * Math.pow(1.5, GameState.player.lvAtk - 1)),
+        hp: () => Math.floor(20 * Math.pow(1.4, GameState.player.lvHp - 1)),
+        chest: () => Math.floor(50 * Math.pow(1.6, GameState.maze.lvChest - 1)),
+        monster: () => Math.floor(100 * Math.pow(1.8, GameState.maze.lvMonster - 1))
+    },
+    addScore(val) {
+        this.score += val;
+        const el = document.getElementById('ui-score');
+        el.innerText = Math.floor(this.score);
+        el.style.transform = 'scale(1.2)'; el.style.color = '#ffffff';
+        setTimeout(() => { el.style.transform = 'scale(1)'; el.style.color = '#facc15'; }, 150);
+        this.updateUI();
+    },
+    tryBuy(type) {
+        let cost = this.costs[type]();
+        if (this.score >= cost) {
+            this.score -= cost;
+            if (type === 'speed') { this.player.lvSpeed++; this.player.baseSpeed = Math.max(0.04, this.player.baseSpeed - 0.015); }
+            if (type === 'atk') { this.player.lvAtk++; this.player.baseAtk += 5; }
+            if (type === 'hp') { this.player.lvHp++; this.player.baseHp += 20; this.player.currentHp = this.player.baseHp; }
+            if (type === 'chest') { this.maze.lvChest++; this.maze.baseChestRate += 0.02; }
+            if (type === 'monster') { this.maze.lvMonster++; this.maze.baseMonsterRate += 0.015; }
+            this.updateUI();
+            if(window.engine) window.engine.triggerUpgradeEffect();
+            return true;
+        }
+        return false;
+    },
+    updateUI() {
+        document.getElementById('ui-level').innerText = this.level;
+        document.getElementById('rpg-p-lv').innerText = this.player.lvAtk + this.player.lvHp + this.player.lvSpeed;
+        const statusSpan = document.getElementById('ui-status');
+        const statusBox = document.getElementById('ui-status-box');
+        
+        const statusMap = { 'GENERATING': '挖掘中', 'EXPLORING': '自动寻路', 'COMBAT': 'RPG 战斗模式!' };
+        statusSpan.innerText = statusMap[this.phase] || '就绪';
+        
+        if(this.phase === 'COMBAT') {
+            statusBox.className = 'bg-red-900/95 px-4 py-2 rounded-lg border-2 border-red-500 text-sm shadow-[0_4px_0_rgba(153,27,27,1)] animate-pulse';
+            statusSpan.className = 'text-white font-bold ml-1';
+        } else {
+            statusBox.className = 'bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]';
+            statusSpan.className = 'text-emerald-400 font-bold ml-1';
+        }
+
+        document.getElementById('ui-score').innerText = Math.floor(this.score);
+        ['speed', 'atk', 'hp', 'chest', 'monster'].forEach(id => {
+            let lv = this.player[`lv${id.charAt(0).toUpperCase()+id.slice(1)}`] || this.maze[`lv${id.charAt(0).toUpperCase()+id.slice(1)}`];
+            let cost = this.costs[id]();
+            document.getElementById(`val-${id}`).innerText = `Lv.${lv}`;
+            document.getElementById(`cost-${id}`).innerText = cost;
+            const btn = document.getElementById(`btn-up-${id}`);
+            if (this.score >= cost) btn.classList.remove('opacity-50', 'grayscale');
+            else btn.classList.add('opacity-50', 'grayscale');
+        });
+    }
+};
+
+const Easing = {
+    linear: t => t,
+    easeOutQuad: t => t * (2 - t),
+    easeOutBack: t => { const c1 = 1.70158; const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
+    easeOutElastic: t => { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1; }
+};
+
+class TweenManager {
+    constructor() { this.tweens = []; }
+    add(obj, props, duration, easing = Easing.linear, onComplete = null) {
+        let startProps = {}; for (let k in props) startProps[k] = obj[k];
+        this.tweens.push({ obj, startProps, targetProps: props, duration, time: 0, easing, onComplete });
+    }
+    update(dt) {
+        for (let i = this.tweens.length - 1; i >= 0; i--) {
+            let t = this.tweens[i]; t.time += dt;
+            let progress = Math.min(t.time / t.duration, 1);
+            let easeVal = t.easing(progress);
+            for (let k in t.targetProps) t.obj[k] = t.startProps[k] + (t.targetProps[k] - t.startProps[k]) * easeVal;
+            if (progress === 1) { if (t.onComplete) t.onComplete(); this.tweens.splice(i, 1); }
+        }
+    }
+}
+
+// --- 渲染引擎 ---
+class VisualEngine {
+    constructor() {
+        this.container = document.getElementById('game-container');
+        this.canvas = document.getElementById('webgl-canvas');
+        this.textContainer = document.getElementById('floating-text-container');
+        
+        let w = Math.max(300, this.container.clientWidth); let h = Math.max(300, this.container.clientHeight);
+
+        this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x000000);
+        this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
+        this.cameraTarget = new THREE.Vector3();
+        
+        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+        this.renderer.setSize(w, h); this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(new RenderPass(this.scene, this.camera));
+        this.glitchPass = new GlitchPass(); this.glitchPass.goWild = false; this.glitchPass.enabled = false;
+        this.composer.addPass(this.glitchPass);
+        this.composer.addPass(new OutputPass());
+
+        this.tweens = new TweenManager(); this.clock = new THREE.Clock();
+        this.entities = []; this.particles = []; this.floatingTexts = []; this.trauma = 0;
+
+        this.materials = {
+            floor: new THREE.MeshBasicMaterial({ color: 0x1e293b }), wallBox: new THREE.MeshBasicMaterial({ color: 0x020617 }),
+            wallEdge: new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }), player: new THREE.MeshBasicMaterial({ color: 0x22d3ee }),
+            chest: new THREE.MeshBasicMaterial({ color: 0xfacc15 }), monster: new THREE.MeshBasicMaterial({ color: 0xef4444 })
+        };
+        this.setupPlayer();
+        window.addEventListener('resize', () => this.resize()); this.resize();
+        this.animate = this.animate.bind(this); this.animate();
+    }
+
+    resize() {
+        let w = Math.max(300, this.container.clientWidth); let h = Math.max(300, this.container.clientHeight);
+        this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+        this.renderer.setSize(w, h); this.composer.setSize(w, h);
+    }
+
+    setupPlayer() {
+        this.playerObj = new THREE.Group();
+        const geo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 32);
+        this.playerMesh = new THREE.Mesh(geo, this.materials.player);
+        this.playerObj.add(this.playerMesh);
+        const line = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color: 0x0891b2}));
+        this.playerObj.add(line);
+        this.scene.add(this.playerObj);
+    }
+
+    shake(amount) { this.trauma = Math.min(this.trauma + amount, 1.0); }
+    glitch() { this.glitchPass.enabled = true; setTimeout(() => { this.glitchPass.enabled = false; }, 150); }
+
+    triggerUpgradeEffect() {
+        this.shake(0.2); this.playerMesh.scale.set(1,1,1);
+        this.tweens.add(this.playerMesh.scale, {x: 1.8, y: 1.8, z: 1.8}, 0.2, Easing.easeOutQuad, () => {
+            this.tweens.add(this.playerMesh.scale, {x: 1, y: 1, z: 1}, 0.6, Easing.easeOutElastic);
+        });
+        this.spawnBurst(this.playerObj.position, 0x4ade80, 25, 4);
+    }
+
+    spawnBurst(pos, colorHex, count = 15, speedMultiplier = 1) {
+        const geo = new THREE.PlaneGeometry(0.15, 0.15);
+        const mat = new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide });
+        for(let i=0; i<count; i++) {
+            let p = new THREE.Mesh(geo, mat); p.position.copy(pos); p.position.y += 0.2;
+            let angle = Math.random() * Math.PI * 2; let speed = (Math.random() * 3 + 2) * speedMultiplier;
+            p.userData.velocity = new THREE.Vector3(Math.cos(angle)*speed, Math.random()*5 + 2, Math.sin(angle)*speed);
+            p.userData.life = 1.0; this.scene.add(p); this.particles.push(p);
+        }
+    }
+
+    addFloatingText(text, pos3D, colorStr, isCritical = false) {
+        const el = document.createElement('div'); el.className = 'floating-text'; el.innerText = text; el.style.color = colorStr;
+        if(isCritical) el.style.fontSize = '24px';
+        this.textContainer.appendChild(el);
+        this.floatingTexts.push({ el: el, pos: pos3D.clone().add(new THREE.Vector3(0, 1.5, 0)), life: 1.0, vy: 2.0 });
+    }
+
+    updateParticlesAndText(dt) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            let p = this.particles[i]; p.userData.life -= dt * 1.5;
+            if (p.userData.life <= 0) { this.scene.remove(p); this.particles.splice(i, 1); continue; }
+            p.userData.velocity.y -= 15 * dt; p.position.addScaledVector(p.userData.velocity, dt);
+            p.scale.setScalar(p.userData.life); p.quaternion.copy(this.camera.quaternion);
+        }
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            let ft = this.floatingTexts[i]; ft.life -= dt * 1.2;
+            if (ft.life <= 0) { ft.el.remove(); this.floatingTexts.splice(i, 1); continue; }
+            ft.pos.y += ft.vy * dt; let tempV = ft.pos.clone(); tempV.project(this.camera);
+            let x = (tempV.x * .5 + .5) * this.canvas.clientWidth; let y = (tempV.y * -.5 + .5) * this.canvas.clientHeight;
+            ft.el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${ft.life < 0.2 ? ft.life*5 : 1})`;
+            ft.el.style.opacity = ft.life;
+        }
+    }
+
+    animate() {
+        requestAnimationFrame(this.animate);
+        const dt = Math.min(this.clock.getDelta(), 0.1);
+        this.tweens.update(dt); this.updateParticlesAndText(dt);
+
+        if (this.playerObj) {
+            let desiredCamPos = new THREE.Vector3(); let desiredTarget = new THREE.Vector3();
+            if (GameState.phase === 'COMBAT') {
+                let pPos = this.playerObj.position;
+                desiredCamPos.set(pPos.x, 3.5, pPos.z + 4);
+                let enemyPos = pPos.clone();
+                if(window.gameController && window.gameController.currentEnemy) { enemyPos = window.gameController.currentEnemy.mesh.position; }
+                desiredTarget.lerpVectors(pPos, enemyPos, 0.5);
+                this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 45, dt * 5);
+            } else if (GameState.phase === 'GENERATING') {
+                desiredCamPos.set(0, 18, 4); desiredTarget.set(0, 0, 0);
+                this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 55, dt * 2);
+            } else {
+                let pPos = this.playerObj.position;
+                desiredCamPos.set(pPos.x, 9, pPos.z + 4); desiredTarget.copy(pPos);
+                this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 50, dt * 3);
+            }
+            this.camera.updateProjectionMatrix();
+            this.camera.position.lerp(desiredCamPos, dt * 4); this.cameraTarget.lerp(desiredTarget, dt * 6);
+            this.camera.lookAt(this.cameraTarget);
+
+            if (this.trauma > 0) {
+                let shakeAmt = this.trauma * this.trauma;
+                this.camera.position.x += (Math.random() - 0.5) * shakeAmt * 1.0;
+                this.camera.position.y += (Math.random() - 0.5) * shakeAmt * 1.0;
+                this.camera.position.z += (Math.random() - 0.5) * shakeAmt * 1.0;
+                this.trauma = Math.max(0, this.trauma - dt * 2.5);
+            }
+        }
+        this.composer.render();
+    }
+}
+
+// --- 游戏逻辑 ---
+class GameController {
+    constructor(engine) {
+        this.engine = engine; this.mazeGroup = new THREE.Group(); this.engine.scene.add(this.mazeGroup);
+        this.cols = 15; this.rows = 15; this.offsetC = -Math.floor(this.cols / 2); this.offsetR = -Math.floor(this.rows / 2);
+        this.playerPos = { c: 0, r: 0 }; this.endPos = { c: 0, r: 0 }; this.path = []; this.genStack = []; this.currentEnemy = null;
+        
+        ['speed', 'atk', 'hp', 'chest', 'monster'].forEach(type => {
+            document.getElementById(`btn-up-${type}`).addEventListener('click', () => GameState.tryBuy(type));
+        });
+        window.gameController = this; this.startLevel();
+    }
+
+    sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+    getWorldPos(c, r) { return new THREE.Vector3(c + this.offsetC, 0, r + this.offsetR); }
+
+    startLevel() {
+        GameState.phase = 'GENERATING'; GameState.player.currentHp = GameState.player.baseHp; GameState.updateUI();
+        while(this.mazeGroup.children.length > 0) this.mazeGroup.remove(this.mazeGroup.children[0]);
+        this.engine.entities.forEach(e => this.engine.scene.remove(e.mesh)); this.engine.entities = []; this.grid = [];
+
+        const floorGeo = new THREE.PlaneGeometry(this.cols + 2, this.rows + 2);
+        const floorMesh = new THREE.Mesh(floorGeo, this.engine.materials.floor);
+        floorMesh.rotation.x = -Math.PI / 2; floorMesh.position.y = 0; this.mazeGroup.add(floorMesh);
+
+        const wallGeo = new THREE.BoxGeometry(1, 0.5, 1); const edgesGeo = new THREE.EdgesGeometry(wallGeo);
+        for (let r = 0; r < this.rows; r++) {
+            let row = [];
+            for (let c = 0; c < this.cols; c++) {
+                let group = new THREE.Group(); let pos = this.getWorldPos(c, r);
+                group.add(new THREE.Mesh(wallGeo, this.engine.materials.wallBox));
+                group.add(new THREE.LineSegments(edgesGeo, this.engine.materials.wallEdge));
+                group.position.set(pos.x, 0.25, pos.z); this.mazeGroup.add(group);
+                row.push({ c, r, isWall: true, mesh: group, visited: false, entity: null });
+            }
+            this.grid.push(row);
+        }
+
+        this.playerPos = { c: 1, r: 1 }; this.endPos = { c: this.cols - 2, r: this.rows - 2 };
+        this.grid[1][1].visited = true; this.genStack = [this.grid[1][1]];
+        this.engine.playerObj.visible = false;
+        this.genInterval = setInterval(() => this.stepGenerate(), 20);
+    }
+
+    digWall(cell) {
+        if(cell.isWall) {
+            cell.isWall = false; this.engine.tweens.add(cell.mesh.position, { y: -0.5 }, 0.3, Easing.easeOutQuad);
+            if(Math.random()>0.5) this.engine.spawnBurst(new THREE.Vector3(cell.mesh.position.x, 0, cell.mesh.position.z), 0x475569, 3, 0.5);
+        }
+    }
+
+    stepGenerate() {
+        if (this.genStack.length === 0) { clearInterval(this.genInterval); this.finishGeneration(); return; }
+        let steps = 3;
+        while(steps-- > 0 && this.genStack.length > 0) {
+            let curr = this.genStack[this.genStack.length - 1]; this.digWall(curr);
+            let neighbors = []; const dirs = [[-2, 0], [2, 0], [0, -2], [0, 2]];
+            for (let d of dirs) {
+                let nc = curr.c + d[0], nr = curr.r + d[1];
+                if (nc > 0 && nc < this.cols - 1 && nr > 0 && nr < this.rows - 1 && !this.grid[nr][nc].visited) {
+                    neighbors.push({c: nc, r: nr, wc: curr.c + d[0]/2, wr: curr.r + d[1]/2});
+                }
+            }
+            if (neighbors.length > 0) {
+                let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                this.digWall(this.grid[next.wr][next.wc]); this.grid[next.r][next.c].visited = true;
+                this.genStack.push(this.grid[next.r][next.c]);
+            } else { this.genStack.pop(); }
+        }
+    }
+
+    createEntity(type, mat, c, r) {
+        let group = new THREE.Group();
+        let geo = type === 'chest' ? new THREE.BoxGeometry(0.4, 0.4, 0.4) : new THREE.ConeGeometry(0.25, 0.5, 4);
+        group.add(new THREE.Mesh(geo, mat));
+        group.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color: 0x000000, linewidth:2})));
+        let pos = this.getWorldPos(c, r); group.position.set(pos.x, 5, pos.z); this.engine.scene.add(group);
+        this.engine.tweens.add(group.position, {y: 0.25}, 0.6, Easing.easeOutBounce);
+        return group;
+    }
+
+    finishGeneration() {
+        this.digWall(this.grid[this.endPos.r][this.endPos.c]);
+        for (let r = 1; r < this.rows - 1; r++) {
+            for (let c = 1; c < this.cols - 1; c++) {
+                if ((r===1&&c===1) || (r===this.endPos.r&&c===this.endPos.c) || this.grid[r][c].isWall) continue;
+                let rand = Math.random();
+                if (rand < GameState.maze.baseMonsterRate) {
+                    this.engine.entities.push({ type: 'monster', mesh: this.createEntity('monster', this.engine.materials.monster, c, r), c, r });
+                    this.grid[r][c].entity = 'monster';
+                } else if (rand < GameState.maze.baseMonsterRate + GameState.maze.baseChestRate) {
+                    this.engine.entities.push({ type: 'chest', mesh: this.createEntity('chest', this.engine.materials.chest, c, r), c, r });
+                    this.grid[r][c].entity = 'chest';
+                }
+            }
+        }
+        const endMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16), this.engine.materials.end);
+        let endWp = this.getWorldPos(this.endPos.c, this.endPos.r); endMesh.position.set(endWp.x, 0.06, endWp.z);
+        this.engine.scene.add(endMesh); this.engine.entities.push({ type: 'end', mesh: endMesh, c: this.endPos.c, r: this.endPos.r });
+        this.grid[this.endPos.r][this.endPos.c].entity = 'end';
+
+        this.findPath();
+        let pStart = this.getWorldPos(1, 1); this.engine.playerObj.position.set(pStart.x, 5, pStart.z); this.engine.playerObj.visible = true;
+        this.engine.tweens.add(this.engine.playerObj.position, {y: 0.1}, 0.6, Easing.easeOutBounce, () => {
+            GameState.phase = 'EXPLORING'; GameState.updateUI(); this.exploreNext();
+        });
+    }
+
+    findPath() {
+        let queue = [{c: this.playerPos.c, r: this.playerPos.r, path: []}]; let visited = new Set([`${this.playerPos.c},${this.playerPos.r}`]);
+        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+        while (queue.length > 0) {
+            let curr = queue.shift();
+            if (curr.c === this.endPos.c && curr.r === this.endPos.r) { this.path = curr.path; return; }
+            for (let d of dirs) {
+                let nc = curr.c + d[0], nr = curr.r + d[1];
+                if (nc > 0 && nc < this.cols && nr > 0 && nr < this.rows && !this.grid[nr][nc].isWall) {
+                    let key = `${nc},${nr}`; if (!visited.has(key)) { visited.add(key); queue.push({c: nc, r: nr, path: [...curr.path, {c: nc, r: nr}]}); }
+                }
+            }
+        }
+    }
+
+    exploreNext() {
+        if (GameState.phase !== 'EXPLORING' || this.path.length === 0) return;
+        
+        // 【核心修改：前瞻侦测，在1格远的地方形成对峙】
+        let nextNode = this.path[0]; 
+        let nextCell = this.grid[nextNode.r][nextNode.c];
+
+        if (nextCell.entity === 'monster') {
+            let entIdx = this.engine.entities.findIndex(e => e.c === nextNode.c && e.r === nextNode.r);
+            let entityObj = entIdx > -1 ? this.engine.entities[entIdx] : null;
+            if (entityObj) {
+                this.startCombatRPG(entityObj, nextNode);
+            }
+            return; // 暂停物理移动，留在原地准备战斗
+        }
+
+        // 安全，正式移入该格子
+        this.path.shift();
+        let targetPos = this.getWorldPos(nextNode.c, nextNode.r);
+        this.engine.tweens.add(this.engine.playerObj.position, { x: targetPos.x, z: targetPos.z }, GameState.player.baseSpeed, Easing.linear, () => {
+            this.playerPos.c = nextNode.c; this.playerPos.r = nextNode.r; this.checkInteraction();
+        });
+    }
+
+    async checkInteraction() {
+        let cell = this.grid[this.playerPos.r][this.playerPos.c];
+        if (cell.entity) {
+            let type = cell.entity; cell.entity = null; 
+            let entIdx = this.engine.entities.findIndex(e => e.c === this.playerPos.c && e.r === this.playerPos.r);
+            let entityObj = entIdx > -1 ? this.engine.entities.splice(entIdx, 1)[0] : null;
+
+            if (type === 'chest') {
+                let reward = 15 * GameState.level; GameState.addScore(reward);
+                if (entityObj) {
+                    this.engine.tweens.add(entityObj.mesh.scale, {x: 2, y: 2, z: 2}, 0.2, Easing.easeOutQuad, () => { this.engine.scene.remove(entityObj.mesh); });
+                    this.engine.spawnBurst(entityObj.mesh.position, 0xfacc15, 20, 1.5);
+                    this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#facc15');
+                }
+                await this.sleep(100);
+            } else if (type === 'end') {
+                let reward = 100 * GameState.level; GameState.addScore(reward); GameState.level++;
+                this.engine.addFloatingText(`突破!`, this.engine.playerObj.position, '#10b981', true);
+                this.engine.triggerUpgradeEffect(); 
+                setTimeout(() => this.startLevel(), 1200);
+                return;
+            }
+        }
+        if(GameState.phase === 'EXPLORING') this.exploreNext();
+    }
+
+    // --- 全新核心：传统的 RPG 回合制战斗逻辑演出 ---
+    async typeText(text) {
+        const el = document.getElementById('rpg-dialogue');
+        el.innerText = '';
+        for(let i = 0; i < text.length; i++) {
+            el.innerText += text[i];
+            await this.sleep(30); // 打字机速度
+        }
+    }
+
+    updateRPG_HP(mHp, mMaxHp) {
+        const pPercent = Math.max(0, GameState.player.currentHp / GameState.player.baseHp * 100);
+        document.getElementById('rpg-p-hp-bar').style.width = pPercent + '%';
+        document.getElementById('rpg-p-hp-text').innerText = `${Math.floor(Math.max(0, GameState.player.currentHp))}/${GameState.player.baseHp}`;
+        
+        const mPercent = Math.max(0, mHp / mMaxHp * 100);
+        document.getElementById('rpg-m-hp-bar').style.width = mPercent + '%';
+        document.getElementById('rpg-m-hp-text').innerText = `${Math.floor(Math.max(0, mHp))}/${Math.floor(mMaxHp)}`;
+    }
+
+    async startCombatRPG(enemyObj, enemyNode) {
+        GameState.phase = 'COMBAT';
+        GameState.updateUI();
+        this.currentEnemy = enemyObj;
+
+        let mMaxHp = 40 + (GameState.level * 15 * Math.pow(1.1, GameState.level-1));
+        let mHp = mMaxHp;
+        let mAtk = 5 + (GameState.level * 3);
+        
+        const enemyMesh = enemyObj.mesh;
+        const pMesh = this.engine.playerObj;
+        enemyMesh.lookAt(pMesh.position);
+
+        // 呼出 RPG 对战 UI
+        const ui = document.getElementById('rpg-combat-ui');
+        ui.classList.remove('hidden');
+        void ui.offsetWidth; // trigger reflow
+        ui.classList.remove('opacity-0');
+        
+        this.updateRPG_HP(mHp, mMaxHp);
+
+        // 等待相机拉近的 2.5D 运镜
+        await this.sleep(600);
+        await this.typeText("遭遇了 深渊魔物！战斗开始！");
+        await this.sleep(800);
+
+        let dir = new THREE.Vector3().subVectors(enemyMesh.position, pMesh.position).normalize();
+        
+        // 【增加冲刺距离】：由于现在相隔一格，0.65能制造完美的飞跃打击视觉
+        let dashDist = 0.65; 
+        
+        // 【模型朝向对准】：让玩家模型也正面对着怪物
+        pMesh.lookAt(enemyMesh.position);
+
+        // 回合制主循环
+        while (mHp > 0 && GameState.player.currentHp > 0) {
+            
+            // --- 玩家回合 ---
+            await this.typeText("【玩家 的回合】发起物理攻击！");
+            await this.sleep(400);
+
+            let dmg = Math.floor(GameState.player.baseAtk * (0.8 + Math.random()*0.4));
+            
+            // 3D 冲刺动画
+            let origPos = pMesh.position.clone();
+            let dashPos = origPos.clone().add(dir.clone().multiplyScalar(dashDist));
+            
+            this.engine.tweens.add(pMesh.position, { x: dashPos.x, z: dashPos.z }, 0.1, Easing.easeOutQuad, () => {
+                this.engine.shake(0.3);
+                this.engine.addFloatingText(dmg.toString(), enemyMesh.position, '#38bdf8', true);
+                this.engine.spawnBurst(enemyMesh.position, 0x38bdf8, 12, 1.5);
+                this.engine.tweens.add(enemyMesh.scale, {x: 1.3, y: 0.5, z: 1.3}, 0.1, Easing.linear, () => {
+                    this.engine.tweens.add(enemyMesh.scale, {x: 1, y: 1, z: 1}, 0.2, Easing.easeOutElastic);
+                });
+                this.engine.tweens.add(pMesh.position, { x: origPos.x, z: origPos.z }, 0.2, Easing.easeOutQuad);
+            });
+
+            await this.sleep(300); // 等待动画完成
+            mHp -= dmg;
+            this.updateRPG_HP(mHp, mMaxHp);
+            await this.typeText(`击中目标！深渊魔物 收到了 ${dmg} 点伤害。`);
+            await this.sleep(800);
+
+            if (mHp <= 0) break;
+
+            // --- 怪物回合 ---
+            await this.typeText("【深渊魔物 的回合】发起了凶猛反扑！");
+            await this.sleep(400);
+
+            let eDmg = Math.floor(mAtk * (0.8 + Math.random()*0.4));
+            
+            // 3D 冲刺反击
+            let eOrigPos = enemyMesh.position.clone();
+            let eDashPos = eOrigPos.clone().sub(dir.clone().multiplyScalar(dashDist));
+            
+            this.engine.tweens.add(enemyMesh.position, { x: eDashPos.x, z: eDashPos.z }, 0.15, Easing.easeOutQuad, () => {
+                this.engine.glitch(); 
+                this.engine.shake(0.6); 
+                this.engine.addFloatingText(`-${eDmg}`, pMesh.position, '#ef4444', true);
+                this.engine.spawnBurst(pMesh.position, 0xef4444, 15, 2);
+                this.engine.tweens.add(pMesh.scale, {x: 1.2, y: 0.6, z: 1.2}, 0.1, Easing.linear, () => {
+                    this.engine.tweens.add(pMesh.scale, {x: 1, y: 1, z: 1}, 0.2, Easing.easeOutElastic);
+                });
+                this.engine.tweens.add(enemyMesh.position, { x: eOrigPos.x, z: eOrigPos.z }, 0.2, Easing.easeOutQuad);
+            });
+
+            await this.sleep(300);
+            GameState.player.currentHp -= eDmg;
+            this.updateRPG_HP(mHp, mMaxHp);
+            await this.typeText(`警告！玩家 损失了 ${eDmg} 点生命值！`);
+            await this.sleep(800);
+        }
+
+        // 战斗结束结算
+        if (mHp <= 0) {
+            let reward = 150 * GameState.level;
+            GameState.addScore(reward);
+            await this.typeText(`战斗胜利！获得了 ${reward} 魂能！`);
+            
+            // 3D 死亡粉碎动画
+            this.engine.shake(0.5);
+            this.engine.spawnBurst(enemyMesh.position, 0xef4444, 30, 3);
+            this.engine.tweens.add(enemyMesh.scale, {x:0, y:0, z:0}, 0.2, Easing.linear, () => {
+                this.engine.scene.remove(enemyMesh);
+            });
+
+            // 【清理前方道路】：从地图实体数据中抹除怪物
+            this.grid[enemyNode.r][enemyNode.c].entity = null;
+            let entIdx = this.engine.entities.findIndex(e => e === enemyObj);
+            if(entIdx > -1) this.engine.entities.splice(entIdx, 1);
+
+            await this.sleep(1500);
+            
+            // 关闭 UI 恢复探索
+            ui.classList.add('opacity-0');
+            setTimeout(() => ui.classList.add('hidden'), 300);
+            
+            this.currentEnemy = null;
+            GameState.phase = 'EXPLORING';
+            GameState.updateUI();
+            
+            // 自动迈开脚步，走入刚刚清理出的格子
+            this.exploreNext(); 
+        } else {
+            await this.typeText("你倒下了... 护盾完全破碎。");
+            this.engine.glitchPass.enabled = true; 
+            await this.sleep(2000);
+            
+            // 关闭 UI 重新生成当前层
+            ui.classList.add('opacity-0');
+            setTimeout(() => ui.classList.add('hidden'), 300);
+            this.engine.glitchPass.enabled = false;
+            this.currentEnemy = null;
+            this.startLevel(); 
+        }
+    }
+}
+
+window.onload = () => {
+    window.engine = new VisualEngine();
+    const gameController = new GameController(window.engine);
+};
+</script>
+</body>
+</html>
