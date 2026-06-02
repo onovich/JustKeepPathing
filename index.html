@@ -2284,6 +2284,13 @@ class VisualEngine {
         return group;
     }
 
+    enableOcclusionRevealLayer(root) {
+        root.traverse((child) => {
+            if (child.isMesh) child.layers.enable(1);
+        });
+        return root;
+    }
+
     applyOccluderRevealShader(material, revealOpacity = 0.2) {
         material.transparent = true;
         material.onBeforeCompile = (shader) => {
@@ -2341,8 +2348,20 @@ class VisualEngine {
         return group;
     }
 
+    hasVisibleOcclusionSubjects() {
+        let hasVisibleSubject = false;
+        this.scene.traverseVisible((child) => {
+            if (hasVisibleSubject) return;
+            if (!child.isMesh) return;
+            if (!child.layers.test(this.camera.layers)) return;
+            if (!child.layers.isEnabled(1)) return;
+            hasVisibleSubject = true;
+        });
+        return hasVisibleSubject;
+    }
+
     renderPlayerOcclusionMask() {
-        if (!this.playerObj?.visible) return false;
+        if (!this.hasVisibleOcclusionSubjects()) return false;
 
         const previousRenderTarget = this.renderer.getRenderTarget();
         const previousAutoClear = this.renderer.autoClear;
@@ -2465,9 +2484,7 @@ class VisualEngine {
         this.playerMesh = built.body;
         this.playerTopRotor = built.topRotor;
         this.playerBottomRotor = built.bottomRotor;
-        this.playerObj.traverse((child) => {
-            if (child.isMesh) child.layers.enable(1);
-        });
+        this.enableOcclusionRevealLayer(this.playerObj);
         this.scene.add(this.playerObj);
         const playerBounds = new THREE.Box3().setFromObject(this.playerObj);
         this.playerRevealRadius = Math.max(0.42, playerBounds.getBoundingSphere(new THREE.Sphere()).radius * 0.92);
@@ -2595,6 +2612,7 @@ class VisualEngine {
         }
 
         group.scale.setScalar(archetype.scale || 1);
+        this.enableOcclusionRevealLayer(group);
         return { group, spinGroup, counterSpinGroup };
     }
 
@@ -2606,6 +2624,7 @@ class VisualEngine {
         const clasp = this.tagEditableAssembly(this.createOutlinedAssembly(new THREE.BoxGeometry(0.08, 0.12, 0.08), this.materials.playerCabin, 0x451a03), 'chest', 'clasp', this.materials.playerCabin.color, 0x451a03);
         clasp.position.set(0, 0.05, 0.24);
         group.add(base, lid, clasp);
+        this.enableOcclusionRevealLayer(group);
         return { group };
     }
 
@@ -2613,6 +2632,7 @@ class VisualEngine {
         const group = new THREE.Group();
         const plate = this.tagEditableAssembly(this.createOutlinedAssembly(new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16), this.materials.end, 0x064e3b), 'exit', 'plate', this.materials.end.color, 0x064e3b);
         group.add(plate);
+        this.enableOcclusionRevealLayer(group);
         return { group };
     }
 
