@@ -86,8 +86,8 @@
                 </div>
                 
                 <!-- 怪物状态 -->
-                <div class="bg-red-900/90 border-2 border-red-500 p-2 md:p-3 rounded-lg w-32 md:w-56 shadow-[0_0_15px_rgba(248,113,113,0.4)] transform skew-x-6 backdrop-blur-sm">
-                    <div class="text-red-100 font-bold italic mb-1 text-xs md:text-sm tracking-widest text-right">深渊魔物</div>
+                <div id="rpg-m-card" class="bg-red-900/90 border-2 border-red-500 p-2 md:p-3 rounded-lg w-32 md:w-56 shadow-[0_0_15px_rgba(248,113,113,0.4)] transform skew-x-6 backdrop-blur-sm">
+                    <div id="rpg-m-name" class="text-red-100 font-bold italic mb-1 text-xs md:text-sm tracking-widest text-right">深渊魔物</div>
                     <div class="w-full bg-slate-900 h-2 md:h-3 rounded overflow-hidden border border-slate-700">
                         <div id="rpg-m-hp-bar" class="bg-red-500 h-full w-full hp-bar-fill origin-right"></div>
                     </div>
@@ -151,7 +151,7 @@
                 <button id="btn-up-monster" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
                         <div class="font-bold text-purple-400 flex items-center gap-2">高风险信标 <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">吸引高收益怪物</div>
+                        <div id="desc-monster" class="text-[10px] text-slate-500 mt-0.5">吸引高收益怪物，Lv.4 解锁 Boss</div>
                     </div>
                     <div class="text-right"><div id="cost-monster" class="text-yellow-400 font-bold text-sm">100</div></div>
                 </button>
@@ -166,10 +166,208 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+const ENEMY_ARCHETYPES = [
+    {
+        id: 'scout',
+        name: '棱镜侦察者',
+        color: 0xf97316,
+        accent: 0xfdba74,
+        minLevel: 1,
+        weight: 4,
+        baseHp: 28,
+        baseAtk: 7,
+        reward: 95,
+        hoverAmplitude: 0.07,
+        hoverSpeed: 2.8,
+        scale: 0.9,
+        intro: '棱镜侦察者切入视野，战斗开始！',
+        attackVerb: '高速撞击'
+    },
+    {
+        id: 'brute',
+        name: '熔核冲锋兽',
+        color: 0xef4444,
+        accent: 0xfca5a5,
+        minLevel: 1,
+        weight: 3,
+        baseHp: 44,
+        baseAtk: 10,
+        reward: 130,
+        hoverAmplitude: 0.04,
+        hoverSpeed: 1.9,
+        scale: 1.05,
+        intro: '熔核冲锋兽正面堵截，战斗开始！',
+        attackVerb: '熔核突进'
+    },
+    {
+        id: 'spine',
+        name: '裂脊潜伏体',
+        color: 0xa855f7,
+        accent: 0xe9d5ff,
+        minLevel: 2,
+        weight: 2,
+        baseHp: 34,
+        baseAtk: 12,
+        reward: 145,
+        hoverAmplitude: 0.09,
+        hoverSpeed: 3.1,
+        scale: 0.96,
+        intro: '裂脊潜伏体从阴影跃出，战斗开始！',
+        attackVerb: '脊刺穿刺'
+    },
+    {
+        id: 'warden',
+        name: '幽环守望者',
+        color: 0x14b8a6,
+        accent: 0x99f6e4,
+        minLevel: 3,
+        weight: 2,
+        baseHp: 40,
+        baseAtk: 11,
+        reward: 165,
+        hoverAmplitude: 0.08,
+        hoverSpeed: 2.3,
+        scale: 1.02,
+        intro: '幽环守望者展开护环，战斗开始！',
+        attackVerb: '环刃碾压'
+    },
+    {
+        id: 'boss',
+        name: '深渊主脑',
+        color: 0xf59e0b,
+        accent: 0xfef08a,
+        minLevel: 4,
+        weight: 0,
+        baseHp: 135,
+        baseAtk: 18,
+        reward: 460,
+        hoverAmplitude: 0.11,
+        hoverSpeed: 1.8,
+        scale: 1.55,
+        intro: '警报：深渊主脑已被投放，Boss 战开始！',
+        attackVerb: '核心湮灭脉冲',
+        boss: true
+    }
+];
+
+class SoundEngine {
+    constructor() {
+        this.ctx = null;
+        this.enabled = true;
+    }
+
+    getContext() {
+        if (this.ctx) return this.ctx;
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        this.ctx = new Ctx();
+        return this.ctx;
+    }
+
+    async unlock() {
+        const ctx = this.getContext();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') {
+            try { await ctx.resume(); } catch {}
+        }
+    }
+
+    beep({
+        freq = 440,
+        duration = 0.12,
+        volume = 0.03,
+        type = 'triangle',
+        slideTo = null,
+        delay = 0,
+        q = 3
+    } = {}) {
+        if (!this.enabled) return;
+        const ctx = this.getContext();
+        if (!ctx || ctx.state !== 'running') return;
+
+        const now = ctx.currentTime + delay;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(2800, now);
+        filter.Q.value = q;
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(40, slideTo), now + duration);
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(volume, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + duration + 0.03);
+    }
+
+    upgrade() {
+        this.beep({ freq: 440, slideTo: 700, duration: 0.14, volume: 0.04, type: 'triangle' });
+        this.beep({ freq: 660, slideTo: 920, duration: 0.16, volume: 0.03, delay: 0.04, type: 'sine' });
+    }
+
+    chest() {
+        this.beep({ freq: 620, slideTo: 920, duration: 0.11, volume: 0.035, type: 'triangle' });
+        this.beep({ freq: 930, slideTo: 1200, duration: 0.15, volume: 0.025, delay: 0.03, type: 'sine' });
+    }
+
+    levelClear() {
+        this.beep({ freq: 390, slideTo: 520, duration: 0.14, volume: 0.04 });
+        this.beep({ freq: 520, slideTo: 780, duration: 0.18, volume: 0.03, delay: 0.05 });
+        this.beep({ freq: 780, slideTo: 1170, duration: 0.24, volume: 0.028, delay: 0.11, type: 'sine' });
+    }
+
+    enemyHit(isBoss = false) {
+        this.beep({
+            freq: isBoss ? 240 : 310,
+            slideTo: isBoss ? 120 : 170,
+            duration: isBoss ? 0.16 : 0.11,
+            volume: isBoss ? 0.05 : 0.032,
+            type: 'sawtooth'
+        });
+    }
+
+    playerHit(isBoss = false) {
+        this.beep({
+            freq: isBoss ? 180 : 220,
+            slideTo: 90,
+            duration: isBoss ? 0.22 : 0.16,
+            volume: isBoss ? 0.055 : 0.038,
+            type: 'square',
+            q: 6
+        });
+    }
+
+    enemyDefeat(isBoss = false) {
+        this.beep({ freq: isBoss ? 180 : 260, slideTo: 90, duration: 0.18, volume: 0.04, type: 'sawtooth' });
+        this.beep({ freq: isBoss ? 520 : 420, slideTo: isBoss ? 820 : 620, duration: 0.2, volume: 0.03, delay: 0.04, type: 'triangle' });
+    }
+
+    bossIntro() {
+        this.beep({ freq: 130, slideTo: 100, duration: 0.4, volume: 0.06, type: 'sawtooth', q: 10 });
+        this.beep({ freq: 260, slideTo: 190, duration: 0.24, volume: 0.035, delay: 0.06, type: 'square' });
+    }
+
+    defeat() {
+        this.beep({ freq: 260, slideTo: 110, duration: 0.28, volume: 0.045, type: 'square' });
+        this.beep({ freq: 150, slideTo: 70, duration: 0.35, volume: 0.035, delay: 0.08, type: 'sawtooth' });
+    }
+}
 
 // --- 状态与核心逻辑 ---
 const GameState = {
-    phase: 'INIT', level: 1, score: 0,
+    phase: 'INIT',
+    level: 1,
+    score: 0,
     player: { lvSpeed: 1, baseSpeed: 0.15, lvAtk: 1, baseAtk: 10, lvHp: 1, baseHp: 50, currentHp: 50 },
     maze: { lvChest: 1, baseChestRate: 0.05, lvMonster: 1, baseMonsterRate: 0.03 },
     costs: {
@@ -179,39 +377,51 @@ const GameState = {
         chest: () => Math.floor(50 * Math.pow(1.6, GameState.maze.lvChest - 1)),
         monster: () => Math.floor(100 * Math.pow(1.8, GameState.maze.lvMonster - 1))
     },
+    isBossUnlocked() {
+        return this.maze.lvMonster >= 4;
+    },
+    getBossFloorChance() {
+        if (!this.isBossUnlocked()) return 0;
+        return Math.min(0.58, 0.14 + (this.maze.lvMonster - 4) * 0.11);
+    },
     addScore(val) {
         this.score += val;
         const el = document.getElementById('ui-score');
         el.innerText = Math.floor(this.score);
-        el.style.transform = 'scale(1.2)'; el.style.color = '#ffffff';
-        setTimeout(() => { el.style.transform = 'scale(1)'; el.style.color = '#facc15'; }, 150);
+        el.style.transform = 'scale(1.2)';
+        el.style.color = '#ffffff';
+        setTimeout(() => {
+            el.style.transform = 'scale(1)';
+            el.style.color = '#facc15';
+        }, 150);
         this.updateUI();
     },
     tryBuy(type) {
-        let cost = this.costs[type]();
-        if (this.score >= cost) {
-            this.score -= cost;
-            if (type === 'speed') { this.player.lvSpeed++; this.player.baseSpeed = Math.max(0.04, this.player.baseSpeed - 0.015); }
-            if (type === 'atk') { this.player.lvAtk++; this.player.baseAtk += 5; }
-            if (type === 'hp') { this.player.lvHp++; this.player.baseHp += 20; this.player.currentHp = this.player.baseHp; }
-            if (type === 'chest') { this.maze.lvChest++; this.maze.baseChestRate += 0.02; }
-            if (type === 'monster') { this.maze.lvMonster++; this.maze.baseMonsterRate += 0.015; }
-            this.updateUI();
-            if(window.engine) window.engine.triggerUpgradeEffect();
-            return true;
-        }
-        return false;
+        const cost = this.costs[type]();
+        if (this.score < cost) return false;
+
+        this.score -= cost;
+        if (type === 'speed') { this.player.lvSpeed++; this.player.baseSpeed = Math.max(0.04, this.player.baseSpeed - 0.015); }
+        if (type === 'atk') { this.player.lvAtk++; this.player.baseAtk += 5; }
+        if (type === 'hp') { this.player.lvHp++; this.player.baseHp += 20; this.player.currentHp = this.player.baseHp; }
+        if (type === 'chest') { this.maze.lvChest++; this.maze.baseChestRate += 0.02; }
+        if (type === 'monster') { this.maze.lvMonster++; this.maze.baseMonsterRate += 0.015; }
+
+        this.updateUI();
+        window.soundEngine?.upgrade();
+        if (window.engine) window.engine.triggerUpgradeEffect();
+        return true;
     },
     updateUI() {
         document.getElementById('ui-level').innerText = this.level;
         document.getElementById('rpg-p-lv').innerText = this.player.lvAtk + this.player.lvHp + this.player.lvSpeed;
+
         const statusSpan = document.getElementById('ui-status');
         const statusBox = document.getElementById('ui-status-box');
-        
-        const statusMap = { 'GENERATING': '挖掘中', 'EXPLORING': '自动寻路', 'COMBAT': 'RPG 战斗模式!' };
+        const statusMap = { GENERATING: '挖掘中', EXPLORING: '自动寻路', COMBAT: 'RPG 战斗模式!' };
         statusSpan.innerText = statusMap[this.phase] || '就绪';
-        
-        if(this.phase === 'COMBAT') {
+
+        if (this.phase === 'COMBAT') {
             statusBox.className = 'bg-red-900/95 px-4 py-2 rounded-lg border-2 border-red-500 text-sm shadow-[0_4px_0_rgba(153,27,27,1)] animate-pulse';
             statusSpan.className = 'text-white font-bold ml-1';
         } else {
@@ -220,108 +430,310 @@ const GameState = {
         }
 
         document.getElementById('ui-score').innerText = Math.floor(this.score);
-        ['speed', 'atk', 'hp', 'chest', 'monster'].forEach(id => {
-            let lv = this.player[`lv${id.charAt(0).toUpperCase()+id.slice(1)}`] || this.maze[`lv${id.charAt(0).toUpperCase()+id.slice(1)}`];
-            let cost = this.costs[id]();
+        ['speed', 'atk', 'hp', 'chest', 'monster'].forEach((id) => {
+            const lv = this.player[`lv${id.charAt(0).toUpperCase() + id.slice(1)}`] || this.maze[`lv${id.charAt(0).toUpperCase() + id.slice(1)}`];
+            const cost = this.costs[id]();
             document.getElementById(`val-${id}`).innerText = `Lv.${lv}`;
             document.getElementById(`cost-${id}`).innerText = cost;
             const btn = document.getElementById(`btn-up-${id}`);
             if (this.score >= cost) btn.classList.remove('opacity-50', 'grayscale');
             else btn.classList.add('opacity-50', 'grayscale');
         });
+
+        const monsterDesc = document.getElementById('desc-monster');
+        if (monsterDesc) {
+            monsterDesc.innerText = this.isBossUnlocked()
+                ? `吸引高收益怪物，Boss 投放率 ${Math.round(this.getBossFloorChance() * 100)}%`
+                : '吸引高收益怪物，Lv.4 解锁 Boss';
+        }
     }
 };
 
+window.GameState = GameState;
+
 const Easing = {
-    linear: t => t,
-    easeOutQuad: t => t * (2 - t),
-    easeOutBack: t => { const c1 = 1.70158; const c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); },
-    easeOutBounce: t => {
-        const n1 = 7.5625; const d1 = 2.75;
+    linear: (t) => t,
+    easeOutQuad: (t) => t * (2 - t),
+    easeOutBack: (t) => {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    },
+    easeOutBounce: (t) => {
+        const n1 = 7.5625;
+        const d1 = 2.75;
         if (t < 1 / d1) return n1 * t * t;
         if (t < 2 / d1) { t -= 1.5 / d1; return n1 * t * t + 0.75; }
         if (t < 2.5 / d1) { t -= 2.25 / d1; return n1 * t * t + 0.9375; }
-        t -= 2.625 / d1; return n1 * t * t + 0.984375;
+        t -= 2.625 / d1;
+        return n1 * t * t + 0.984375;
     },
-    easeOutElastic: t => { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1; }
+    easeOutElastic: (t) => {
+        const c4 = (2 * Math.PI) / 3;
+        return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+    }
 };
 
 class TweenManager {
-    constructor() { this.tweens = []; }
+    constructor() {
+        this.tweens = [];
+    }
+
     add(obj, props, duration, easing = Easing.linear, onComplete = null) {
-        let startProps = {}; for (let k in props) startProps[k] = obj[k];
+        const startProps = {};
+        for (const key in props) startProps[key] = obj[key];
         this.tweens.push({ obj, startProps, targetProps: props, duration, time: 0, easing, onComplete });
     }
+
     update(dt) {
         for (let i = this.tweens.length - 1; i >= 0; i--) {
-            let t = this.tweens[i]; t.time += dt;
-            let progress = Math.min(t.time / t.duration, 1);
-            let easeVal = t.easing(progress);
-            for (let k in t.targetProps) t.obj[k] = t.startProps[k] + (t.targetProps[k] - t.startProps[k]) * easeVal;
-            if (progress === 1) { if (t.onComplete) t.onComplete(); this.tweens.splice(i, 1); }
+            const tween = this.tweens[i];
+            tween.time += dt;
+            const progress = Math.min(tween.time / tween.duration, 1);
+            const eased = tween.easing(progress);
+            for (const key in tween.targetProps) {
+                tween.obj[key] = tween.startProps[key] + (tween.targetProps[key] - tween.startProps[key]) * eased;
+            }
+            if (progress === 1) {
+                if (tween.onComplete) tween.onComplete();
+                this.tweens.splice(i, 1);
+            }
         }
     }
 }
 
-// --- 渲染引擎 ---
 class VisualEngine {
     constructor() {
         this.container = document.getElementById('game-container');
         this.canvas = document.getElementById('webgl-canvas');
         this.textContainer = document.getElementById('floating-text-container');
-        
-        let w = Math.max(300, this.container.clientWidth); let h = Math.max(300, this.container.clientHeight);
 
-        this.scene = new THREE.Scene(); this.scene.background = new THREE.Color(0x000000);
+        const w = Math.max(300, this.container.clientWidth);
+        const h = Math.max(300, this.container.clientHeight);
+
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000000);
         this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
         this.cameraTarget = new THREE.Vector3();
-        
+
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
-        this.renderer.setSize(w, h); this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        
+        this.renderer.setSize(w, h);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
-        this.glitchPass = new GlitchPass(); this.glitchPass.goWild = false; this.glitchPass.enabled = false;
+        this.glitchPass = new GlitchPass();
+        this.glitchPass.goWild = false;
+        this.glitchPass.enabled = false;
         this.composer.addPass(this.glitchPass);
         this.composer.addPass(new OutputPass());
 
-        this.tweens = new TweenManager(); this.clock = new THREE.Clock();
-        this.entities = []; this.particles = []; this.floatingTexts = []; this.trauma = 0;
+        this.tweens = new TweenManager();
+        this.clock = new THREE.Clock();
+        this.entities = [];
+        this.particles = [];
+        this.floatingTexts = [];
+        this.trauma = 0;
+        this.motionTime = 0;
 
         this.materials = {
-            floor: new THREE.MeshBasicMaterial({ color: 0x1e293b }), wallBox: new THREE.MeshBasicMaterial({ color: 0x020617 }),
-            wallEdge: new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }), player: new THREE.MeshBasicMaterial({ color: 0x22d3ee }),
-            chest: new THREE.MeshBasicMaterial({ color: 0xfacc15 }), monster: new THREE.MeshBasicMaterial({ color: 0xef4444 }),
+            floor: new THREE.MeshBasicMaterial({ color: 0x1e293b }),
+            wallBox: new THREE.MeshBasicMaterial({ color: 0x020617 }),
+            wallEdge: new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }),
+            playerMain: new THREE.MeshBasicMaterial({ color: 0x22d3ee }),
+            playerAccent: new THREE.MeshBasicMaterial({ color: 0x93c5fd }),
+            playerCabin: new THREE.MeshBasicMaterial({ color: 0xe0f2fe }),
+            playerShadow: new THREE.MeshBasicMaterial({ color: 0x0f172a }),
+            chest: new THREE.MeshBasicMaterial({ color: 0xfacc15 }),
+            chestDark: new THREE.MeshBasicMaterial({ color: 0x854d0e }),
             end: new THREE.MeshBasicMaterial({ color: 0x10b981 })
         };
+
         this.setupPlayer();
-        window.addEventListener('resize', () => this.resize()); this.resize();
-        this.animate = this.animate.bind(this); this.animate();
+        window.addEventListener('resize', () => this.resize());
+        this.resize();
+        this.animate = this.animate.bind(this);
+        this.animate();
     }
 
     resize() {
-        let w = Math.max(300, this.container.clientWidth); let h = Math.max(300, this.container.clientHeight);
-        this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
-        this.renderer.setSize(w, h); this.composer.setSize(w, h);
+        const w = Math.max(300, this.container.clientWidth);
+        const h = Math.max(300, this.container.clientHeight);
+        this.camera.aspect = w / h;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(w, h);
+        this.composer.setSize(w, h);
+    }
+
+    createOutlinedAssembly(geometry, material, edgeColor = 0x020617) {
+        const group = new THREE.Group();
+        const mesh = new THREE.Mesh(geometry, material);
+        const edges = new THREE.LineSegments(
+            new THREE.EdgesGeometry(geometry),
+            new THREE.LineBasicMaterial({ color: edgeColor, linewidth: 2 })
+        );
+        group.add(mesh);
+        group.add(edges);
+        group.userData.mesh = mesh;
+        return group;
     }
 
     setupPlayer() {
         this.playerObj = new THREE.Group();
-        const geo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 32);
-        this.playerMesh = new THREE.Mesh(geo, this.materials.player);
-        this.playerObj.add(this.playerMesh);
-        const line = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color: 0x0891b2}));
-        this.playerObj.add(line);
+        this.playerBody = new THREE.Group();
+        this.playerMesh = this.playerBody;
+
+        this.playerTopRotor = new THREE.Group();
+        this.playerBottomRotor = new THREE.Group();
+        this.playerTopRotor.position.y = 0.12;
+        this.playerBottomRotor.position.y = -0.1;
+
+        const topDisk = this.createOutlinedAssembly(
+            new THREE.CylinderGeometry(0.2, 0.55, 0.12, 32),
+            this.materials.playerMain,
+            0x0f172a
+        );
+        const bottomDisk = this.createOutlinedAssembly(
+            new THREE.CylinderGeometry(0.55, 0.18, 0.12, 32),
+            this.materials.playerShadow,
+            0x020617
+        );
+        const upperRing = this.createOutlinedAssembly(
+            new THREE.TorusGeometry(0.4, 0.055, 12, 32),
+            this.materials.playerAccent,
+            0x0f172a
+        );
+        upperRing.rotation.x = Math.PI / 2;
+        const lowerRing = this.createOutlinedAssembly(
+            new THREE.TorusGeometry(0.34, 0.045, 10, 28),
+            this.materials.playerMain,
+            0x0f172a
+        );
+        lowerRing.rotation.x = Math.PI / 2;
+
+        const cabin = this.createOutlinedAssembly(
+            new THREE.SphereGeometry(0.2, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+            this.materials.playerCabin,
+            0x38bdf8
+        );
+        cabin.position.y = 0.19;
+
+        const engineFinGeo = new THREE.BoxGeometry(0.08, 0.04, 0.28);
+        for (let i = 0; i < 4; i++) {
+            const fin = this.createOutlinedAssembly(engineFinGeo, this.materials.playerAccent, 0x082f49);
+            fin.position.set(Math.cos(i * Math.PI / 2) * 0.32, 0.01, Math.sin(i * Math.PI / 2) * 0.32);
+            fin.rotation.y = i * Math.PI / 2;
+            this.playerTopRotor.add(fin);
+        }
+
+        const glowNodesGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.08, 12);
+        for (let i = 0; i < 3; i++) {
+            const node = this.createOutlinedAssembly(glowNodesGeo, this.materials.playerCabin, 0x0f172a);
+            node.position.set(Math.cos(i * (Math.PI * 2 / 3)) * 0.22, -0.06, Math.sin(i * (Math.PI * 2 / 3)) * 0.22);
+            node.rotation.z = Math.PI / 2;
+            this.playerBottomRotor.add(node);
+        }
+
+        this.playerTopRotor.add(topDisk, upperRing);
+        this.playerBottomRotor.add(bottomDisk, lowerRing);
+        this.playerBody.add(this.playerTopRotor, this.playerBottomRotor, cabin);
+        this.playerObj.add(this.playerBody);
         this.scene.add(this.playerObj);
     }
 
-    shake(amount) { this.trauma = Math.min(this.trauma + amount, 1.0); }
-    glitch() { this.glitchPass.enabled = true; setTimeout(() => { this.glitchPass.enabled = false; }, 150); }
+    buildEnemyModel(archetype) {
+        const group = new THREE.Group();
+        const baseMat = new THREE.MeshBasicMaterial({ color: archetype.color });
+        const accentMat = new THREE.MeshBasicMaterial({ color: archetype.accent });
+        let spinGroup = null;
+        let counterSpinGroup = null;
+
+        if (archetype.id === 'scout') {
+            const core = this.createOutlinedAssembly(new THREE.OctahedronGeometry(0.24), baseMat, 0x431407);
+            const ring = this.createOutlinedAssembly(new THREE.TorusGeometry(0.34, 0.03, 10, 28), accentMat, 0x7c2d12);
+            ring.rotation.x = Math.PI / 2;
+            spinGroup = new THREE.Group();
+            spinGroup.add(ring);
+            group.add(core, spinGroup);
+        } else if (archetype.id === 'brute') {
+            const body = this.createOutlinedAssembly(new THREE.CylinderGeometry(0.28, 0.4, 0.48, 20), baseMat, 0x450a0a);
+            const cap = this.createOutlinedAssembly(new THREE.ConeGeometry(0.18, 0.22, 5), accentMat, 0x450a0a);
+            cap.position.y = 0.34;
+            group.add(body, cap);
+            for (let i = 0; i < 4; i++) {
+                const spike = this.createOutlinedAssembly(new THREE.ConeGeometry(0.07, 0.2, 4), accentMat, 0x450a0a);
+                spike.position.set(Math.cos(i * Math.PI / 2) * 0.3, 0.08, Math.sin(i * Math.PI / 2) * 0.3);
+                spike.rotation.z = Math.PI / 2;
+                spike.rotation.y = i * Math.PI / 2;
+                group.add(spike);
+            }
+        } else if (archetype.id === 'spine') {
+            const spine = this.createOutlinedAssembly(new THREE.ConeGeometry(0.26, 0.6, 6), baseMat, 0x3b0764);
+            spine.position.y = 0.1;
+            const ring = this.createOutlinedAssembly(new THREE.TorusGeometry(0.26, 0.028, 8, 24), accentMat, 0x581c87);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.y = -0.02;
+            spinGroup = new THREE.Group();
+            spinGroup.add(ring);
+            group.add(spine, spinGroup);
+        } else if (archetype.id === 'warden') {
+            const hub = this.createOutlinedAssembly(new THREE.IcosahedronGeometry(0.22, 0), baseMat, 0x042f2e);
+            const halo = this.createOutlinedAssembly(new THREE.TorusGeometry(0.38, 0.04, 10, 30), accentMat, 0x134e4a);
+            halo.rotation.x = Math.PI / 2;
+            spinGroup = new THREE.Group();
+            counterSpinGroup = new THREE.Group();
+            spinGroup.add(halo);
+            const verticalHalo = this.createOutlinedAssembly(new THREE.TorusGeometry(0.28, 0.03, 10, 24), accentMat, 0x134e4a);
+            verticalHalo.rotation.y = Math.PI / 2;
+            counterSpinGroup.add(verticalHalo);
+            group.add(hub, spinGroup, counterSpinGroup);
+        } else if (archetype.id === 'boss') {
+            const core = this.createOutlinedAssembly(new THREE.DodecahedronGeometry(0.35, 0), baseMat, 0x78350f);
+            const outerRing = this.createOutlinedAssembly(new THREE.TorusGeometry(0.58, 0.055, 12, 40), accentMat, 0x92400e);
+            outerRing.rotation.x = Math.PI / 2;
+            const innerRing = this.createOutlinedAssembly(new THREE.TorusGeometry(0.4, 0.035, 10, 32), baseMat, 0x92400e);
+            innerRing.rotation.y = Math.PI / 2;
+            spinGroup = new THREE.Group();
+            counterSpinGroup = new THREE.Group();
+            spinGroup.add(outerRing);
+            counterSpinGroup.add(innerRing);
+            group.add(core, spinGroup, counterSpinGroup);
+            for (let i = 0; i < 6; i++) {
+                const shard = this.createOutlinedAssembly(new THREE.BoxGeometry(0.1, 0.22, 0.1), accentMat, 0x78350f);
+                shard.position.set(Math.cos(i * Math.PI / 3) * 0.55, Math.sin(i * Math.PI / 3) * 0.12, Math.sin(i * Math.PI / 3) * 0.55);
+                group.add(shard);
+            }
+        }
+
+        group.scale.setScalar(archetype.scale || 1);
+        return { group, spinGroup, counterSpinGroup };
+    }
+
+    buildChestModel() {
+        const group = new THREE.Group();
+        const base = this.createOutlinedAssembly(new THREE.BoxGeometry(0.44, 0.24, 0.44), this.materials.chestDark, 0x451a03);
+        const lid = this.createOutlinedAssembly(new THREE.BoxGeometry(0.48, 0.14, 0.48), this.materials.chest, 0x78350f);
+        lid.position.y = 0.16;
+        const clasp = this.createOutlinedAssembly(new THREE.BoxGeometry(0.08, 0.12, 0.08), this.materials.playerCabin, 0x451a03);
+        clasp.position.set(0, 0.05, 0.24);
+        group.add(base, lid, clasp);
+        return { group };
+    }
+
+    shake(amount) {
+        this.trauma = Math.min(this.trauma + amount, 1.0);
+    }
+
+    glitch(duration = 150) {
+        this.glitchPass.enabled = true;
+        setTimeout(() => { this.glitchPass.enabled = false; }, duration);
+    }
 
     triggerUpgradeEffect() {
-        this.shake(0.2); this.playerMesh.scale.set(1,1,1);
-        this.tweens.add(this.playerMesh.scale, {x: 1.8, y: 1.8, z: 1.8}, 0.2, Easing.easeOutQuad, () => {
-            this.tweens.add(this.playerMesh.scale, {x: 1, y: 1, z: 1}, 0.6, Easing.easeOutElastic);
+        this.shake(0.2);
+        this.playerMesh.scale.set(1, 1, 1);
+        this.tweens.add(this.playerMesh.scale, { x: 1.8, y: 1.8, z: 1.8 }, 0.2, Easing.easeOutQuad, () => {
+            this.tweens.add(this.playerMesh.scale, { x: 1, y: 1, z: 1 }, 0.6, Easing.easeOutElastic);
         });
         this.spawnBurst(this.playerObj.position, 0x4ade80, 25, 4);
     }
@@ -329,194 +741,364 @@ class VisualEngine {
     spawnBurst(pos, colorHex, count = 15, speedMultiplier = 1) {
         const geo = new THREE.PlaneGeometry(0.15, 0.15);
         const mat = new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide });
-        for(let i=0; i<count; i++) {
-            let p = new THREE.Mesh(geo, mat); p.position.copy(pos); p.position.y += 0.2;
-            let angle = Math.random() * Math.PI * 2; let speed = (Math.random() * 3 + 2) * speedMultiplier;
-            p.userData.velocity = new THREE.Vector3(Math.cos(angle)*speed, Math.random()*5 + 2, Math.sin(angle)*speed);
-            p.userData.life = 1.0; this.scene.add(p); this.particles.push(p);
+        for (let i = 0; i < count; i++) {
+            const particle = new THREE.Mesh(geo, mat);
+            particle.position.copy(pos);
+            particle.position.y += 0.2;
+            const angle = Math.random() * Math.PI * 2;
+            const speed = (Math.random() * 3 + 2) * speedMultiplier;
+            particle.userData.velocity = new THREE.Vector3(Math.cos(angle) * speed, Math.random() * 5 + 2, Math.sin(angle) * speed);
+            particle.userData.life = 1.0;
+            this.scene.add(particle);
+            this.particles.push(particle);
         }
     }
 
     addFloatingText(text, pos3D, colorStr, isCritical = false) {
-        const el = document.createElement('div'); el.className = 'floating-text'; el.innerText = text; el.style.color = colorStr;
-        if(isCritical) el.style.fontSize = '24px';
+        const el = document.createElement('div');
+        el.className = 'floating-text';
+        el.innerText = text;
+        el.style.color = colorStr;
+        if (isCritical) el.style.fontSize = '24px';
         this.textContainer.appendChild(el);
-        this.floatingTexts.push({ el: el, pos: pos3D.clone().add(new THREE.Vector3(0, 1.5, 0)), life: 1.0, vy: 2.0 });
+        this.floatingTexts.push({ el, pos: pos3D.clone().add(new THREE.Vector3(0, 1.5, 0)), life: 1.0, vy: 2.0 });
     }
 
     updateParticlesAndText(dt) {
         for (let i = this.particles.length - 1; i >= 0; i--) {
-            let p = this.particles[i]; p.userData.life -= dt * 1.5;
-            if (p.userData.life <= 0) { this.scene.remove(p); this.particles.splice(i, 1); continue; }
-            p.userData.velocity.y -= 15 * dt; p.position.addScaledVector(p.userData.velocity, dt);
-            p.scale.setScalar(p.userData.life); p.quaternion.copy(this.camera.quaternion);
+            const particle = this.particles[i];
+            particle.userData.life -= dt * 1.5;
+            if (particle.userData.life <= 0) {
+                this.scene.remove(particle);
+                this.particles.splice(i, 1);
+                continue;
+            }
+            particle.userData.velocity.y -= 15 * dt;
+            particle.position.addScaledVector(particle.userData.velocity, dt);
+            particle.scale.setScalar(particle.userData.life);
+            particle.quaternion.copy(this.camera.quaternion);
         }
+
         for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
-            let ft = this.floatingTexts[i]; ft.life -= dt * 1.2;
-            if (ft.life <= 0) { ft.el.remove(); this.floatingTexts.splice(i, 1); continue; }
-            ft.pos.y += ft.vy * dt; let tempV = ft.pos.clone(); tempV.project(this.camera);
-            let x = (tempV.x * .5 + .5) * this.canvas.clientWidth; let y = (tempV.y * -.5 + .5) * this.canvas.clientHeight;
-            ft.el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${ft.life < 0.2 ? ft.life*5 : 1})`;
-            ft.el.style.opacity = ft.life;
+            const text = this.floatingTexts[i];
+            text.life -= dt * 1.2;
+            if (text.life <= 0) {
+                text.el.remove();
+                this.floatingTexts.splice(i, 1);
+                continue;
+            }
+            text.pos.y += text.vy * dt;
+            const temp = text.pos.clone();
+            temp.project(this.camera);
+            const x = (temp.x * 0.5 + 0.5) * this.canvas.clientWidth;
+            const y = (temp.y * -0.5 + 0.5) * this.canvas.clientHeight;
+            text.el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${text.life < 0.2 ? text.life * 5 : 1})`;
+            text.el.style.opacity = text.life;
+        }
+    }
+
+    updateEntityMotion(dt) {
+        this.motionTime += dt;
+        this.playerTopRotor.rotation.y += dt * 8.5;
+        this.playerBottomRotor.rotation.y -= dt * 11.5;
+        this.playerBody.position.y = Math.sin(this.motionTime * 3.4) * 0.03;
+
+        for (const entity of this.entities) {
+            if (!entity.mesh || entity.type === 'end') continue;
+            const yTarget = entity.baseY + Math.sin(this.motionTime * entity.hoverSpeed + entity.hoverOffset) * entity.hoverAmplitude;
+            entity.mesh.position.y = THREE.MathUtils.lerp(entity.mesh.position.y, yTarget, dt * 5);
+            if (entity.spinGroup) entity.spinGroup.rotation.y += dt * entity.spinSpeed;
+            if (entity.counterSpinGroup) entity.counterSpinGroup.rotation.y -= dt * entity.counterSpinSpeed;
         }
     }
 
     animate() {
         requestAnimationFrame(this.animate);
         const dt = Math.min(this.clock.getDelta(), 0.1);
-        this.tweens.update(dt); this.updateParticlesAndText(dt);
+        this.tweens.update(dt);
+        this.updateParticlesAndText(dt);
+        this.updateEntityMotion(dt);
 
         if (this.playerObj) {
-            let desiredCamPos = new THREE.Vector3(); let desiredTarget = new THREE.Vector3();
+            const desiredCamPos = new THREE.Vector3();
+            const desiredTarget = new THREE.Vector3();
             if (GameState.phase === 'COMBAT') {
-                let pPos = this.playerObj.position;
-                desiredCamPos.set(pPos.x, 3.5, pPos.z + 4);
-                let enemyPos = pPos.clone();
-                if(window.gameController && window.gameController.currentEnemy) { enemyPos = window.gameController.currentEnemy.mesh.position; }
+                const pPos = this.playerObj.position;
+                const currentEnemy = window.gameController?.currentEnemy;
+                const enemyPos = currentEnemy ? currentEnemy.mesh.position : pPos.clone();
+                const bossZoomOut = currentEnemy?.enemyData?.boss ? 1.4 : 1;
+                desiredCamPos.set(pPos.x, 3.4 * bossZoomOut, pPos.z + 4.1 * bossZoomOut);
                 desiredTarget.lerpVectors(pPos, enemyPos, 0.5);
-                this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 45, dt * 5);
+                this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, currentEnemy?.enemyData?.boss ? 48 : 45, dt * 5);
             } else if (GameState.phase === 'GENERATING') {
-                desiredCamPos.set(0, 18, 4); desiredTarget.set(0, 0, 0);
+                desiredCamPos.set(0, 18, 4);
+                desiredTarget.set(0, 0, 0);
                 this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 55, dt * 2);
             } else {
-                let pPos = this.playerObj.position;
-                desiredCamPos.set(pPos.x, 9, pPos.z + 4); desiredTarget.copy(pPos);
+                const pPos = this.playerObj.position;
+                desiredCamPos.set(pPos.x, 9, pPos.z + 4);
+                desiredTarget.copy(pPos);
                 this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, 50, dt * 3);
             }
+
             this.camera.updateProjectionMatrix();
-            this.camera.position.lerp(desiredCamPos, dt * 4); this.cameraTarget.lerp(desiredTarget, dt * 6);
+            this.camera.position.lerp(desiredCamPos, dt * 4);
+            this.cameraTarget.lerp(desiredTarget, dt * 6);
             this.camera.lookAt(this.cameraTarget);
 
             if (this.trauma > 0) {
-                let shakeAmt = this.trauma * this.trauma;
-                this.camera.position.x += (Math.random() - 0.5) * shakeAmt * 1.0;
-                this.camera.position.y += (Math.random() - 0.5) * shakeAmt * 1.0;
-                this.camera.position.z += (Math.random() - 0.5) * shakeAmt * 1.0;
+                const shakeAmt = this.trauma * this.trauma;
+                this.camera.position.x += (Math.random() - 0.5) * shakeAmt;
+                this.camera.position.y += (Math.random() - 0.5) * shakeAmt;
+                this.camera.position.z += (Math.random() - 0.5) * shakeAmt;
                 this.trauma = Math.max(0, this.trauma - dt * 2.5);
             }
         }
+
         this.composer.render();
     }
 }
 
-// --- 游戏逻辑 ---
 class GameController {
     constructor(engine) {
-        this.engine = engine; this.mazeGroup = new THREE.Group(); this.engine.scene.add(this.mazeGroup);
-        this.cols = 15; this.rows = 15; this.offsetC = -Math.floor(this.cols / 2); this.offsetR = -Math.floor(this.rows / 2);
-        this.playerPos = { c: 0, r: 0 }; this.endPos = { c: 0, r: 0 }; this.path = []; this.genStack = []; this.currentEnemy = null;
-        
-        ['speed', 'atk', 'hp', 'chest', 'monster'].forEach(type => {
-            document.getElementById(`btn-up-${type}`).addEventListener('click', () => GameState.tryBuy(type));
+        this.engine = engine;
+        this.mazeGroup = new THREE.Group();
+        this.engine.scene.add(this.mazeGroup);
+        this.cols = 15;
+        this.rows = 15;
+        this.offsetC = -Math.floor(this.cols / 2);
+        this.offsetR = -Math.floor(this.rows / 2);
+        this.playerPos = { c: 0, r: 0 };
+        this.endPos = { c: 0, r: 0 };
+        this.path = [];
+        this.genStack = [];
+        this.currentEnemy = null;
+
+        ['speed', 'atk', 'hp', 'chest', 'monster'].forEach((type) => {
+            document.getElementById(`btn-up-${type}`).addEventListener('click', async () => {
+                await window.soundEngine?.unlock();
+                GameState.tryBuy(type);
+            });
         });
-        window.gameController = this; this.startLevel();
+
+        window.gameController = this;
+        this.startLevel();
     }
 
-    sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
-    getWorldPos(c, r) { return new THREE.Vector3(c + this.offsetC, 0, r + this.offsetR); }
+    sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    getWorldPos(c, r) {
+        return new THREE.Vector3(c + this.offsetC, 0, r + this.offsetR);
+    }
 
     startLevel() {
-        GameState.phase = 'GENERATING'; GameState.player.currentHp = GameState.player.baseHp; GameState.updateUI();
-        while(this.mazeGroup.children.length > 0) this.mazeGroup.remove(this.mazeGroup.children[0]);
-        this.engine.entities.forEach(e => this.engine.scene.remove(e.mesh)); this.engine.entities = []; this.grid = [];
+        GameState.phase = 'GENERATING';
+        GameState.player.currentHp = GameState.player.baseHp;
+        GameState.updateUI();
+
+        while (this.mazeGroup.children.length > 0) this.mazeGroup.remove(this.mazeGroup.children[0]);
+        this.engine.entities.forEach((entity) => this.engine.scene.remove(entity.mesh));
+        this.engine.entities = [];
+        this.grid = [];
 
         const floorGeo = new THREE.PlaneGeometry(this.cols + 2, this.rows + 2);
         const floorMesh = new THREE.Mesh(floorGeo, this.engine.materials.floor);
-        floorMesh.rotation.x = -Math.PI / 2; floorMesh.position.y = 0; this.mazeGroup.add(floorMesh);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.position.y = 0;
+        this.mazeGroup.add(floorMesh);
 
-        const wallGeo = new THREE.BoxGeometry(1, 0.5, 1); const edgesGeo = new THREE.EdgesGeometry(wallGeo);
+        const wallGeo = new THREE.BoxGeometry(1, 0.5, 1);
+        const edgesGeo = new THREE.EdgesGeometry(wallGeo);
         for (let r = 0; r < this.rows; r++) {
-            let row = [];
+            const row = [];
             for (let c = 0; c < this.cols; c++) {
-                let group = new THREE.Group(); let pos = this.getWorldPos(c, r);
+                const group = new THREE.Group();
+                const pos = this.getWorldPos(c, r);
                 group.add(new THREE.Mesh(wallGeo, this.engine.materials.wallBox));
                 group.add(new THREE.LineSegments(edgesGeo, this.engine.materials.wallEdge));
-                group.position.set(pos.x, 0.25, pos.z); this.mazeGroup.add(group);
+                group.position.set(pos.x, 0.25, pos.z);
+                this.mazeGroup.add(group);
                 row.push({ c, r, isWall: true, mesh: group, visited: false, entity: null });
             }
             this.grid.push(row);
         }
 
-        this.playerPos = { c: 1, r: 1 }; this.endPos = { c: this.cols - 2, r: this.rows - 2 };
-        this.grid[1][1].visited = true; this.genStack = [this.grid[1][1]];
+        this.playerPos = { c: 1, r: 1 };
+        this.endPos = { c: this.cols - 2, r: this.rows - 2 };
+        this.grid[1][1].visited = true;
+        this.genStack = [this.grid[1][1]];
         this.engine.playerObj.visible = false;
         this.genInterval = setInterval(() => this.stepGenerate(), 20);
     }
 
     digWall(cell) {
-        if(cell.isWall) {
-            cell.isWall = false; this.engine.tweens.add(cell.mesh.position, { y: -0.5 }, 0.3, Easing.easeOutQuad);
-            if(Math.random()>0.5) this.engine.spawnBurst(new THREE.Vector3(cell.mesh.position.x, 0, cell.mesh.position.z), 0x475569, 3, 0.5);
+        if (!cell.isWall) return;
+        cell.isWall = false;
+        this.engine.tweens.add(cell.mesh.position, { y: -0.5 }, 0.3, Easing.easeOutQuad);
+        if (Math.random() > 0.5) {
+            this.engine.spawnBurst(new THREE.Vector3(cell.mesh.position.x, 0, cell.mesh.position.z), 0x475569, 3, 0.5);
         }
     }
 
     stepGenerate() {
-        if (this.genStack.length === 0) { clearInterval(this.genInterval); this.finishGeneration(); return; }
+        if (this.genStack.length === 0) {
+            clearInterval(this.genInterval);
+            this.finishGeneration();
+            return;
+        }
+
         let steps = 3;
-        while(steps-- > 0 && this.genStack.length > 0) {
-            let curr = this.genStack[this.genStack.length - 1]; this.digWall(curr);
-            let neighbors = []; const dirs = [[-2, 0], [2, 0], [0, -2], [0, 2]];
-            for (let d of dirs) {
-                let nc = curr.c + d[0], nr = curr.r + d[1];
+        while (steps-- > 0 && this.genStack.length > 0) {
+            const curr = this.genStack[this.genStack.length - 1];
+            this.digWall(curr);
+            const neighbors = [];
+            const dirs = [[-2, 0], [2, 0], [0, -2], [0, 2]];
+
+            for (const dir of dirs) {
+                const nc = curr.c + dir[0];
+                const nr = curr.r + dir[1];
                 if (nc > 0 && nc < this.cols - 1 && nr > 0 && nr < this.rows - 1 && !this.grid[nr][nc].visited) {
-                    neighbors.push({c: nc, r: nr, wc: curr.c + d[0]/2, wr: curr.r + d[1]/2});
+                    neighbors.push({ c: nc, r: nr, wc: curr.c + dir[0] / 2, wr: curr.r + dir[1] / 2 });
                 }
             }
+
             if (neighbors.length > 0) {
-                let next = neighbors[Math.floor(Math.random() * neighbors.length)];
-                this.digWall(this.grid[next.wr][next.wc]); this.grid[next.r][next.c].visited = true;
+                const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                this.digWall(this.grid[next.wr][next.wc]);
+                this.grid[next.r][next.c].visited = true;
                 this.genStack.push(this.grid[next.r][next.c]);
-            } else { this.genStack.pop(); }
+            } else {
+                this.genStack.pop();
+            }
         }
     }
 
-    createEntity(type, mat, c, r) {
-        let group = new THREE.Group();
-        let geo = type === 'chest' ? new THREE.BoxGeometry(0.4, 0.4, 0.4) : new THREE.ConeGeometry(0.25, 0.5, 4);
-        group.add(new THREE.Mesh(geo, mat));
-        group.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color: 0x000000, linewidth:2})));
-        let pos = this.getWorldPos(c, r); group.position.set(pos.x, 5, pos.z); this.engine.scene.add(group);
-        this.engine.tweens.add(group.position, {y: 0.25}, 0.6, Easing.easeOutBounce);
-        return group;
+    pickEnemyArchetype() {
+        const pool = ENEMY_ARCHETYPES.filter((enemy) => !enemy.boss && GameState.level >= enemy.minLevel);
+        const totalWeight = pool.reduce((sum, enemy) => sum + enemy.weight, 0);
+        let roll = Math.random() * totalWeight;
+        for (const enemy of pool) {
+            roll -= enemy.weight;
+            if (roll <= 0) return enemy;
+        }
+        return pool[pool.length - 1];
+    }
+
+    createChestEntity(c, r) {
+        const built = this.engine.buildChestModel();
+        const pos = this.getWorldPos(c, r);
+        built.group.position.set(pos.x, 5, pos.z);
+        this.engine.scene.add(built.group);
+        this.engine.tweens.add(built.group.position, { y: 0.25 }, 0.6, Easing.easeOutBounce);
+        return {
+            type: 'chest',
+            mesh: built.group,
+            c,
+            r,
+            baseY: 0.25,
+            hoverAmplitude: 0.04,
+            hoverSpeed: 1.5,
+            hoverOffset: Math.random() * Math.PI * 2,
+            spinSpeed: 0.7,
+            counterSpinSpeed: 0,
+            spinGroup: built.group,
+            counterSpinGroup: null
+        };
+    }
+
+    createMonsterEntity(archetype, c, r) {
+        const built = this.engine.buildEnemyModel(archetype);
+        const pos = this.getWorldPos(c, r);
+        built.group.position.set(pos.x, 5, pos.z);
+        this.engine.scene.add(built.group);
+        this.engine.tweens.add(built.group.position, { y: 0.25 }, 0.6, Easing.easeOutBounce);
+        return {
+            type: 'monster',
+            mesh: built.group,
+            c,
+            r,
+            enemyData: archetype,
+            baseY: 0.25,
+            hoverAmplitude: archetype.hoverAmplitude,
+            hoverSpeed: archetype.hoverSpeed,
+            hoverOffset: Math.random() * Math.PI * 2,
+            spinSpeed: archetype.boss ? 1.9 : 2.6,
+            counterSpinSpeed: archetype.boss ? 2.7 : 3.6,
+            spinGroup: built.spinGroup,
+            counterSpinGroup: built.counterSpinGroup
+        };
     }
 
     finishGeneration() {
         this.digWall(this.grid[this.endPos.r][this.endPos.c]);
+        const openCells = [];
+
         for (let r = 1; r < this.rows - 1; r++) {
             for (let c = 1; c < this.cols - 1; c++) {
-                if ((r===1&&c===1) || (r===this.endPos.r&&c===this.endPos.c) || this.grid[r][c].isWall) continue;
-                let rand = Math.random();
+                if ((r === 1 && c === 1) || (r === this.endPos.r && c === this.endPos.c) || this.grid[r][c].isWall) continue;
+                openCells.push(this.grid[r][c]);
+                const rand = Math.random();
                 if (rand < GameState.maze.baseMonsterRate) {
-                    this.engine.entities.push({ type: 'monster', mesh: this.createEntity('monster', this.engine.materials.monster, c, r), c, r });
+                    const monster = this.createMonsterEntity(this.pickEnemyArchetype(), c, r);
+                    this.engine.entities.push(monster);
                     this.grid[r][c].entity = 'monster';
                 } else if (rand < GameState.maze.baseMonsterRate + GameState.maze.baseChestRate) {
-                    this.engine.entities.push({ type: 'chest', mesh: this.createEntity('chest', this.engine.materials.chest, c, r), c, r });
+                    const chest = this.createChestEntity(c, r);
+                    this.engine.entities.push(chest);
                     this.grid[r][c].entity = 'chest';
                 }
             }
         }
+
+        if (GameState.level >= 4 && GameState.isBossUnlocked() && Math.random() < GameState.getBossFloorChance()) {
+            const bossCandidates = openCells.filter((cell) => cell.entity === null);
+            if (bossCandidates.length > 0) {
+                const bossCell = bossCandidates[Math.floor(Math.random() * bossCandidates.length)];
+                const boss = this.createMonsterEntity(ENEMY_ARCHETYPES.find((enemy) => enemy.id === 'boss'), bossCell.c, bossCell.r);
+                this.engine.entities.push(boss);
+                bossCell.entity = 'monster';
+            }
+        }
+
         const endMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16), this.engine.materials.end);
-        let endWp = this.getWorldPos(this.endPos.c, this.endPos.r); endMesh.position.set(endWp.x, 0.06, endWp.z);
-        this.engine.scene.add(endMesh); this.engine.entities.push({ type: 'end', mesh: endMesh, c: this.endPos.c, r: this.endPos.r });
+        const endWp = this.getWorldPos(this.endPos.c, this.endPos.r);
+        endMesh.position.set(endWp.x, 0.06, endWp.z);
+        this.engine.scene.add(endMesh);
+        this.engine.entities.push({ type: 'end', mesh: endMesh, c: this.endPos.c, r: this.endPos.r, baseY: 0.06, hoverAmplitude: 0, hoverSpeed: 0, hoverOffset: 0 });
         this.grid[this.endPos.r][this.endPos.c].entity = 'end';
 
         this.findPath();
-        let pStart = this.getWorldPos(1, 1); this.engine.playerObj.position.set(pStart.x, 5, pStart.z); this.engine.playerObj.visible = true;
-        this.engine.tweens.add(this.engine.playerObj.position, {y: 0.1}, 0.6, Easing.easeOutBounce, () => {
-            GameState.phase = 'EXPLORING'; GameState.updateUI(); this.exploreNext();
+        const pStart = this.getWorldPos(1, 1);
+        this.engine.playerObj.position.set(pStart.x, 5, pStart.z);
+        this.engine.playerObj.visible = true;
+        this.engine.tweens.add(this.engine.playerObj.position, { y: 0.1 }, 0.6, Easing.easeOutBounce, () => {
+            GameState.phase = 'EXPLORING';
+            GameState.updateUI();
+            this.exploreNext();
         });
     }
 
     findPath() {
-        let queue = [{c: this.playerPos.c, r: this.playerPos.r, path: []}]; let visited = new Set([`${this.playerPos.c},${this.playerPos.r}`]);
+        const queue = [{ c: this.playerPos.c, r: this.playerPos.r, path: [] }];
+        const visited = new Set([`${this.playerPos.c},${this.playerPos.r}`]);
         const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
         while (queue.length > 0) {
-            let curr = queue.shift();
-            if (curr.c === this.endPos.c && curr.r === this.endPos.r) { this.path = curr.path; return; }
-            for (let d of dirs) {
-                let nc = curr.c + d[0], nr = curr.r + d[1];
+            const curr = queue.shift();
+            if (curr.c === this.endPos.c && curr.r === this.endPos.r) {
+                this.path = curr.path;
+                return;
+            }
+            for (const dir of dirs) {
+                const nc = curr.c + dir[0];
+                const nr = curr.r + dir[1];
                 if (nc > 0 && nc < this.cols && nr > 0 && nr < this.rows && !this.grid[nr][nc].isWall) {
-                    let key = `${nc},${nr}`; if (!visited.has(key)) { visited.add(key); queue.push({c: nc, r: nr, path: [...curr.path, {c: nc, r: nr}]}); }
+                    const key = `${nc},${nr}`;
+                    if (!visited.has(key)) {
+                        visited.add(key);
+                        queue.push({ c: nc, r: nr, path: [...curr.path, { c: nc, r: nr }] });
+                    }
                 }
             }
         }
@@ -524,72 +1106,109 @@ class GameController {
 
     exploreNext() {
         if (GameState.phase !== 'EXPLORING' || this.path.length === 0) return;
-        
-        // 【核心修改：前瞻侦测，在1格远的地方形成对峙】
-        let nextNode = this.path[0]; 
-        let nextCell = this.grid[nextNode.r][nextNode.c];
+
+        const nextNode = this.path[0];
+        const nextCell = this.grid[nextNode.r][nextNode.c];
 
         if (nextCell.entity === 'monster') {
-            let entIdx = this.engine.entities.findIndex(e => e.c === nextNode.c && e.r === nextNode.r);
-            let entityObj = entIdx > -1 ? this.engine.entities[entIdx] : null;
-            if (entityObj) {
-                this.startCombatRPG(entityObj, nextNode);
-            }
-            return; // 暂停物理移动，留在原地准备战斗
+            const entityObj = this.engine.entities.find((entity) => entity.c === nextNode.c && entity.r === nextNode.r);
+            if (entityObj) this.startCombatRPG(entityObj, nextNode);
+            return;
         }
 
-        // 安全，正式移入该格子
         this.path.shift();
-        let targetPos = this.getWorldPos(nextNode.c, nextNode.r);
+        const targetPos = this.getWorldPos(nextNode.c, nextNode.r);
         this.engine.tweens.add(this.engine.playerObj.position, { x: targetPos.x, z: targetPos.z }, GameState.player.baseSpeed, Easing.linear, () => {
-            this.playerPos.c = nextNode.c; this.playerPos.r = nextNode.r; this.checkInteraction();
+            this.playerPos.c = nextNode.c;
+            this.playerPos.r = nextNode.r;
+            this.checkInteraction();
         });
     }
 
     async checkInteraction() {
-        let cell = this.grid[this.playerPos.r][this.playerPos.c];
+        const cell = this.grid[this.playerPos.r][this.playerPos.c];
         if (cell.entity) {
-            let type = cell.entity; cell.entity = null; 
-            let entIdx = this.engine.entities.findIndex(e => e.c === this.playerPos.c && e.r === this.playerPos.r);
-            let entityObj = entIdx > -1 ? this.engine.entities.splice(entIdx, 1)[0] : null;
+            const type = cell.entity;
+            cell.entity = null;
+            const entityIndex = this.engine.entities.findIndex((entity) => entity.c === this.playerPos.c && entity.r === this.playerPos.r);
+            const entityObj = entityIndex > -1 ? this.engine.entities.splice(entityIndex, 1)[0] : null;
 
             if (type === 'chest') {
-                let reward = 15 * GameState.level; GameState.addScore(reward);
+                const reward = 15 * GameState.level;
+                GameState.addScore(reward);
+                window.soundEngine?.chest();
                 if (entityObj) {
-                    this.engine.tweens.add(entityObj.mesh.scale, {x: 2, y: 2, z: 2}, 0.2, Easing.easeOutQuad, () => { this.engine.scene.remove(entityObj.mesh); });
+                    this.engine.tweens.add(entityObj.mesh.scale, { x: 2, y: 2, z: 2 }, 0.2, Easing.easeOutQuad, () => {
+                        this.engine.scene.remove(entityObj.mesh);
+                    });
                     this.engine.spawnBurst(entityObj.mesh.position, 0xfacc15, 20, 1.5);
                     this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#facc15');
                 }
                 await this.sleep(100);
             } else if (type === 'end') {
-                let reward = 100 * GameState.level; GameState.addScore(reward); GameState.level++;
-                this.engine.addFloatingText(`突破!`, this.engine.playerObj.position, '#10b981', true);
-                this.engine.triggerUpgradeEffect(); 
+                const reward = 100 * GameState.level;
+                GameState.addScore(reward);
+                GameState.level++;
+                window.soundEngine?.levelClear();
+                this.engine.addFloatingText('突破!', this.engine.playerObj.position, '#10b981', true);
+                this.engine.triggerUpgradeEffect();
                 setTimeout(() => this.startLevel(), 1200);
                 return;
             }
         }
-        if(GameState.phase === 'EXPLORING') this.exploreNext();
+        if (GameState.phase === 'EXPLORING') this.exploreNext();
     }
 
-    // --- 全新核心：传统的 RPG 回合制战斗逻辑演出 ---
     async typeText(text) {
         const el = document.getElementById('rpg-dialogue');
         el.innerText = '';
-        for(let i = 0; i < text.length; i++) {
+        for (let i = 0; i < text.length; i++) {
             el.innerText += text[i];
-            await this.sleep(30); // 打字机速度
+            await this.sleep(24);
         }
     }
 
-    updateRPG_HP(mHp, mMaxHp) {
+    updateRPG_HP(enemyHp, enemyMaxHp, enemyObj) {
         const pPercent = Math.max(0, GameState.player.currentHp / GameState.player.baseHp * 100);
-        document.getElementById('rpg-p-hp-bar').style.width = pPercent + '%';
+        document.getElementById('rpg-p-hp-bar').style.width = `${pPercent}%`;
         document.getElementById('rpg-p-hp-text').innerText = `${Math.floor(Math.max(0, GameState.player.currentHp))}/${GameState.player.baseHp}`;
-        
-        const mPercent = Math.max(0, mHp / mMaxHp * 100);
-        document.getElementById('rpg-m-hp-bar').style.width = mPercent + '%';
-        document.getElementById('rpg-m-hp-text').innerText = `${Math.floor(Math.max(0, mHp))}/${Math.floor(mMaxHp)}`;
+
+        const mPercent = Math.max(0, enemyHp / enemyMaxHp * 100);
+        const monsterName = document.getElementById('rpg-m-name');
+        const monsterCard = document.getElementById('rpg-m-card');
+        const monsterBar = document.getElementById('rpg-m-hp-bar');
+        const monsterText = document.getElementById('rpg-m-hp-text');
+        monsterName.innerText = enemyObj.enemyData.name;
+        monsterBar.style.width = `${mPercent}%`;
+        monsterText.innerText = `${Math.floor(Math.max(0, enemyHp))}/${Math.floor(enemyMaxHp)}`;
+
+        if (enemyObj.enemyData.boss) {
+            monsterCard.className = 'bg-amber-900/90 border-2 border-amber-400 p-2 md:p-3 rounded-lg w-32 md:w-56 shadow-[0_0_18px_rgba(251,191,36,0.55)] transform skew-x-6 backdrop-blur-sm';
+            monsterName.className = 'text-amber-50 font-bold italic mb-1 text-xs md:text-sm tracking-widest text-right';
+            monsterBar.className = 'bg-amber-400 h-full w-full hp-bar-fill origin-right';
+            monsterText.className = 'text-left text-[10px] md:text-xs text-amber-100 mt-1 font-mono';
+        } else {
+            monsterCard.className = 'bg-red-900/90 border-2 border-red-500 p-2 md:p-3 rounded-lg w-32 md:w-56 shadow-[0_0_15px_rgba(248,113,113,0.4)] transform skew-x-6 backdrop-blur-sm';
+            monsterName.className = 'text-red-100 font-bold italic mb-1 text-xs md:text-sm tracking-widest text-right';
+            monsterBar.className = 'bg-red-500 h-full w-full hp-bar-fill origin-right';
+            monsterText.className = 'text-left text-[10px] md:text-xs text-red-200 mt-1 font-mono';
+        }
+    }
+
+    buildCombatProfile(enemyObj) {
+        const data = enemyObj.enemyData;
+        const linearScale = data.boss ? 1 + (GameState.level - 1) * 0.34 : 1 + (GameState.level - 1) * 0.18;
+        const curveScale = Math.pow(data.boss ? 1.1 : 1.06, Math.max(0, GameState.level - 1));
+        return {
+            name: data.name,
+            intro: data.intro,
+            attackVerb: data.attackVerb,
+            reward: Math.floor(data.reward * (1 + GameState.level * 0.18)),
+            maxHp: Math.floor(data.baseHp * linearScale * curveScale),
+            atk: Math.floor(data.baseAtk * linearScale),
+            boss: !!data.boss,
+            color: data.color
+        };
     }
 
     async startCombatRPG(enemyObj, enemyNode) {
@@ -597,142 +1216,127 @@ class GameController {
         GameState.updateUI();
         this.currentEnemy = enemyObj;
 
-        let mMaxHp = 40 + (GameState.level * 15 * Math.pow(1.1, GameState.level-1));
-        let mHp = mMaxHp;
-        let mAtk = 5 + (GameState.level * 3);
-        
+        const profile = this.buildCombatProfile(enemyObj);
+        let enemyHp = profile.maxHp;
         const enemyMesh = enemyObj.mesh;
-        const pMesh = this.engine.playerObj;
-        enemyMesh.lookAt(pMesh.position);
+        const playerMesh = this.engine.playerObj;
+        enemyMesh.lookAt(playerMesh.position);
+        playerMesh.lookAt(enemyMesh.position);
 
-        // 呼出 RPG 对战 UI
         const ui = document.getElementById('rpg-combat-ui');
         ui.classList.remove('hidden');
-        void ui.offsetWidth; // trigger reflow
+        void ui.offsetWidth;
         ui.classList.remove('opacity-0');
-        
-        this.updateRPG_HP(mHp, mMaxHp);
 
-        // 等待相机拉近的 2.5D 运镜
-        await this.sleep(600);
-        await this.typeText("遭遇了深渊魔物！战斗开始！");
-        await this.sleep(800);
+        this.updateRPG_HP(enemyHp, profile.maxHp, enemyObj);
 
-        let dir = new THREE.Vector3().subVectors(enemyMesh.position, pMesh.position).normalize();
-        
-        // 【增加冲刺距离】：由于现在相隔一格，0.65能制造完美的飞跃打击视觉
-        let dashDist = 0.65; 
-        
-        // 【模型朝向对准】：让玩家模型也正面对着怪物
-        pMesh.lookAt(enemyMesh.position);
+        await this.sleep(profile.boss ? 900 : 600);
+        if (profile.boss) window.soundEngine?.bossIntro();
+        await this.typeText(profile.intro);
+        await this.sleep(profile.boss ? 900 : 700);
 
-        // 回合制主循环
-        while (mHp > 0 && GameState.player.currentHp > 0) {
-            
-            // --- 玩家回合 ---
-            await this.typeText("【玩家的回合】发起物理攻击！");
-            await this.sleep(400);
+        const dir = new THREE.Vector3().subVectors(enemyMesh.position, playerMesh.position).normalize();
+        const dashDist = profile.boss ? 0.82 : 0.65;
 
-            let dmg = Math.floor(GameState.player.baseAtk * (0.8 + Math.random()*0.4));
-            
-            // 3D 冲刺动画
-            let origPos = pMesh.position.clone();
-            let dashPos = origPos.clone().add(dir.clone().multiplyScalar(dashDist));
-            
-            this.engine.tweens.add(pMesh.position, { x: dashPos.x, z: dashPos.z }, 0.1, Easing.easeOutQuad, () => {
-                this.engine.shake(0.3);
-                this.engine.addFloatingText(dmg.toString(), enemyMesh.position, '#38bdf8', true);
-                this.engine.spawnBurst(enemyMesh.position, 0x38bdf8, 12, 1.5);
-                this.engine.tweens.add(enemyMesh.scale, {x: 1.3, y: 0.5, z: 1.3}, 0.1, Easing.linear, () => {
-                    this.engine.tweens.add(enemyMesh.scale, {x: 1, y: 1, z: 1}, 0.2, Easing.easeOutElastic);
+        while (enemyHp > 0 && GameState.player.currentHp > 0) {
+            await this.typeText(`【玩家的回合】飞碟主炮锁定 ${profile.name}！`);
+            await this.sleep(320);
+
+            const damage = Math.floor(GameState.player.baseAtk * (0.84 + Math.random() * 0.42) * (profile.boss ? 0.92 : 1));
+            const origPos = playerMesh.position.clone();
+            const dashPos = origPos.clone().add(dir.clone().multiplyScalar(dashDist));
+
+            this.engine.tweens.add(playerMesh.position, { x: dashPos.x, z: dashPos.z }, 0.1, Easing.easeOutQuad, () => {
+                this.engine.shake(profile.boss ? 0.42 : 0.3);
+                window.soundEngine?.enemyHit(profile.boss);
+                this.engine.addFloatingText(damage.toString(), enemyMesh.position, '#38bdf8', true);
+                this.engine.spawnBurst(enemyMesh.position, profile.color, profile.boss ? 18 : 12, profile.boss ? 2.1 : 1.5);
+                this.engine.tweens.add(enemyMesh.scale, { x: 1.35, y: 0.55, z: 1.35 }, 0.1, Easing.linear, () => {
+                    this.engine.tweens.add(enemyMesh.scale, { x: 1, y: 1, z: 1 }, 0.22, Easing.easeOutElastic);
                 });
-                this.engine.tweens.add(pMesh.position, { x: origPos.x, z: origPos.z }, 0.2, Easing.easeOutQuad);
-            });
-
-            await this.sleep(300); // 等待动画完成
-            mHp -= dmg;
-            this.updateRPG_HP(mHp, mMaxHp);
-            await this.typeText(`击中目标！深渊魔物受到了 ${dmg} 点伤害。`);
-            await this.sleep(800);
-
-            if (mHp <= 0) break;
-
-            // --- 怪物回合 ---
-            await this.typeText("【深渊魔物的回合】发起了凶猛反扑！");
-            await this.sleep(400);
-
-            let eDmg = Math.floor(mAtk * (0.8 + Math.random()*0.4));
-            
-            // 3D 冲刺反击
-            let eOrigPos = enemyMesh.position.clone();
-            let eDashPos = eOrigPos.clone().sub(dir.clone().multiplyScalar(dashDist));
-            
-            this.engine.tweens.add(enemyMesh.position, { x: eDashPos.x, z: eDashPos.z }, 0.15, Easing.easeOutQuad, () => {
-                this.engine.glitch(); 
-                this.engine.shake(0.6); 
-                this.engine.addFloatingText(`-${eDmg}`, pMesh.position, '#ef4444', true);
-                this.engine.spawnBurst(pMesh.position, 0xef4444, 15, 2);
-                this.engine.tweens.add(pMesh.scale, {x: 1.2, y: 0.6, z: 1.2}, 0.1, Easing.linear, () => {
-                    this.engine.tweens.add(pMesh.scale, {x: 1, y: 1, z: 1}, 0.2, Easing.easeOutElastic);
-                });
-                this.engine.tweens.add(enemyMesh.position, { x: eOrigPos.x, z: eOrigPos.z }, 0.2, Easing.easeOutQuad);
+                this.engine.tweens.add(playerMesh.position, { x: origPos.x, z: origPos.z }, 0.2, Easing.easeOutQuad);
             });
 
             await this.sleep(300);
-            GameState.player.currentHp -= eDmg;
-            this.updateRPG_HP(mHp, mMaxHp);
-            await this.typeText(`警告！玩家损失了 ${eDmg} 点生命值！`);
-            await this.sleep(800);
+            enemyHp -= damage;
+            this.updateRPG_HP(enemyHp, profile.maxHp, enemyObj);
+            await this.typeText(`命中！${profile.name} 受到了 ${damage} 点伤害。`);
+            await this.sleep(620);
+
+            if (enemyHp <= 0) break;
+
+            await this.typeText(`【${profile.name} 的回合】释放 ${profile.attackVerb}！`);
+            await this.sleep(360);
+
+            const enemyDamage = Math.floor(profile.atk * (0.82 + Math.random() * 0.38));
+            const enemyOrigPos = enemyMesh.position.clone();
+            const enemyDashPos = enemyOrigPos.clone().sub(dir.clone().multiplyScalar(dashDist));
+
+            this.engine.tweens.add(enemyMesh.position, { x: enemyDashPos.x, z: enemyDashPos.z }, profile.boss ? 0.18 : 0.15, Easing.easeOutQuad, () => {
+                this.engine.glitch(profile.boss ? 220 : 150);
+                this.engine.shake(profile.boss ? 0.8 : 0.6);
+                window.soundEngine?.playerHit(profile.boss);
+                this.engine.addFloatingText(`-${enemyDamage}`, playerMesh.position, '#ef4444', true);
+                this.engine.spawnBurst(playerMesh.position, 0xef4444, profile.boss ? 22 : 15, profile.boss ? 2.8 : 2);
+                this.engine.tweens.add(this.engine.playerMesh.scale, { x: 1.24, y: 0.68, z: 1.24 }, 0.1, Easing.linear, () => {
+                    this.engine.tweens.add(this.engine.playerMesh.scale, { x: 1, y: 1, z: 1 }, 0.22, Easing.easeOutElastic);
+                });
+                this.engine.tweens.add(enemyMesh.position, { x: enemyOrigPos.x, z: enemyOrigPos.z }, 0.24, Easing.easeOutQuad);
+            });
+
+            await this.sleep(320);
+            GameState.player.currentHp -= enemyDamage;
+            this.updateRPG_HP(enemyHp, profile.maxHp, enemyObj);
+            await this.typeText(`警告！玩家损失了 ${enemyDamage} 点生命值！`);
+            await this.sleep(700);
         }
 
-        // 战斗结束结算
-        if (mHp <= 0) {
-            let reward = 150 * GameState.level;
-            GameState.addScore(reward);
-            await this.typeText(`战斗胜利！获得了 ${reward} 魂能！`);
-            
-            // 3D 死亡粉碎动画
-            this.engine.shake(0.5);
-            this.engine.spawnBurst(enemyMesh.position, 0xef4444, 30, 3);
-            this.engine.tweens.add(enemyMesh.scale, {x:0, y:0, z:0}, 0.2, Easing.linear, () => {
+        if (enemyHp <= 0) {
+            GameState.addScore(profile.reward);
+            window.soundEngine?.enemyDefeat(profile.boss);
+            await this.typeText(`战斗胜利！击溃 ${profile.name}，获得了 ${profile.reward} 魂能！`);
+
+            this.engine.shake(profile.boss ? 0.85 : 0.5);
+            this.engine.spawnBurst(enemyMesh.position, profile.color, profile.boss ? 44 : 30, profile.boss ? 4.4 : 3);
+            this.engine.tweens.add(enemyMesh.scale, { x: 0, y: 0, z: 0 }, 0.24, Easing.linear, () => {
                 this.engine.scene.remove(enemyMesh);
             });
 
-            // 【清理前方道路】：从地图实体数据中抹除怪物
             this.grid[enemyNode.r][enemyNode.c].entity = null;
-            let entIdx = this.engine.entities.findIndex(e => e === enemyObj);
-            if(entIdx > -1) this.engine.entities.splice(entIdx, 1);
+            const entIdx = this.engine.entities.findIndex((entity) => entity === enemyObj);
+            if (entIdx > -1) this.engine.entities.splice(entIdx, 1);
 
-            await this.sleep(1500);
-            
-            // 关闭 UI 恢复探索
+            await this.sleep(profile.boss ? 1900 : 1400);
             ui.classList.add('opacity-0');
             setTimeout(() => ui.classList.add('hidden'), 300);
-            
+
             this.currentEnemy = null;
             GameState.phase = 'EXPLORING';
             GameState.updateUI();
-            
-            // 自动迈开脚步，走入刚刚清理出的格子
-            this.exploreNext(); 
+            this.exploreNext();
         } else {
-            await this.typeText("你倒下了... 护盾完全破碎。");
-            this.engine.glitchPass.enabled = true; 
+            window.soundEngine?.defeat();
+            await this.typeText('你倒下了... 飞碟上下层失去同步，护盾完全破碎。');
+            this.engine.glitchPass.enabled = true;
             await this.sleep(2000);
-            
-            // 关闭 UI 重新生成当前层
+
             ui.classList.add('opacity-0');
             setTimeout(() => ui.classList.add('hidden'), 300);
             this.engine.glitchPass.enabled = false;
             this.currentEnemy = null;
-            this.startLevel(); 
+            this.startLevel();
         }
     }
 }
 
 window.onload = () => {
+    window.soundEngine = new SoundEngine();
+    const unlockAudio = () => window.soundEngine.unlock();
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio);
     window.engine = new VisualEngine();
-    const gameController = new GameController(window.engine);
+    window.gameController = new GameController(window.engine);
+    GameState.updateUI();
 };
 </script>
 </body>
