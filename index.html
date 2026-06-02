@@ -2390,6 +2390,7 @@ class VisualEngine {
     }
 
     updateOccluders() {
+        const revealEnabled = this.renderPlayerOcclusionMask();
         for (const occluder of this.occluders) {
             for (const material of [occluder.boxMesh.material, occluder.edgeMesh.material]) {
                 const shader = material.userData.shader;
@@ -2403,6 +2404,7 @@ class VisualEngine {
             occluder.boxMesh.material.opacity = 1;
             occluder.edgeMesh.material.opacity = occluder.baseEdgeOpacity;
         }
+        if (!revealEnabled) return;
 
         const subjects = [];
         if (this.playerObj?.visible) subjects.push(this.playerObj);
@@ -2428,8 +2430,10 @@ class VisualEngine {
         }
 
         for (const occluder of hitOccluders) {
-            occluder.boxMesh.material.opacity = 0.22;
-            occluder.edgeMesh.material.opacity = 0.16;
+            const boxShader = occluder.boxMesh.material.userData.shader;
+            if (boxShader) boxShader.uniforms.uRevealEnabled.value = 1;
+            const edgeShader = occluder.edgeMesh.material.userData.shader;
+            if (edgeShader) edgeShader.uniforms.uRevealEnabled.value = 1;
         }
     }
 
@@ -2883,6 +2887,7 @@ class GameController {
         this.genStack = [];
         this.currentEnemy = null;
         this.combatUiHideTimer = null;
+        this.selfTestActive = false;
 
         ['speed', 'atk', 'hp', 'chest', 'size', 'monster'].forEach((type) => {
             document.getElementById(`btn-up-${type}`).addEventListener('click', async () => {
@@ -2929,6 +2934,7 @@ class GameController {
     }
 
     runOcclusionSelfTest(mode = 'player') {
+        this.selfTestActive = true;
         clearInterval(this.genInterval);
         clearTimeout(this.combatUiHideTimer);
         this.hideCombatUI();
@@ -2971,6 +2977,7 @@ class GameController {
     }
 
     startLevel() {
+        if (this.selfTestActive) return;
         GameState.phase = 'GENERATING';
         GameState.player.currentHp = GameState.player.baseHp;
         GameState.updateUI();
@@ -3044,6 +3051,7 @@ class GameController {
     }
 
     stepGenerate() {
+        if (this.selfTestActive) return;
         if (this.genStack.length === 0) {
             clearInterval(this.genInterval);
             this.finishGeneration();
@@ -3183,6 +3191,7 @@ class GameController {
         this.engine.playerObj.position.set(pStart.x, 5, pStart.z);
         this.engine.playerObj.visible = true;
         this.engine.tweens.add(this.engine.playerObj.position, { y: 0.1 }, 0.6, Easing.easeOutBounce, () => {
+            if (this.selfTestActive) return;
             GameState.phase = 'EXPLORING';
             GameState.updateUI();
             this.exploreNext();
@@ -3214,6 +3223,7 @@ class GameController {
     }
 
     exploreNext() {
+        if (this.selfTestActive) return;
         if (GameState.phase !== 'EXPLORING' || this.path.length === 0) return;
 
         const nextNode = this.path[0];
@@ -3235,6 +3245,7 @@ class GameController {
     }
 
     async checkInteraction() {
+        if (this.selfTestActive) return;
         const cell = this.grid[this.playerPos.r][this.playerPos.c];
         if (cell.entity) {
             const type = cell.entity;
@@ -3321,6 +3332,7 @@ class GameController {
     }
 
     async startCombatRPG(enemyObj, enemyNode) {
+        if (this.selfTestActive) return;
         GameState.phase = 'COMBAT';
         GameState.updateUI();
         this.currentEnemy = enemyObj;
