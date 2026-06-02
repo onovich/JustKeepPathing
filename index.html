@@ -874,38 +874,33 @@ class VisualEngine {
         this.playerTopRotor.position.y = 0.12;
         this.playerBottomRotor.position.y = -0.1;
 
-        const topDiskGeo = new THREE.CylinderGeometry(0.2, 0.55, 0.12, 32);
-        const topDisk = this.createAssemblyWithCustomLines(
-            topDiskGeo,
+        const topDisk = this.createOutlinedAssembly(
+            new THREE.CylinderGeometry(0.2, 0.55, 0.12, 32),
             this.materials.playerMain,
-            this.createSparseCylinderLines(0.2, 0.55, 0.12, 32, 0x0f172a)
+            0x0f172a
         );
-        const bottomDiskGeo = new THREE.CylinderGeometry(0.55, 0.18, 0.12, 32);
-        const bottomDisk = this.createAssemblyWithCustomLines(
-            bottomDiskGeo,
+        const bottomDisk = this.createOutlinedAssembly(
+            new THREE.CylinderGeometry(0.55, 0.18, 0.12, 32),
             this.materials.playerShadow,
-            this.createSparseCylinderLines(0.55, 0.18, 0.12, 32, 0x020617)
+            0x020617
         );
-        const upperRingGeo = new THREE.TorusGeometry(0.4, 0.055, 12, 32);
-        const upperRing = this.createAssemblyWithCustomLines(
-            upperRingGeo,
+        const upperRing = this.createOutlinedAssembly(
+            new THREE.TorusGeometry(0.4, 0.055, 12, 32),
             this.materials.playerAccent,
-            this.createSparseTorusLines(0.4, 0.055, 12, 32, 0x0f172a)
+            0x0f172a
         );
         upperRing.rotation.x = Math.PI / 2;
-        const lowerRingGeo = new THREE.TorusGeometry(0.34, 0.045, 10, 28);
-        const lowerRing = this.createAssemblyWithCustomLines(
-            lowerRingGeo,
+        const lowerRing = this.createOutlinedAssembly(
+            new THREE.TorusGeometry(0.34, 0.045, 10, 28),
             this.materials.playerMain,
-            this.createSparseTorusLines(0.34, 0.045, 10, 28, 0x0f172a)
+            0x0f172a
         );
         lowerRing.rotation.x = Math.PI / 2;
 
-        const cabinGeo = new THREE.SphereGeometry(0.2, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-        const cabin = this.createAssemblyWithCustomLines(
-            cabinGeo,
+        const cabin = this.createOutlinedAssembly(
+            new THREE.SphereGeometry(0.2, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2),
             this.materials.playerCabin,
-            this.createSparseSphereDomeLines(0.2, 20, 16, 0x38bdf8)
+            0x38bdf8
         );
         cabin.position.y = 0.19;
 
@@ -941,8 +936,7 @@ class VisualEngine {
 
         if (archetype.id === 'scout') {
             const core = this.createOutlinedAssembly(new THREE.OctahedronGeometry(0.24), baseMat, 0x431407);
-            const ringGeo = new THREE.TorusGeometry(0.34, 0.03, 10, 28);
-            const ring = this.createAssemblyWithCustomLines(ringGeo, accentMat, this.createSparseTorusLines(0.34, 0.03, 10, 28, 0x7c2d12));
+            const ring = this.createOutlinedAssembly(new THREE.TorusGeometry(0.34, 0.03, 10, 28), accentMat, 0x7c2d12);
             ring.rotation.x = Math.PI / 2;
             spinGroup = new THREE.Group();
             spinGroup.add(ring);
@@ -962,8 +956,7 @@ class VisualEngine {
         } else if (archetype.id === 'spine') {
             const spine = this.createOutlinedAssembly(new THREE.ConeGeometry(0.26, 0.6, 6), baseMat, 0x3b0764);
             spine.position.y = 0.1;
-            const ringGeo = new THREE.TorusGeometry(0.26, 0.028, 8, 24);
-            const ring = this.createAssemblyWithCustomLines(ringGeo, accentMat, this.createSparseTorusLines(0.26, 0.028, 8, 24, 0x581c87));
+            const ring = this.createOutlinedAssembly(new THREE.TorusGeometry(0.26, 0.028, 8, 24), accentMat, 0x581c87);
             ring.rotation.x = Math.PI / 2;
             ring.position.y = -0.02;
             spinGroup = new THREE.Group();
@@ -971,24 +964,20 @@ class VisualEngine {
             group.add(spine, spinGroup);
         } else if (archetype.id === 'warden') {
             const hub = this.createOutlinedAssembly(new THREE.IcosahedronGeometry(0.22, 0), baseMat, 0x042f2e);
-            const haloGeo = new THREE.TorusGeometry(0.38, 0.04, 10, 30);
-            const halo = this.createAssemblyWithCustomLines(haloGeo, accentMat, this.createSparseTorusLines(0.38, 0.04, 10, 30, 0x134e4a));
+            const halo = this.createOutlinedAssembly(new THREE.TorusGeometry(0.38, 0.04, 10, 30), accentMat, 0x134e4a);
             halo.rotation.x = Math.PI / 2;
             spinGroup = new THREE.Group();
             counterSpinGroup = new THREE.Group();
             spinGroup.add(halo);
-            const verticalHaloGeo = new THREE.TorusGeometry(0.28, 0.03, 10, 24);
-            const verticalHalo = this.createAssemblyWithCustomLines(verticalHaloGeo, accentMat, this.createSparseTorusLines(0.28, 0.03, 10, 24, 0x134e4a));
+            const verticalHalo = this.createOutlinedAssembly(new THREE.TorusGeometry(0.28, 0.03, 10, 24), accentMat, 0x134e4a);
             verticalHalo.rotation.y = Math.PI / 2;
             counterSpinGroup.add(verticalHalo);
             group.add(hub, spinGroup, counterSpinGroup);
         } else if (archetype.id === 'boss') {
             const core = this.createOutlinedAssembly(new THREE.DodecahedronGeometry(0.35, 0), baseMat, 0x78350f);
-            const outerRingGeo = new THREE.TorusGeometry(0.58, 0.055, 12, 40);
-            const outerRing = this.createAssemblyWithCustomLines(outerRingGeo, accentMat, this.createSparseTorusLines(0.58, 0.055, 12, 40, 0x92400e));
+            const outerRing = this.createOutlinedAssembly(new THREE.TorusGeometry(0.58, 0.055, 12, 40), accentMat, 0x92400e);
             outerRing.rotation.x = Math.PI / 2;
-            const innerRingGeo = new THREE.TorusGeometry(0.4, 0.035, 10, 32);
-            const innerRing = this.createAssemblyWithCustomLines(innerRingGeo, baseMat, this.createSparseTorusLines(0.4, 0.035, 10, 32, 0x92400e));
+            const innerRing = this.createOutlinedAssembly(new THREE.TorusGeometry(0.4, 0.035, 10, 32), baseMat, 0x92400e);
             innerRing.rotation.y = Math.PI / 2;
             spinGroup = new THREE.Group();
             counterSpinGroup = new THREE.Group();
