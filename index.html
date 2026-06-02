@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>深渊迷宫：2.5D 回合制视效版</title>
+    <title>只管寻路：2.5D 回合制视效版</title>
     <link rel="icon" href="data:,">
     <script src="./vendor/tailwind/tailwindcss.js"></script>
     
@@ -82,18 +82,19 @@
         <div id="floating-text-container"></div>
         
         <!-- 常规悬浮状态 -->
-        <div class="absolute top-3 left-3 right-16 md:right-20 flex justify-between pointer-events-none drop-shadow-2xl z-20">
+        <div class="absolute top-3 left-3 right-3 z-40 flex items-start gap-3">
+            <div class="pointer-events-none flex min-w-0 flex-1 flex-wrap items-start gap-2 drop-shadow-2xl">
             <div class="bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]">
                 层数 <span id="ui-level" class="text-blue-400 font-black text-lg ml-1">1</span>
             </div>
-            <div class="bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)] transition-colors duration-300" id="ui-status-box">
-                状态 <span id="ui-status" class="text-emerald-400 font-bold ml-1">初始化</span>
+            <div class="min-w-0 max-w-full bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)] transition-colors duration-300" id="ui-status-box">
+                <span class="whitespace-nowrap">状态</span><span id="ui-status" class="ml-1 inline-block max-w-[24vw] truncate align-bottom text-emerald-400 font-bold sm:max-w-none">初始化</span>
             </div>
         </div>
 
-        <div class="absolute top-3 right-3 z-40 pointer-events-auto">
+        <div class="pointer-events-auto shrink-0">
             <div class="flex items-center justify-end gap-2">
-                <button id="btn-editor" class="rounded-xl border-2 border-slate-700 bg-slate-900/95 px-3 h-11 text-xs font-bold tracking-wide text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.45)] hover:bg-slate-800 transition-colors">
+                <button id="btn-editor" class="h-11 whitespace-nowrap rounded-xl border-2 border-slate-700 bg-slate-900/95 px-2.5 text-xs font-bold tracking-wide text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.45)] transition-colors hover:bg-slate-800 sm:px-3">
                     编辑器
                 </button>
                 <button id="btn-settings" class="h-11 w-11 rounded-xl border-2 border-slate-700 bg-slate-900/95 text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.45)] flex items-center justify-center hover:bg-slate-800 transition-colors" aria-label="打开设置">
@@ -120,6 +121,7 @@
                     <input id="slider-volume" class="settings-slider w-full" type="range" min="0" max="100" step="1" value="70">
                 </div>
             </div>
+        </div>
         </div>
 
         <!-- 传统 RPG 回合制战斗 UI 遮罩层（隐藏状态） -->
@@ -159,7 +161,7 @@
     <!-- UI 控制区 -->
     <div id="ui-container" class="h-[45vh] md:h-full md:w-80 lg:w-96 bg-slate-950 flex flex-col shrink-0 relative z-40">
         <div class="p-4 border-b-4 border-slate-900 text-center shrink-0 bg-slate-800">
-            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-wider">深渊迷宫 <span class="text-xs text-slate-400 font-bold">RPG</span></h1>
+            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-wider">只管寻路 <span class="text-xs text-slate-400 font-bold">RPG</span></h1>
         </div>
 
         <div class="flex-1 overflow-y-auto p-4 pb-8 space-y-4 bg-slate-900">
@@ -172,36 +174,36 @@
             <div class="space-y-3">
                 <button id="btn-up-speed" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-blue-300 flex items-center gap-2">寻路引擎 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">提升穿梭能力</div>
+                        <div class="font-bold text-blue-300 flex items-center gap-2">走得更快 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">自动走路会更快</div>
                     </div>
                     <div class="text-right"><div id="cost-speed" class="text-yellow-400 font-bold text-sm">10</div></div>
                 </button>
                 <button id="btn-up-atk" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-red-400 flex items-center gap-2">深渊打击 <span id="val-atk" class="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">Lv.1</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">强化战斗伤害</div>
+                        <div class="font-bold text-red-400 flex items-center gap-2">打得更疼 <span id="val-atk" class="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">每次攻击伤害更高</div>
                     </div>
                     <div class="text-right"><div id="cost-atk" class="text-yellow-400 font-bold text-sm">20</div></div>
                 </button>
                 <button id="btn-up-hp" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-green-400 flex items-center gap-2">矩阵护盾 <span id="val-hp" class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800/50">Lv.1</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">提升生命容错率</div>
+                        <div class="font-bold text-green-400 flex items-center gap-2">更抗揍 <span id="val-hp" class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">血量上限更高</div>
                     </div>
                     <div class="text-right"><div id="cost-hp" class="text-yellow-400 font-bold text-sm">20</div></div>
                 </button>
                 <button id="btn-up-chest" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-yellow-300 flex items-center gap-2">数据宝藏 <span id="val-chest" class="text-[10px] bg-yellow-950 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-800/50">Lv.1</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">增加宝箱刷出率</div>
+                        <div class="font-bold text-yellow-300 flex items-center gap-2">更多宝箱 <span id="val-chest" class="text-[10px] bg-yellow-950 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">地图里更容易刷宝箱</div>
                     </div>
                     <div class="text-right"><div id="cost-chest" class="text-yellow-400 font-bold text-sm">50</div></div>
                 </button>
                 <button id="btn-up-monster" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-purple-400 flex items-center gap-2">高风险信标 <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
-                        <div id="desc-monster" class="text-[10px] text-slate-500 mt-0.5">吸引高收益怪物，Lv.4 解锁 Boss</div>
+                        <div class="font-bold text-purple-400 flex items-center gap-2">更多怪和 Boss <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
+                        <div id="desc-monster" class="text-[10px] text-slate-500 mt-0.5">怪物更容易出现，升到 Lv.4 解锁 Boss</div>
                     </div>
                     <div class="text-right"><div id="cost-monster" class="text-yellow-400 font-bold text-sm">100</div></div>
                 </button>
@@ -220,6 +222,7 @@
                         <p class="text-[11px] md:text-xs font-bold text-slate-400">左键选中面或线，右键拖拽旋转，滚轮缩放</p>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button id="btn-editor-undo" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-[11px] font-bold text-slate-200 hover:bg-slate-800">撤销</button>
                         <button id="btn-editor-read" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-[11px] font-bold text-slate-200 hover:bg-slate-800">读取配置</button>
                         <button id="btn-editor-reset" class="rounded-lg border border-amber-700 bg-amber-950/60 px-3 py-2 text-[11px] font-bold text-amber-100 hover:bg-amber-900/70">重置为备份</button>
                         <button id="btn-editor-save" class="rounded-lg border border-cyan-600 bg-cyan-500/15 px-3 py-2 text-[11px] font-bold text-cyan-100 hover:bg-cyan-500/25">保存到生产环境</button>
@@ -251,10 +254,14 @@
                             <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
                                 <div class="flex items-center justify-between">
                                     <div>
-                                        <div class="text-[11px] font-bold tracking-wide text-slate-400">颜色编辑</div>
+                                        <div class="text-[11px] font-bold tracking-wide text-slate-400">选择与颜色</div>
                                         <div id="editor-selected-target" class="mt-1 text-sm font-bold text-slate-100">尚未选择</div>
+                                        <div id="editor-selection-kind" class="mt-1 text-[11px] font-bold text-cyan-300">等待选择</div>
                                     </div>
                                     <div id="editor-selected-type" class="rounded-lg border border-slate-700 px-2 py-1 text-[10px] font-bold text-slate-300">待选择</div>
+                                </div>
+                                <div class="mt-2 text-[11px] leading-5 text-slate-400">
+                                    左键选择，按住 Shift 可多选同类型对象。点击空白区域取消选择。
                                 </div>
                                 <div class="mt-4 flex items-center gap-3">
                                     <input id="editor-color-picker" type="color" value="#22d3ee" class="h-12 w-16 rounded-lg border border-slate-700 bg-transparent p-1">
@@ -262,12 +269,60 @@
                                     <div id="editor-color-value" class="text-xs font-bold text-cyan-300">#22d3ee</div>
                                 </div>
                             </div>
+                            <div id="editor-face-controls" class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
+                                <div class="text-[11px] font-bold tracking-wide text-slate-400">面纹理</div>
+                                <div class="mt-3 space-y-3">
+                                    <div>
+                                        <label for="editor-face-pattern" class="mb-2 block text-[11px] font-bold text-slate-400">纹理类型</label>
+                                        <select id="editor-face-pattern" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-cyan-500">
+                                            <option value="none">无</option>
+                                            <option value="halftone">半调网点</option>
+                                            <option value="dither">抖动棋盘</option>
+                                            <option value="hatch">斜线排布</option>
+                                            <option value="__mixed">...</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <div>
+                                            <label for="editor-pattern-color" class="mb-2 block text-[11px] font-bold text-slate-400">纹理颜色</label>
+                                            <input id="editor-pattern-color" type="color" value="#0f172a" class="h-10 w-16 rounded-lg border border-slate-700 bg-transparent p-1">
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="mb-2 flex items-center justify-between text-[11px] font-bold text-slate-400">
+                                                <span>纹理缩放</span>
+                                                <span id="editor-pattern-scale-value" class="text-cyan-300">8.0x</span>
+                                            </div>
+                                            <input id="editor-pattern-scale" type="range" min="2" max="24" step="0.5" value="8" class="settings-slider w-full">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="editor-line-controls" class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
+                                <div class="text-[11px] font-bold tracking-wide text-slate-400">线样式</div>
+                                <div class="mt-3 space-y-3">
+                                    <div>
+                                        <label for="editor-line-style" class="mb-2 block text-[11px] font-bold text-slate-400">线型</label>
+                                        <select id="editor-line-style" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-cyan-500">
+                                            <option value="solid">实线</option>
+                                            <option value="dashed">虚线</option>
+                                            <option value="__mixed">...</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <div class="mb-2 flex items-center justify-between text-[11px] font-bold text-slate-400">
+                                            <span>线宽</span>
+                                            <span id="editor-line-width-value" class="text-cyan-300">2.0</span>
+                                        </div>
+                                        <input id="editor-line-width" type="range" min="1" max="6" step="0.5" value="2" class="settings-slider w-full">
+                                    </div>
+                                </div>
+                            </div>
                             <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
                                 <div class="text-[11px] font-bold tracking-wide text-slate-400">配置说明</div>
                                 <div class="mt-2 space-y-1 text-[12px] leading-5 text-slate-300">
                                     <p>保存后，运行中的角色和之后生成的对象都会使用这份配置。</p>
                                     <p>重置只会回到内置备份配置，不会自动保存，确认后再点“保存到生产环境”。</p>
-                                    <p>“读取配置”会把当前已保存的配置重新加载到编辑器。</p>
+                                    <p>“读取配置”会把当前已保存的配置重新加载到编辑器，撤销只作用于当前工作副本。</p>
                                 </div>
                             </div>
                             <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
@@ -373,6 +428,22 @@ const ENEMY_ARCHETYPES = [
 
 const MODEL_EDITOR_STORAGE_KEY = 'jkp-model-appearance-v1';
 const MODEL_EDITOR_DEFAULT_CONFIG = Object.freeze({ version: 1, assets: {} });
+const MODEL_EDITOR_DEFAULT_FACE_PATTERN = Object.freeze({
+    pattern: 'none',
+    patternColor: '#0f172a',
+    patternScale: 8
+});
+const MODEL_EDITOR_DEFAULT_LINE_STYLE = Object.freeze({
+    style: 'solid',
+    width: 2
+});
+const MODEL_EDITOR_FACE_PATTERN_IDS = Object.freeze({
+    none: 0,
+    halftone: 1,
+    dither: 2,
+    hatch: 3
+});
+const MODEL_EDITOR_FACE_PATTERN_KEYS = Object.freeze(['none', 'halftone', 'dither', 'hatch']);
 const MODEL_EDITOR_ASSET_LABELS = Object.freeze({
     player: '玩家飞碟',
     scout: '棱镜侦察者',
@@ -415,13 +486,41 @@ function sanitizeAppearanceConfig(rawConfig) {
             const lines = {};
 
             if (partConfig.faces && typeof partConfig.faces === 'object') {
-                for (const [index, color] of Object.entries(partConfig.faces)) {
-                    if (!Number.isNaN(Number(index))) faces[index] = normalizeColorHex(color);
+                for (const [index, faceValue] of Object.entries(partConfig.faces)) {
+                    if (Number.isNaN(Number(index))) continue;
+                    if (typeof faceValue === 'string' || typeof faceValue === 'number') {
+                        faces[index] = { color: normalizeColorHex(faceValue) };
+                        continue;
+                    }
+                    if (!faceValue || typeof faceValue !== 'object') continue;
+                    const pattern = MODEL_EDITOR_FACE_PATTERN_KEYS.includes(faceValue.pattern) ? faceValue.pattern : 'none';
+                    const patternScale = Number(faceValue.patternScale);
+                    faces[index] = {
+                        color: normalizeColorHex(faceValue.color),
+                        pattern,
+                        patternColor: normalizeColorHex(faceValue.patternColor, MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor),
+                        patternScale: Number.isFinite(patternScale)
+                            ? THREE.MathUtils.clamp(patternScale, 2, 24)
+                            : MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale
+                    };
                 }
             }
             if (partConfig.lines && typeof partConfig.lines === 'object') {
-                for (const [index, color] of Object.entries(partConfig.lines)) {
-                    if (!Number.isNaN(Number(index))) lines[index] = normalizeColorHex(color);
+                for (const [index, lineValue] of Object.entries(partConfig.lines)) {
+                    if (Number.isNaN(Number(index))) continue;
+                    if (typeof lineValue === 'string' || typeof lineValue === 'number') {
+                        lines[index] = { color: normalizeColorHex(lineValue) };
+                        continue;
+                    }
+                    if (!lineValue || typeof lineValue !== 'object') continue;
+                    const width = Number(lineValue.width);
+                    lines[index] = {
+                        color: normalizeColorHex(lineValue.color),
+                        style: lineValue.style === 'dashed' ? 'dashed' : 'solid',
+                        width: Number.isFinite(width)
+                            ? THREE.MathUtils.clamp(width, 1, 6)
+                            : MODEL_EDITOR_DEFAULT_LINE_STYLE.width
+                    };
                 }
             }
 
@@ -452,21 +551,45 @@ function getAppearancePart(config, assetKey, partKey, createIfMissing = false) {
     return config.assets[assetKey][partKey];
 }
 
+function getFaceAppearanceEntry(part, faceIndex, defaultColor) {
+    const raw = part?.faces?.[faceIndex] || {};
+    return {
+        color: normalizeColorHex(raw.color, defaultColor),
+        pattern: MODEL_EDITOR_FACE_PATTERN_KEYS.includes(raw.pattern) ? raw.pattern : MODEL_EDITOR_DEFAULT_FACE_PATTERN.pattern,
+        patternColor: normalizeColorHex(raw.patternColor, MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor),
+        patternScale: Number.isFinite(Number(raw.patternScale))
+            ? THREE.MathUtils.clamp(Number(raw.patternScale), 2, 24)
+            : MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale
+    };
+}
+
+function getLineAppearanceEntry(part, lineIndex, defaultColor) {
+    const raw = part?.lines?.[lineIndex] || {};
+    return {
+        color: normalizeColorHex(raw.color, defaultColor),
+        style: raw.style === 'dashed' ? 'dashed' : MODEL_EDITOR_DEFAULT_LINE_STYLE.style,
+        width: Number.isFinite(Number(raw.width))
+            ? THREE.MathUtils.clamp(Number(raw.width), 1, 6)
+            : MODEL_EDITOR_DEFAULT_LINE_STYLE.width
+    };
+}
+
 class SoundEngine {
     constructor() {
         this.ctx = null;
         this.enabled = true;
+        this.outputGainBoost = 1.9;
         this.volume = this.readStoredVolume();
     }
 
     readStoredVolume() {
         try {
             const raw = window.localStorage.getItem('jkp-master-volume');
-            if (raw === null) return 0.7;
+            if (raw === null) return 0.85;
             const parsed = Number(raw);
-            return Number.isFinite(parsed) ? THREE.MathUtils.clamp(parsed, 0, 1) : 0.7;
+            return Number.isFinite(parsed) ? THREE.MathUtils.clamp(parsed, 0, 1) : 0.85;
         } catch {
-            return 0.7;
+            return 0.85;
         }
     }
 
@@ -519,8 +642,9 @@ class SoundEngine {
         osc.frequency.setValueAtTime(freq, now);
         if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(40, slideTo), now + duration);
 
+        const effectiveVolume = THREE.MathUtils.clamp(Math.pow(this.volume, 0.8) * this.outputGainBoost, 0, 2.2);
         gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(volume * this.volume, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(volume * effectiveVolume, now + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
         osc.connect(filter);
@@ -664,8 +788,8 @@ const GameState = {
         const monsterDesc = document.getElementById('desc-monster');
         if (monsterDesc) {
             monsterDesc.innerText = this.isBossUnlocked()
-                ? `吸引高收益怪物，Boss 投放率 ${Math.round(this.getBossFloorChance() * 100)}%`
-                : '吸引高收益怪物，Lv.4 解锁 Boss';
+                ? `怪物更容易出现，Boss 出现概率 ${Math.round(this.getBossFloorChance() * 100)}%`
+                : '怪物更容易出现，升到 Lv.4 解锁 Boss';
         }
     }
 };
@@ -819,18 +943,55 @@ class VisualEngine {
         attribute.needsUpdate = true;
     }
 
+    fillScalarAttribute(attribute, value) {
+        for (let i = 0; i < attribute.count; i++) attribute.setX(i, value);
+        attribute.needsUpdate = true;
+    }
+
+    fillVector2Attribute(attribute, valueX, valueY) {
+        for (let i = 0; i < attribute.count; i++) attribute.setXY(i, valueX, valueY);
+        attribute.needsUpdate = true;
+    }
+
     ensureEditableMesh(mesh, defaultColor) {
         if (mesh.userData.editorMeta?.kind === 'mesh') return;
 
         const sourceGeometry = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
         const position = sourceGeometry.getAttribute('position');
         const colorAttr = new THREE.Float32BufferAttribute(new Float32Array(position.count * 3), 3);
+        const patternColorAttr = new THREE.Float32BufferAttribute(new Float32Array(position.count * 3), 3);
+        const patternMetaAttr = new THREE.Float32BufferAttribute(new Float32Array(position.count * 2), 2);
         this.fillColorAttribute(colorAttr, defaultColor);
+        this.fillColorAttribute(patternColorAttr, MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor);
+        this.fillVector2Attribute(patternMetaAttr, MODEL_EDITOR_FACE_PATTERN_IDS.none, MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale);
         sourceGeometry.setAttribute('color', colorAttr);
+        sourceGeometry.setAttribute('patternColor', patternColorAttr);
+        sourceGeometry.setAttribute('patternMeta', patternMetaAttr);
 
         const material = mesh.material.clone();
         material.vertexColors = true;
         material.color.set(0xffffff);
+        material.onBeforeCompile = (shader) => {
+            shader.vertexShader = shader.vertexShader
+                .replace(
+                    '#include <common>',
+                    '#include <common>\nattribute vec3 patternColor;\nattribute vec2 patternMeta;\nvarying vec3 vPatternColor;\nvarying vec2 vPatternMeta;\nvarying vec2 vEditorUv;'
+                )
+                .replace(
+                    '#include <uv_vertex>',
+                    '#include <uv_vertex>\nvEditorUv = uv;\nvPatternColor = patternColor;\nvPatternMeta = patternMeta;'
+                );
+
+            shader.fragmentShader = shader.fragmentShader
+                .replace(
+                    '#include <common>',
+                    '#include <common>\nvarying vec3 vPatternColor;\nvarying vec2 vPatternMeta;\nvarying vec2 vEditorUv;\nfloat patternHalftone(vec2 uv) { vec2 gv = fract(uv) - 0.5; float d = length(gv); return 1.0 - smoothstep(0.16, 0.24, d); }\nfloat patternDither(vec2 uv) { vec2 gv = floor(uv * 2.0); return mod(gv.x + gv.y, 2.0) < 0.5 ? 0.0 : 0.72; }\nfloat patternHatch(vec2 uv) { float a = fract((uv.x + uv.y) * 0.7); return step(0.62, a) * 0.78; }\nfloat resolvePatternAlpha(float patternId, vec2 uv) { if (patternId < 0.5) return 0.0; if (patternId < 1.5) return patternHalftone(uv); if (patternId < 2.5) return patternDither(uv); return patternHatch(uv); }'
+                )
+                .replace(
+                    'vec4 diffuseColor = vec4( diffuse, opacity );',
+                    'vec4 diffuseColor = vec4( diffuse, opacity );\nfloat patternScale = max(vPatternMeta.y, 0.0001);\nfloat patternAlpha = resolvePatternAlpha(vPatternMeta.x, vEditorUv * patternScale);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vPatternColor, patternAlpha);'
+                );
+        };
         mesh.geometry = sourceGeometry;
         mesh.material = material;
     }
@@ -841,26 +1002,58 @@ class VisualEngine {
         const sourceGeometry = lines.geometry.clone();
         const position = sourceGeometry.getAttribute('position');
         const colorAttr = new THREE.Float32BufferAttribute(new Float32Array(position.count * 3), 3);
+        const alphaAttr = new THREE.Float32BufferAttribute(new Float32Array(position.count), 1);
         this.fillColorAttribute(colorAttr, defaultColor);
+        this.fillScalarAttribute(alphaAttr, 1);
         sourceGeometry.setAttribute('color', colorAttr);
+        sourceGeometry.setAttribute('lineAlpha', alphaAttr);
 
         const material = lines.material.clone();
         material.vertexColors = true;
         material.color.set(0xffffff);
+        material.transparent = true;
+        material.onBeforeCompile = (shader) => {
+            shader.vertexShader = shader.vertexShader
+                .replace(
+                    '#include <common>',
+                    '#include <common>\nattribute float lineAlpha;\nvarying float vLineAlpha;'
+                )
+                .replace(
+                    '#include <begin_vertex>',
+                    '#include <begin_vertex>\nvLineAlpha = lineAlpha;'
+                );
+            shader.fragmentShader = shader.fragmentShader
+                .replace(
+                    '#include <common>',
+                    '#include <common>\nvarying float vLineAlpha;'
+                )
+                .replace(
+                    'vec4 diffuseColor = vec4( diffuse, opacity );',
+                    'vec4 diffuseColor = vec4( diffuse, opacity * vLineAlpha );'
+                );
+        };
         lines.geometry = sourceGeometry;
         lines.material = material;
     }
 
-    setMeshFaceColor(mesh, faceIndex, colorHex) {
+    setMeshFaceAppearance(mesh, faceIndex, appearance) {
         const colors = mesh.geometry.getAttribute('color');
-        if (!colors) return;
+        const patternColors = mesh.geometry.getAttribute('patternColor');
+        const patternMeta = mesh.geometry.getAttribute('patternMeta');
+        if (!colors || !patternColors || !patternMeta) return;
         const startVertex = faceIndex * 3;
         if (startVertex + 2 >= colors.count) return;
-        const color = new THREE.Color(colorHex);
+        const color = new THREE.Color(appearance.color);
+        const patternColor = new THREE.Color(appearance.patternColor);
+        const patternId = MODEL_EDITOR_FACE_PATTERN_IDS[appearance.pattern] ?? 0;
         for (let offset = 0; offset < 3; offset++) {
             colors.setXYZ(startVertex + offset, color.r, color.g, color.b);
+            patternColors.setXYZ(startVertex + offset, patternColor.r, patternColor.g, patternColor.b);
+            patternMeta.setXY(startVertex + offset, patternId, appearance.patternScale);
         }
         colors.needsUpdate = true;
+        patternColors.needsUpdate = true;
+        patternMeta.needsUpdate = true;
     }
 
     setLineSegmentColor(lines, segmentIndex, colorHex) {
@@ -874,6 +1067,95 @@ class VisualEngine {
         colors.needsUpdate = true;
     }
 
+    setLineSegmentAlpha(lines, segmentIndex, alphaValue) {
+        const alpha = lines.geometry.getAttribute('lineAlpha');
+        if (!alpha) return;
+        const startVertex = segmentIndex * 2;
+        if (startVertex + 1 >= alpha.count) return;
+        alpha.setX(startVertex, alphaValue);
+        alpha.setX(startVertex + 1, alphaValue);
+        alpha.needsUpdate = true;
+    }
+
+    readMeshFaceAppearance(mesh, faceIndex) {
+        const colors = mesh.geometry.getAttribute('color');
+        const patternColors = mesh.geometry.getAttribute('patternColor');
+        const patternMeta = mesh.geometry.getAttribute('patternMeta');
+        const startVertex = faceIndex * 3;
+        const fallback = mesh.userData.editorMeta?.defaultAppearance || {
+            color: mesh.userData.editorMeta?.defaultColor || '#ffffff',
+            pattern: MODEL_EDITOR_DEFAULT_FACE_PATTERN.pattern,
+            patternColor: MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor,
+            patternScale: MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale
+        };
+        if (!colors || !patternColors || !patternMeta || startVertex >= colors.count) return { ...fallback };
+        const color = new THREE.Color().setRGB(colors.getX(startVertex), colors.getY(startVertex), colors.getZ(startVertex));
+        const patternColor = new THREE.Color().setRGB(patternColors.getX(startVertex), patternColors.getY(startVertex), patternColors.getZ(startVertex));
+        const patternId = Math.round(patternMeta.getX(startVertex));
+        return {
+            color: normalizeColorHex(color, fallback.color),
+            pattern: MODEL_EDITOR_FACE_PATTERN_KEYS[patternId] || fallback.pattern,
+            patternColor: normalizeColorHex(patternColor, fallback.patternColor),
+            patternScale: Number(patternMeta.getY(startVertex).toFixed(2))
+        };
+    }
+
+    readLineSegmentAppearance(lines, segmentIndex) {
+        const colors = lines.geometry.getAttribute('color');
+        const startVertex = segmentIndex * 2;
+        const fallback = lines.userData.editorMeta?.defaultAppearance || {
+            color: lines.userData.editorMeta?.defaultColor || '#ffffff',
+            style: MODEL_EDITOR_DEFAULT_LINE_STYLE.style,
+            width: MODEL_EDITOR_DEFAULT_LINE_STYLE.width
+        };
+        const color = colors && startVertex < colors.count
+            ? new THREE.Color().setRGB(colors.getX(startVertex), colors.getY(startVertex), colors.getZ(startVertex))
+            : null;
+        return {
+            color: normalizeColorHex(color, fallback.color),
+            style: fallback.style,
+            width: fallback.width
+        };
+    }
+
+    clearLineOverrides(lines) {
+        const group = lines.userData.overrideGroup;
+        if (!group) return;
+        while (group.children.length > 0) {
+            const child = group.children[0];
+            group.remove(child);
+            child.geometry?.dispose?.();
+            child.material?.dispose?.();
+        }
+    }
+
+    createLineOverride(lines, segmentIndex, appearance) {
+        const positions = lines.geometry.getAttribute('position');
+        const startVertex = segmentIndex * 2;
+        if (!positions || startVertex + 1 >= positions.count) return;
+        const p1 = new THREE.Vector3().fromBufferAttribute(positions, startVertex);
+        const p2 = new THREE.Vector3().fromBufferAttribute(positions, startVertex + 1);
+        const geometry = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+        const material = appearance.style === 'dashed'
+            ? new THREE.LineDashedMaterial({
+                color: appearance.color,
+                linewidth: appearance.width,
+                dashSize: 0.06 * appearance.width,
+                gapSize: 0.045 * appearance.width,
+                transparent: true,
+                opacity: 1
+            })
+            : new THREE.LineBasicMaterial({
+                color: appearance.color,
+                linewidth: appearance.width,
+                transparent: true,
+                opacity: 1
+            });
+        const line = new THREE.Line(geometry, material);
+        if (appearance.style === 'dashed') line.computeLineDistances();
+        lines.userData.overrideGroup?.add(line);
+    }
+
     applyAppearanceConfigToEditable(target, config = this.appearanceConfig) {
         const meta = target?.userData?.editorMeta;
         if (!meta) return;
@@ -883,13 +1165,29 @@ class VisualEngine {
         const colors = target.geometry?.getAttribute('color');
         if (!colors) return;
 
-        this.fillColorAttribute(colors, meta.defaultColor);
+        if (meta.kind === 'mesh') {
+            const faceCount = Math.floor(colors.count / 3);
+            for (let faceIndex = 0; faceIndex < faceCount; faceIndex++) {
+                const faceAppearance = getFaceAppearanceEntry(partConfig, faceIndex, meta.defaultColor);
+                this.setMeshFaceAppearance(target, faceIndex, faceAppearance);
+            }
+            return;
+        }
 
-        for (const [indexText, color] of Object.entries(overrides || {})) {
-            const index = Number(indexText);
-            if (Number.isNaN(index)) continue;
-            if (meta.kind === 'mesh') this.setMeshFaceColor(target, index, color);
-            else this.setLineSegmentColor(target, index, color);
+        this.fillColorAttribute(colors, meta.defaultColor);
+        this.fillScalarAttribute(target.geometry.getAttribute('lineAlpha'), 1);
+        this.clearLineOverrides(target);
+
+        const segmentCount = Math.floor(colors.count / 2);
+        for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++) {
+            const lineAppearance = getLineAppearanceEntry(partConfig, segmentIndex, meta.defaultColor);
+            this.setLineSegmentColor(target, segmentIndex, lineAppearance.color);
+            const needsOverlay = lineAppearance.style !== MODEL_EDITOR_DEFAULT_LINE_STYLE.style
+                || Math.abs(lineAppearance.width - MODEL_EDITOR_DEFAULT_LINE_STYLE.width) > 0.001;
+            if (needsOverlay) {
+                this.setLineSegmentAlpha(target, segmentIndex, 0);
+                this.createLineOverride(target, segmentIndex, lineAppearance);
+            }
         }
     }
 
@@ -911,11 +1209,36 @@ class VisualEngine {
         const lineHex = normalizeColorHex(lineColor, '#0f172a');
 
         this.ensureEditableMesh(mesh, meshHex);
-        mesh.userData.editorMeta = { kind: 'mesh', assetKey, partKey, defaultColor: meshHex };
+        mesh.userData.editorMeta = {
+            kind: 'mesh',
+            assetKey,
+            partKey,
+            defaultColor: meshHex,
+            defaultAppearance: {
+                color: meshHex,
+                pattern: MODEL_EDITOR_DEFAULT_FACE_PATTERN.pattern,
+                patternColor: MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor,
+                patternScale: MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale
+            }
+        };
 
         if (lines) {
             this.ensureEditableLineSegments(lines, lineHex);
-            lines.userData.editorMeta = { kind: 'line', assetKey, partKey, defaultColor: lineHex };
+            const overrideGroup = new THREE.Group();
+            overrideGroup.userData.editorOverlay = true;
+            group.add(overrideGroup);
+            lines.userData.overrideGroup = overrideGroup;
+            lines.userData.editorMeta = {
+                kind: 'line',
+                assetKey,
+                partKey,
+                defaultColor: lineHex,
+                defaultAppearance: {
+                    color: lineHex,
+                    style: MODEL_EDITOR_DEFAULT_LINE_STYLE.style,
+                    width: MODEL_EDITOR_DEFAULT_LINE_STYLE.width
+                }
+            };
         }
 
         group.userData.mesh = mesh;
@@ -1985,24 +2308,35 @@ class ModelEditor {
         this.modal = document.getElementById('editor-modal');
         this.canvas = document.getElementById('editor-preview-canvas');
         this.assetSelect = document.getElementById('editor-asset-select');
+        this.undoButton = document.getElementById('btn-editor-undo');
         this.colorPicker = document.getElementById('editor-color-picker');
+        this.patternColorPicker = document.getElementById('editor-pattern-color');
+        this.patternSelect = document.getElementById('editor-face-pattern');
+        this.patternScale = document.getElementById('editor-pattern-scale');
+        this.patternScaleValue = document.getElementById('editor-pattern-scale-value');
+        this.lineStyleSelect = document.getElementById('editor-line-style');
+        this.lineWidth = document.getElementById('editor-line-width');
+        this.lineWidthValue = document.getElementById('editor-line-width-value');
         this.eyeDropperButton = document.getElementById('btn-editor-eyedropper');
         this.selectionStatus = document.getElementById('editor-selection-status');
         this.selectedTarget = document.getElementById('editor-selected-target');
+        this.selectionKind = document.getElementById('editor-selection-kind');
         this.selectedType = document.getElementById('editor-selected-type');
         this.colorValue = document.getElementById('editor-color-value');
+        this.faceControls = document.getElementById('editor-face-controls');
+        this.lineControls = document.getElementById('editor-line-controls');
         this.logEl = document.getElementById('editor-log');
 
         this.workingConfig = this.engine.cloneAppearanceConfig();
+        this.undoStack = [];
         this.previewScene = null;
         this.previewCamera = null;
         this.previewRenderer = null;
         this.previewRaycaster = new THREE.Raycaster();
         this.previewRig = null;
         this.previewModel = null;
-        this.faceHighlight = null;
-        this.lineHighlight = null;
-        this.selection = null;
+        this.selectionDots = null;
+        this.selection = [];
         this.previewDistance = 3.4;
         this.isOpen = false;
         this.isRotating = false;
@@ -2020,12 +2354,22 @@ class ModelEditor {
             event.stopPropagation();
             this.open();
         });
+        this.undoButton.addEventListener('click', () => this.undo());
         document.getElementById('btn-editor-close').addEventListener('click', () => this.close());
         document.getElementById('btn-editor-read').addEventListener('click', () => this.readSavedConfig());
         document.getElementById('btn-editor-reset').addEventListener('click', () => this.resetToBackup());
         document.getElementById('btn-editor-save').addEventListener('click', () => this.saveToRuntime());
         this.assetSelect.addEventListener('change', () => this.loadAsset(this.assetSelect.value));
         this.colorPicker.addEventListener('input', () => this.applyColorToSelection(this.colorPicker.value));
+        this.patternColorPicker.addEventListener('input', () => this.applyPatternColorToSelection(this.patternColorPicker.value));
+        this.patternSelect.addEventListener('change', () => {
+            if (this.patternSelect.value !== '__mixed') this.applyPatternToSelection(this.patternSelect.value);
+        });
+        this.patternScale.addEventListener('input', () => this.applyPatternScaleToSelection(Number(this.patternScale.value)));
+        this.lineStyleSelect.addEventListener('change', () => {
+            if (this.lineStyleSelect.value !== '__mixed') this.applyLineStyleToSelection(this.lineStyleSelect.value);
+        });
+        this.lineWidth.addEventListener('input', () => this.applyLineWidthToSelection(Number(this.lineWidth.value)));
         this.eyeDropperButton.addEventListener('click', () => this.pickScreenColor());
         this.modal.addEventListener('click', (event) => {
             if (event.target === this.modal || event.target.classList.contains('bg-black/55')) this.close();
@@ -2052,19 +2396,12 @@ class ModelEditor {
         grid.position.y = -0.7;
         this.previewScene.add(grid);
 
-        this.faceHighlight = new THREE.Line(
+        this.selectionDots = new THREE.Points(
             new THREE.BufferGeometry(),
-            new THREE.LineBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.95 })
+            new THREE.PointsMaterial({ color: 0xfacc15, size: 0.06, sizeAttenuation: true, transparent: true, opacity: 0.95 })
         );
-        this.faceHighlight.visible = false;
-        this.previewScene.add(this.faceHighlight);
-
-        this.lineHighlight = new THREE.LineSegments(
-            new THREE.BufferGeometry(),
-            new THREE.LineBasicMaterial({ color: 0xf59e0b, linewidth: 3 })
-        );
-        this.lineHighlight.visible = false;
-        this.previewScene.add(this.lineHighlight);
+        this.selectionDots.visible = false;
+        this.previewScene.add(this.selectionDots);
 
         this.canvas.addEventListener('contextmenu', (event) => event.preventDefault());
         this.canvas.addEventListener('pointerdown', (event) => this.handlePointerDown(event));
@@ -2113,7 +2450,7 @@ class ModelEditor {
 
     renderPreview() {
         if (!this.previewRenderer || !this.previewCamera) return;
-        if (this.selection) this.updateHighlight();
+        if (this.selection.length > 0) this.updateHighlight();
         this.previewCamera.position.set(0, 0.5, this.previewDistance);
         this.previewCamera.lookAt(0, 0, 0);
         this.previewRenderer.render(this.previewScene, this.previewCamera);
@@ -2160,22 +2497,109 @@ class ModelEditor {
         return MODEL_EDITOR_ASSET_LABELS[assetKey] || assetKey;
     }
 
+    getSelectionKind() {
+        return this.selection.length > 0 ? this.selection[0].kind : null;
+    }
+
+    getSelectionKey(item) {
+        return `${item.kind}:${item.assetKey}:${item.partKey}:${item.index}`;
+    }
+
+    getSelectionEntry(item) {
+        const part = getAppearancePart(this.workingConfig, item.assetKey, item.partKey, false);
+        return item.kind === 'mesh'
+            ? getFaceAppearanceEntry(part, item.index, item.defaultColor)
+            : getLineAppearanceEntry(part, item.index, item.defaultColor);
+    }
+
+    getSharedSelectionValue(getter) {
+        if (this.selection.length === 0) return { mixed: false, value: null };
+        const firstValue = getter(this.getSelectionEntry(this.selection[0]));
+        const mixed = this.selection.some((item) => getter(this.getSelectionEntry(item)) !== firstValue);
+        return { mixed, value: firstValue };
+    }
+
+    pushUndoState(label) {
+        this.undoStack.push({
+            label,
+            config: this.engine.cloneAppearanceConfig(this.workingConfig)
+        });
+        if (this.undoStack.length > 30) this.undoStack.shift();
+        this.syncSelectionUi();
+    }
+
+    undo() {
+        if (this.undoStack.length === 0) {
+            this.log('Nothing to undo.');
+            return;
+        }
+        const state = this.undoStack.pop();
+        this.workingConfig = this.engine.cloneAppearanceConfig(state.config);
+        if (this.previewModel) this.engine.applyAppearanceConfigToObject(this.previewModel, this.workingConfig);
+        this.syncSelectionUi();
+        this.updateHighlight();
+        this.log(`Undo: ${state.label}.`);
+    }
+
     syncSelectionUi() {
-        const active = !!this.selection;
+        const active = this.selection.length > 0;
+        const kind = this.getSelectionKind();
         this.colorPicker.disabled = !active;
+        this.patternColorPicker.disabled = !active || kind !== 'mesh';
+        this.patternSelect.disabled = !active || kind !== 'mesh';
+        this.patternScale.disabled = !active || kind !== 'mesh';
+        this.lineStyleSelect.disabled = !active || kind !== 'line';
+        this.lineWidth.disabled = !active || kind !== 'line';
         this.colorPicker.classList.toggle('opacity-60', !active);
+        this.faceControls.classList.toggle('opacity-50', !active || kind !== 'mesh');
+        this.lineControls.classList.toggle('opacity-50', !active || kind !== 'line');
+        this.undoButton.disabled = this.undoStack.length === 0;
+        this.undoButton.classList.toggle('opacity-50', this.undoStack.length === 0);
+        this.undoButton.classList.toggle('cursor-not-allowed', this.undoStack.length === 0);
+
         this.selectionStatus.innerText = active
-            ? `Selected ${this.getAssetLabel(this.selection.assetKey)} / ${this.selection.partKey} / ${this.selection.kind === 'mesh' ? `face ${this.selection.index}` : `line ${this.selection.index}`}`
+            ? `Selected ${this.selection.length} ${kind === 'mesh' ? 'face' : 'line'}${this.selection.length > 1 ? 's' : ''}`
             : 'Nothing selected yet';
         this.selectedTarget.innerText = active
-            ? `${this.getAssetLabel(this.selection.assetKey)} / ${this.selection.partKey}`
+            ? `${this.getAssetLabel(this.selection[0].assetKey)} / ${this.selection.length === 1 ? this.selection[0].partKey : `${this.selection.length} targets`}`
             : 'No selection';
+        this.selectionKind.innerText = active
+            ? (kind === 'mesh' ? '当前选择类型：面' : '当前选择类型：边')
+            : '等待选择';
         this.selectedType.innerText = active
-            ? (this.selection.kind === 'mesh' ? `Face #${this.selection.index}` : `Line #${this.selection.index}`)
+            ? (kind === 'mesh' ? `Face x${this.selection.length}` : `Edge x${this.selection.length}`)
             : 'Waiting';
-        const color = active ? this.readSelectionColor(this.selection) : '#22d3ee';
+        const sharedColor = this.getSharedSelectionValue((entry) => entry.color);
+        const color = active ? sharedColor.value : '#22d3ee';
         this.colorPicker.value = color;
-        this.colorValue.innerText = color;
+        this.colorValue.innerText = active && sharedColor.mixed ? '...' : color;
+
+        if (!active) {
+            this.patternSelect.value = 'none';
+            this.patternColorPicker.value = MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor;
+            this.patternScale.value = String(MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale);
+            this.patternScaleValue.innerText = `${MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale.toFixed(1)}x`;
+            this.lineStyleSelect.value = 'solid';
+            this.lineWidth.value = String(MODEL_EDITOR_DEFAULT_LINE_STYLE.width);
+            this.lineWidthValue.innerText = MODEL_EDITOR_DEFAULT_LINE_STYLE.width.toFixed(1);
+            return;
+        }
+
+        if (kind === 'mesh') {
+            const sharedPattern = this.getSharedSelectionValue((entry) => entry.pattern);
+            const sharedPatternColor = this.getSharedSelectionValue((entry) => entry.patternColor);
+            const sharedScale = this.getSharedSelectionValue((entry) => String(entry.patternScale));
+            this.patternSelect.value = sharedPattern.mixed ? '__mixed' : sharedPattern.value;
+            this.patternColorPicker.value = sharedPatternColor.value;
+            this.patternScale.value = sharedScale.value;
+            this.patternScaleValue.innerText = sharedScale.mixed ? '...' : `${Number(sharedScale.value).toFixed(1)}x`;
+        } else {
+            const sharedStyle = this.getSharedSelectionValue((entry) => entry.style);
+            const sharedWidth = this.getSharedSelectionValue((entry) => String(entry.width));
+            this.lineStyleSelect.value = sharedStyle.mixed ? '__mixed' : sharedStyle.value;
+            this.lineWidth.value = sharedWidth.value;
+            this.lineWidthValue.innerText = sharedWidth.mixed ? '...' : Number(sharedWidth.value).toFixed(1);
+        }
     }
 
     log(message) {
@@ -2185,9 +2609,8 @@ class ModelEditor {
     }
 
     clearSelection(shouldLog = true) {
-        this.selection = null;
-        if (this.faceHighlight) this.faceHighlight.visible = false;
-        if (this.lineHighlight) this.lineHighlight.visible = false;
+        this.selection = [];
+        if (this.selectionDots) this.selectionDots.visible = false;
         this.syncSelectionUi();
         if (shouldLog) this.log('Selection cleared.');
     }
@@ -2334,68 +2757,85 @@ class ModelEditor {
             return;
         }
 
-        this.selection = picked;
+        picked.key = this.getSelectionKey(picked);
+        if (event.shiftKey) {
+            const kind = this.getSelectionKind();
+            if (kind && kind !== picked.kind) {
+                this.log('Mixed multi-select is not allowed. Keep face-only or edge-only selections.');
+                return;
+            }
+            const existingIndex = this.selection.findIndex((item) => item.key === picked.key);
+            if (existingIndex >= 0) this.selection.splice(existingIndex, 1);
+            else this.selection.push(picked);
+        } else {
+            this.selection = [picked];
+        }
+
+        if (this.selection.length === 0) {
+            this.clearSelection(false);
+            this.log('Selection cleared.');
+            return;
+        }
+
         this.syncSelectionUi();
         this.updateHighlight();
-        this.log(`Selected ${this.getAssetLabel(picked.assetKey)} / ${picked.partKey} / ${picked.kind === 'mesh' ? `face ${picked.index}` : `line ${picked.index}`}.`);
+        this.log(`Selected ${this.selection.length} ${this.getSelectionKind() === 'mesh' ? 'face' : 'edge'} target(s).`);
     }
 
     updateHighlight() {
-        if (!this.selection) {
-            if (this.faceHighlight) this.faceHighlight.visible = false;
-            if (this.lineHighlight) this.lineHighlight.visible = false;
+        if (this.selection.length === 0) {
+            if (this.selectionDots) this.selectionDots.visible = false;
             return;
         }
 
         this.previewScene.updateMatrixWorld(true);
-        const positions = this.selection.object.geometry.getAttribute('position');
-        const matrix = this.selection.object.matrixWorld;
+        const points = [];
         const a = new THREE.Vector3();
         const b = new THREE.Vector3();
         const c = new THREE.Vector3();
+        const normal = new THREE.Vector3();
 
-        if (this.selection.kind === 'mesh') {
-            const start = this.selection.index * 3;
-            if (start + 2 >= positions.count) return;
+        for (const item of this.selection) {
+            const positions = item.object.geometry.getAttribute('position');
+            const matrix = item.object.matrixWorld;
+            if (item.kind === 'mesh') {
+                const start = item.index * 3;
+                if (start + 2 >= positions.count) continue;
+                a.fromBufferAttribute(positions, start).applyMatrix4(matrix);
+                b.fromBufferAttribute(positions, start + 1).applyMatrix4(matrix);
+                c.fromBufferAttribute(positions, start + 2).applyMatrix4(matrix);
+                normal.copy(
+                    new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).normalize()
+                ).multiplyScalar(0.01);
+
+                const samples = [
+                    [0.2, 0.2, 0.6], [0.2, 0.6, 0.2], [0.6, 0.2, 0.2],
+                    [0.33, 0.33, 0.34], [0.15, 0.45, 0.4], [0.45, 0.15, 0.4]
+                ];
+                for (const [wa, wb, wc] of samples) {
+                    const point = new THREE.Vector3()
+                        .addScaledVector(a, wa)
+                        .addScaledVector(b, wb)
+                        .addScaledVector(c, wc)
+                        .add(normal);
+                    points.push(point.x, point.y, point.z);
+                }
+                continue;
+            }
+
+            const start = item.index * 2;
+            if (start + 1 >= positions.count) continue;
             a.fromBufferAttribute(positions, start).applyMatrix4(matrix);
             b.fromBufferAttribute(positions, start + 1).applyMatrix4(matrix);
-            c.fromBufferAttribute(positions, start + 2).applyMatrix4(matrix);
-            this.faceHighlight.geometry.setAttribute('position', new THREE.Float32BufferAttribute([
-                a.x, a.y, a.z,
-                b.x, b.y, b.z,
-                c.x, c.y, c.z,
-                a.x, a.y, a.z
-            ], 3));
-            this.faceHighlight.geometry.computeBoundingSphere();
-            this.faceHighlight.visible = true;
-            this.lineHighlight.visible = false;
-            return;
+            for (let i = 0; i <= 8; i++) {
+                const point = new THREE.Vector3().lerpVectors(a, b, i / 8);
+                points.push(point.x, point.y, point.z);
+            }
         }
 
-        const start = this.selection.index * 2;
-        if (start + 1 >= positions.count) return;
-        a.fromBufferAttribute(positions, start).applyMatrix4(matrix);
-        b.fromBufferAttribute(positions, start + 1).applyMatrix4(matrix);
-        this.lineHighlight.geometry.setAttribute('position', new THREE.Float32BufferAttribute([
-            a.x, a.y, a.z,
-            b.x, b.y, b.z
-        ], 3));
-        this.lineHighlight.geometry.computeBoundingSphere();
-        this.lineHighlight.visible = true;
-        this.faceHighlight.visible = false;
-    }
-
-    readSelectionColor(selection) {
-        const colors = selection.object.geometry.getAttribute('color');
-        if (!colors) return selection.defaultColor;
-        const vertexIndex = selection.kind === 'mesh' ? selection.index * 3 : selection.index * 2;
-        if (vertexIndex >= colors.count) return selection.defaultColor;
-        const color = new THREE.Color().setRGB(
-            colors.getX(vertexIndex),
-            colors.getY(vertexIndex),
-            colors.getZ(vertexIndex)
-        );
-        return normalizeColorHex(color, selection.defaultColor);
+        this.selectionDots.geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+        this.selectionDots.geometry.computeBoundingSphere();
+        this.selectionDots.visible = points.length > 0;
     }
 
     cleanupWorkingConfig(assetKey, partKey) {
@@ -2406,25 +2846,80 @@ class ModelEditor {
         if (parts && Object.keys(parts).length === 0) delete this.workingConfig.assets[assetKey];
     }
 
-    applyColorToSelection(color) {
-        if (!this.selection) return;
-        const normalized = normalizeColorHex(color, this.selection.defaultColor);
-        const part = getAppearancePart(this.workingConfig, this.selection.assetKey, this.selection.partKey, true);
-        const bucket = this.selection.kind === 'mesh' ? part.faces : part.lines;
+    writeSelectionEntry(item, nextEntry) {
+        const part = getAppearancePart(this.workingConfig, item.assetKey, item.partKey, true);
+        if (item.kind === 'mesh') {
+            const isDefault = nextEntry.color === item.defaultColor
+                && nextEntry.pattern === MODEL_EDITOR_DEFAULT_FACE_PATTERN.pattern
+                && nextEntry.patternColor === MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor
+                && Math.abs(nextEntry.patternScale - MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale) < 0.001;
+            if (isDefault) delete part.faces[item.index];
+            else part.faces[item.index] = { ...nextEntry };
+        } else {
+            const isDefault = nextEntry.color === item.defaultColor
+                && nextEntry.style === MODEL_EDITOR_DEFAULT_LINE_STYLE.style
+                && Math.abs(nextEntry.width - MODEL_EDITOR_DEFAULT_LINE_STYLE.width) < 0.001;
+            if (isDefault) delete part.lines[item.index];
+            else part.lines[item.index] = { ...nextEntry };
+        }
+        this.cleanupWorkingConfig(item.assetKey, item.partKey);
+    }
 
-        if (normalized === this.selection.defaultColor) delete bucket[this.selection.index];
-        else bucket[this.selection.index] = normalized;
-        this.cleanupWorkingConfig(this.selection.assetKey, this.selection.partKey);
-
-        if (this.selection.kind === 'mesh') this.engine.setMeshFaceColor(this.selection.object, this.selection.index, normalized);
-        else this.engine.setLineSegmentColor(this.selection.object, this.selection.index, normalized);
-
+    mutateSelection(label, updater) {
+        if (this.selection.length === 0) return;
+        this.pushUndoState(label);
+        for (const item of this.selection) {
+            const current = this.getSelectionEntry(item);
+            const next = updater({ ...current }, item);
+            this.writeSelectionEntry(item, next);
+        }
+        if (this.previewModel) this.engine.applyAppearanceConfigToObject(this.previewModel, this.workingConfig);
         this.syncSelectionUi();
         this.updateHighlight();
-        this.log(`Updated ${this.selection.kind === 'mesh' ? 'face' : 'line'} ${this.selection.index} to ${normalized}.`);
+    }
+
+    applyColorToSelection(color) {
+        if (this.selection.length === 0) return;
+        const normalized = normalizeColorHex(color, this.selection[0].defaultColor);
+        this.mutateSelection(`color ${normalized}`, (entry) => ({ ...entry, color: normalized }));
+        this.log(`Updated ${this.selection.length} selection target(s) to ${normalized}.`);
+    }
+
+    applyPatternToSelection(pattern) {
+        if (this.getSelectionKind() !== 'mesh') return;
+        this.mutateSelection(`pattern ${pattern}`, (entry) => ({ ...entry, pattern }));
+        this.log(`Applied pattern ${pattern} to ${this.selection.length} face(s).`);
+    }
+
+    applyPatternColorToSelection(color) {
+        if (this.getSelectionKind() !== 'mesh') return;
+        const normalized = normalizeColorHex(color, MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor);
+        this.mutateSelection(`pattern color ${normalized}`, (entry) => ({ ...entry, patternColor: normalized }));
+        this.log(`Updated pattern color to ${normalized}.`);
+    }
+
+    applyPatternScaleToSelection(scale) {
+        if (this.getSelectionKind() !== 'mesh') return;
+        const nextScale = THREE.MathUtils.clamp(scale, 2, 24);
+        this.mutateSelection(`pattern scale ${nextScale}`, (entry) => ({ ...entry, patternScale: nextScale }));
+        this.log(`Updated pattern scale to ${nextScale.toFixed(1)}x.`);
+    }
+
+    applyLineStyleToSelection(style) {
+        if (this.getSelectionKind() !== 'line') return;
+        this.mutateSelection(`line style ${style}`, (entry) => ({ ...entry, style }));
+        this.log(`Applied ${style} style to ${this.selection.length} edge(s).`);
+    }
+
+    applyLineWidthToSelection(width) {
+        if (this.getSelectionKind() !== 'line') return;
+        const nextWidth = THREE.MathUtils.clamp(width, 1, 6);
+        this.mutateSelection(`line width ${nextWidth}`, (entry) => ({ ...entry, width: nextWidth }));
+        this.log(`Updated line width to ${nextWidth.toFixed(1)}.`);
     }
 
     readSavedConfig() {
+        this.pushUndoState('read saved config');
         this.workingConfig = this.engine.readStoredAppearanceConfig();
         if (this.previewModel) this.engine.applyAppearanceConfigToObject(this.previewModel, this.workingConfig);
         this.syncSelectionUi();
@@ -2433,6 +2928,7 @@ class ModelEditor {
     }
 
     resetToBackup() {
+        this.pushUndoState('reset to backup');
         this.workingConfig = cloneAppearanceConfig();
         if (this.previewModel) this.engine.applyAppearanceConfigToObject(this.previewModel, this.workingConfig);
         this.syncSelectionUi();
@@ -2452,7 +2948,7 @@ class ModelEditor {
             this.log('EyeDropper is not available in this environment.');
             return;
         }
-        if (!this.selection) {
+        if (this.selection.length === 0) {
             this.log('Select a face or line before using EyeDropper.');
             return;
         }
@@ -2460,7 +2956,7 @@ class ModelEditor {
             const picker = new window.EyeDropper();
             const result = await picker.open();
             if (result?.sRGBHex) {
-                this.colorPicker.value = normalizeColorHex(result.sRGBHex, this.selection.defaultColor);
+                this.colorPicker.value = normalizeColorHex(result.sRGBHex, this.selection[0].defaultColor);
                 this.applyColorToSelection(this.colorPicker.value);
             }
         } catch {
