@@ -1420,7 +1420,7 @@ class VisualEngine {
         material.onBeforeCompile = (shader) => {
             shader.uniforms.uRevealCenter = { value: new THREE.Vector3() };
             shader.uniforms.uRevealRadius = { value: 0.82 };
-            shader.uniforms.uRevealOpacity = { value: 0.2 };
+            shader.uniforms.uRevealOpacity = { value: 0.18 };
             shader.uniforms.uRevealEnabled = { value: 0 };
 
             shader.vertexShader = shader.vertexShader.replace(
@@ -1433,10 +1433,10 @@ class VisualEngine {
 
             shader.fragmentShader = shader.fragmentShader.replace(
                 '#include <common>',
-                '#include <common>\nvarying vec3 vWorldPos;\nuniform vec3 uRevealCenter;\nuniform float uRevealRadius;\nuniform float uRevealOpacity;\nuniform float uRevealEnabled;'
+                '#include <common>\nvarying vec3 vWorldPos;\nuniform vec3 uRevealCenter;\nuniform float uRevealRadius;\nuniform float uRevealOpacity;\nuniform float uRevealEnabled;\nfloat jkpHalftone(vec2 uv, float scale, float radius) {\n    vec2 cell = fract(uv * scale) - 0.5;\n    float dist = length(cell);\n    return 1.0 - smoothstep(radius, radius + 0.08, dist);\n}'
             ).replace(
                 'vec4 diffuseColor = vec4( diffuse, opacity );',
-                'vec4 diffuseColor = vec4( diffuse, opacity );\nfloat revealDist = distance(vWorldPos, uRevealCenter);\nfloat revealMask = 1.0 - smoothstep(uRevealRadius * 0.45, uRevealRadius, revealDist);\ndiffuseColor.a = mix(diffuseColor.a, uRevealOpacity, revealMask * uRevealEnabled);'
+                'vec4 diffuseColor = vec4( diffuse, opacity );\nfloat revealDist = distance(vWorldPos, uRevealCenter);\nfloat revealMask = 1.0 - smoothstep(uRevealRadius * 0.45, uRevealRadius, revealDist);\nfloat revealStrength = revealMask * uRevealEnabled;\nfloat halftone = jkpHalftone(vWorldPos.xz + vWorldPos.y * 0.35, 8.0, 0.18);\nfloat patternAlpha = mix(uRevealOpacity * 0.55, uRevealOpacity + 0.26, halftone);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.82, 0.96), halftone * revealStrength * 0.28);\ndiffuseColor.a = mix(diffuseColor.a, patternAlpha, revealStrength);'
             );
 
             material.userData.shader = shader;
