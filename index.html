@@ -200,6 +200,13 @@
                     </div>
                     <div class="text-right"><div id="cost-chest" class="text-yellow-400 font-bold text-sm">50</div></div>
                 </button>
+                <button id="btn-up-size" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-cyan-300 flex items-center gap-2">迷宫更大 <span id="val-size" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">11x11</span></div>
+                        <div id="desc-size" class="text-[10px] text-slate-500 mt-0.5">地图会变大，怪和宝箱也会更多</div>
+                    </div>
+                    <div class="text-right"><div id="cost-size" class="text-yellow-400 font-bold text-sm">40</div></div>
+                </button>
                 <button id="btn-up-monster" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
                         <div class="font-bold text-purple-400 flex items-center gap-2">更多怪和 Boss <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
@@ -714,13 +721,31 @@ const GameState = {
     level: 1,
     score: 0,
     player: { lvSpeed: 1, baseSpeed: 0.15, lvAtk: 1, baseAtk: 10, lvHp: 1, baseHp: 50, currentHp: 50 },
-    maze: { lvChest: 1, baseChestRate: 0.05, lvMonster: 1, baseMonsterRate: 0.03 },
+    maze: { lvChest: 1, baseChestRate: 0.05, lvMonster: 1, baseMonsterRate: 0.03, lvSize: 1, baseSide: 11, maxSide: 25 },
     costs: {
         speed: () => Math.floor(10 * Math.pow(1.5, GameState.player.lvSpeed - 1)),
         atk: () => Math.floor(20 * Math.pow(1.5, GameState.player.lvAtk - 1)),
         hp: () => Math.floor(20 * Math.pow(1.4, GameState.player.lvHp - 1)),
         chest: () => Math.floor(50 * Math.pow(1.6, GameState.maze.lvChest - 1)),
+        size: () => Math.floor(40 * Math.pow(1.7, GameState.maze.lvSize - 1)),
         monster: () => Math.floor(100 * Math.pow(1.8, GameState.maze.lvMonster - 1))
+    },
+    getMazeSide() {
+        return Math.min(this.maze.maxSide, this.maze.baseSide + (this.maze.lvSize - 1) * 2);
+    },
+    getMazeDimensions() {
+        const side = this.getMazeSide();
+        return { cols: side, rows: side };
+    },
+    getMaxMazeSizeLevel() {
+        return 1 + Math.floor((this.maze.maxSide - this.maze.baseSide) / 2);
+    },
+    isMazeSizeMaxed() {
+        return this.maze.lvSize >= this.getMaxMazeSizeLevel();
+    },
+    getMazeSizeFactor() {
+        const side = this.getMazeSide();
+        return (side * side) / (this.maze.baseSide * this.maze.baseSide);
     },
     isBossUnlocked() {
         return this.maze.lvMonster >= 4;
@@ -742,6 +767,7 @@ const GameState = {
         this.updateUI();
     },
     tryBuy(type) {
+        if (type === 'size' && this.isMazeSizeMaxed()) return false;
         const cost = this.costs[type]();
         if (this.score < cost) return false;
 
@@ -750,6 +776,7 @@ const GameState = {
         if (type === 'atk') { this.player.lvAtk++; this.player.baseAtk += 5; }
         if (type === 'hp') { this.player.lvHp++; this.player.baseHp += 20; this.player.currentHp = this.player.baseHp; }
         if (type === 'chest') { this.maze.lvChest++; this.maze.baseChestRate += 0.02; }
+        if (type === 'size') { this.maze.lvSize++; }
         if (type === 'monster') { this.maze.lvMonster++; this.maze.baseMonsterRate += 0.015; }
 
         this.updateUI();
@@ -775,15 +802,26 @@ const GameState = {
         }
 
         document.getElementById('ui-score').innerText = Math.floor(this.score);
-        ['speed', 'atk', 'hp', 'chest', 'monster'].forEach((id) => {
+        ['speed', 'atk', 'hp', 'chest', 'size', 'monster'].forEach((id) => {
             const lv = this.player[`lv${id.charAt(0).toUpperCase() + id.slice(1)}`] || this.maze[`lv${id.charAt(0).toUpperCase() + id.slice(1)}`];
-            const cost = this.costs[id]();
-            document.getElementById(`val-${id}`).innerText = `Lv.${lv}`;
-            document.getElementById(`cost-${id}`).innerText = cost;
+            const isSizeMaxed = id === 'size' && this.isMazeSizeMaxed();
+            const cost = isSizeMaxed ? null : this.costs[id]();
+            document.getElementById(`val-${id}`).innerText = id === 'size'
+                ? `${this.getMazeSide()}x${this.getMazeSide()}`
+                : `Lv.${lv}`;
+            document.getElementById(`cost-${id}`).innerText = isSizeMaxed ? 'MAX' : cost;
             const btn = document.getElementById(`btn-up-${id}`);
-            if (this.score >= cost) btn.classList.remove('opacity-50', 'grayscale');
+            if (!isSizeMaxed && this.score >= cost) btn.classList.remove('opacity-50', 'grayscale');
             else btn.classList.add('opacity-50', 'grayscale');
         });
+
+        const sizeDesc = document.getElementById('desc-size');
+        if (sizeDesc) {
+            const sizeFactor = this.getMazeSizeFactor();
+            sizeDesc.innerText = this.isMazeSizeMaxed()
+                ? `当前 ${this.getMazeSide()}x${this.getMazeSide()}，已经是最大迷宫`
+                : `当前 ${this.getMazeSide()}x${this.getMazeSide()}，总收益约 ${Math.round(sizeFactor * 100)}%`;
+        }
 
         const monsterDesc = document.getElementById('desc-monster');
         if (monsterDesc) {
@@ -1817,8 +1855,8 @@ class GameController {
         this.engine = engine;
         this.mazeGroup = new THREE.Group();
         this.engine.scene.add(this.mazeGroup);
-        this.cols = 15;
-        this.rows = 15;
+        this.cols = GameState.getMazeDimensions().cols;
+        this.rows = GameState.getMazeDimensions().rows;
         this.offsetC = -Math.floor(this.cols / 2);
         this.offsetR = -Math.floor(this.rows / 2);
         this.playerPos = { c: 0, r: 0 };
@@ -1828,7 +1866,7 @@ class GameController {
         this.currentEnemy = null;
         this.combatUiHideTimer = null;
 
-        ['speed', 'atk', 'hp', 'chest', 'monster'].forEach((type) => {
+        ['speed', 'atk', 'hp', 'chest', 'size', 'monster'].forEach((type) => {
             document.getElementById(`btn-up-${type}`).addEventListener('click', async () => {
                 await window.soundEngine?.unlock();
                 GameState.tryBuy(type);
@@ -1876,6 +1914,11 @@ class GameController {
         GameState.phase = 'GENERATING';
         GameState.player.currentHp = GameState.player.baseHp;
         GameState.updateUI();
+        const dims = GameState.getMazeDimensions();
+        this.cols = dims.cols;
+        this.rows = dims.rows;
+        this.offsetC = -Math.floor(this.cols / 2);
+        this.offsetR = -Math.floor(this.rows / 2);
 
         while (this.mazeGroup.children.length > 0) this.mazeGroup.remove(this.mazeGroup.children[0]);
         this.engine.entities.forEach((entity) => this.engine.scene.remove(entity.mesh));
@@ -1909,6 +1952,26 @@ class GameController {
         this.genStack = [this.grid[1][1]];
         this.engine.playerObj.visible = false;
         this.genInterval = setInterval(() => this.stepGenerate(), 20);
+    }
+
+    shuffleCells(cells) {
+        for (let i = cells.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [cells[i], cells[j]] = [cells[j], cells[i]];
+        }
+        return cells;
+    }
+
+    getSpawnTargets(openCellCount) {
+        const sizeFactor = GameState.getMazeSizeFactor();
+        const monsterDensity = GameState.maze.baseMonsterRate * (0.9 + sizeFactor * 0.55);
+        const chestDensity = GameState.maze.baseChestRate * (0.85 + sizeFactor * 0.4);
+        const monsterTarget = Math.max(1, Math.round(openCellCount * monsterDensity));
+        const chestTarget = Math.max(1, Math.round(openCellCount * chestDensity));
+        const maxPlacements = Math.max(0, openCellCount - 1);
+        const monsters = Math.min(monsterTarget, maxPlacements);
+        const chests = Math.min(chestTarget, Math.max(0, maxPlacements - monsters));
+        return { monsters, chests };
     }
 
     digWall(cell) {
@@ -2017,17 +2080,25 @@ class GameController {
             for (let c = 1; c < this.cols - 1; c++) {
                 if ((r === 1 && c === 1) || (r === this.endPos.r && c === this.endPos.c) || this.grid[r][c].isWall) continue;
                 openCells.push(this.grid[r][c]);
-                const rand = Math.random();
-                if (rand < GameState.maze.baseMonsterRate) {
-                    const monster = this.createMonsterEntity(this.pickEnemyArchetype(), c, r);
-                    this.engine.entities.push(monster);
-                    this.grid[r][c].entity = 'monster';
-                } else if (rand < GameState.maze.baseMonsterRate + GameState.maze.baseChestRate) {
-                    const chest = this.createChestEntity(c, r);
-                    this.engine.entities.push(chest);
-                    this.grid[r][c].entity = 'chest';
-                }
             }
+        }
+
+        const shuffledCells = this.shuffleCells([...openCells]);
+        const spawnTargets = this.getSpawnTargets(shuffledCells.length);
+        let spawnCursor = 0;
+
+        for (let i = 0; i < spawnTargets.monsters && spawnCursor < shuffledCells.length; i++, spawnCursor++) {
+            const cell = shuffledCells[spawnCursor];
+            const monster = this.createMonsterEntity(this.pickEnemyArchetype(), cell.c, cell.r);
+            this.engine.entities.push(monster);
+            cell.entity = 'monster';
+        }
+
+        for (let i = 0; i < spawnTargets.chests && spawnCursor < shuffledCells.length; i++, spawnCursor++) {
+            const cell = shuffledCells[spawnCursor];
+            const chest = this.createChestEntity(cell.c, cell.r);
+            this.engine.entities.push(chest);
+            cell.entity = 'chest';
         }
 
         if (GameState.level >= 4 && GameState.isBossUnlocked() && Math.random() < GameState.getBossFloorChance()) {
