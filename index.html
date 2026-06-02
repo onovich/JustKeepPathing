@@ -2284,8 +2284,7 @@ class VisualEngine {
         return group;
     }
 
-    createWallMaterial() {
-        const material = this.materials.wallBox.clone();
+    applyOccluderRevealShader(material, revealOpacity = 0.2) {
         material.transparent = true;
         material.onBeforeCompile = (shader) => {
             shader.uniforms.uPlayerMaskTexture = { value: this.playerOcclusionTarget.texture };
@@ -2293,24 +2292,16 @@ class VisualEngine {
             shader.uniforms.uRevealResolution = {
                 value: new THREE.Vector2(this.playerOcclusionTarget.width, this.playerOcclusionTarget.height)
             };
-            shader.uniforms.uRevealOpacity = { value: 0.2 };
-            shader.uniforms.uDepthBias = { value: 0.0015 };
+            shader.uniforms.uRevealOpacity = { value: revealOpacity };
+            shader.uniforms.uDepthBias = { value: 0.002 };
             shader.uniforms.uRevealEnabled = { value: 0 };
-
-            shader.vertexShader = shader.vertexShader.replace(
-                '#include <common>',
-                '#include <common>\nvarying vec4 vClipPos;'
-            ).replace(
-                '#include <project_vertex>',
-                '#include <project_vertex>\nvClipPos = gl_Position;'
-            );
 
             shader.fragmentShader = shader.fragmentShader.replace(
                 '#include <common>',
-                '#include <common>\nvarying vec4 vClipPos;\nuniform sampler2D uPlayerMaskTexture;\nuniform sampler2D uPlayerDepthTexture;\nuniform vec2 uRevealResolution;\nuniform float uRevealOpacity;\nuniform float uDepthBias;\nuniform float uRevealEnabled;\nvoid jkpSamplePlayer(vec2 uv, inout float mask, inout float depth) {\n    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return;\n    float sampleMask = texture2D(uPlayerMaskTexture, uv).r;\n    if (sampleMask <= mask) return;\n    mask = sampleMask;\n    depth = texture2D(uPlayerDepthTexture, uv).r;\n}\nfloat jkpOcclusionMask(vec2 uv, float wallDepth) {\n    vec2 texel = 1.0 / max(uRevealResolution, vec2(1.0));\n    float playerMask = 0.0;\n    float playerDepth = 1.0;\n    jkpSamplePlayer(uv, playerMask, playerDepth);\n    jkpSamplePlayer(uv + vec2(texel.x * 1.25, 0.0), playerMask, playerDepth);\n    jkpSamplePlayer(uv - vec2(texel.x * 1.25, 0.0), playerMask, playerDepth);\n    jkpSamplePlayer(uv + vec2(0.0, texel.y * 1.25), playerMask, playerDepth);\n    jkpSamplePlayer(uv - vec2(0.0, texel.y * 1.25), playerMask, playerDepth);\n    float hasPlayer = step(0.01, playerMask) * (1.0 - step(0.9999, playerDepth));\n    float wallInFront = step(wallDepth + uDepthBias, playerDepth);\n    return hasPlayer * wallInFront;\n}'
+                '#include <common>\nuniform sampler2D uPlayerMaskTexture;\nuniform sampler2D uPlayerDepthTexture;\nuniform vec2 uRevealResolution;\nuniform float uRevealOpacity;\nuniform float uDepthBias;\nuniform float uRevealEnabled;\nvoid jkpAccumulatePlayerSample(vec2 uv, inout float mask, inout float depth) {\n    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return;\n    float sampleMask = texture2D(uPlayerMaskTexture, uv).r;\n    if (sampleMask <= 0.01) return;\n    mask = max(mask, sampleMask);\n    depth = max(depth, texture2D(uPlayerDepthTexture, uv).r);\n}\nfloat jkpOcclusionMask(vec2 uv, float wallDepth) {\n    vec2 texel = 1.0 / max(uRevealResolution, vec2(1.0));\n    float playerMask = 0.0;\n    float playerDepth = 0.0;\n    jkpAccumulatePlayerSample(uv, playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv + vec2(texel.x * 1.5, 0.0), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv - vec2(texel.x * 1.5, 0.0), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv + vec2(0.0, texel.y * 1.5), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv - vec2(0.0, texel.y * 1.5), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv + texel * vec2(1.1, 1.1), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv + texel * vec2(-1.1, 1.1), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv + texel * vec2(1.1, -1.1), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv + texel * vec2(-1.1, -1.1), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv + vec2(texel.x * 2.4, 0.0), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv - vec2(texel.x * 2.4, 0.0), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv + vec2(0.0, texel.y * 2.4), playerMask, playerDepth);\n    jkpAccumulatePlayerSample(uv - vec2(0.0, texel.y * 2.4), playerMask, playerDepth);\n    float hasPlayer = step(0.01, playerMask) * (1.0 - step(0.9999, playerDepth));\n    float wallInFront = step(wallDepth + uDepthBias, playerDepth);\n    return hasPlayer * wallInFront;\n}'
             ).replace(
                 'vec4 diffuseColor = vec4( diffuse, opacity );',
-                'vec4 diffuseColor = vec4( diffuse, opacity );\nvec2 revealUv = (vClipPos.xy / max(vClipPos.w, 0.0001)) * 0.5 + 0.5;\nfloat wallDepth = (vClipPos.z / max(vClipPos.w, 0.0001)) * 0.5 + 0.5;\nfloat revealStrength = jkpOcclusionMask(revealUv, wallDepth) * uRevealEnabled;\ndiffuseColor.a = mix(diffuseColor.a, uRevealOpacity, revealStrength);'
+                'vec4 diffuseColor = vec4( diffuse, opacity );\nvec2 revealUv = gl_FragCoord.xy / max(uRevealResolution, vec2(1.0));\nfloat wallDepth = gl_FragCoord.z;\nfloat revealStrength = jkpOcclusionMask(revealUv, wallDepth) * uRevealEnabled;\ndiffuseColor.a = mix(diffuseColor.a, uRevealOpacity, revealStrength);'
             );
 
             material.userData.shader = shader;
@@ -2318,11 +2309,22 @@ class VisualEngine {
         return material;
     }
 
+    createWallMaterial() {
+        return this.applyOccluderRevealShader(this.materials.wallBox.clone(), 0.2);
+    }
+
+    createWallEdgeMaterial() {
+        return this.applyOccluderRevealShader(
+            new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2, transparent: true, opacity: 1 }),
+            0.12
+        );
+    }
+
     createWallCell(wallGeo, edgesGeo, pos) {
         const group = new THREE.Group();
         const boxMaterial = this.createWallMaterial();
         const boxMesh = new THREE.Mesh(wallGeo, boxMaterial);
-        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2, transparent: true, opacity: 1 });
+        const edgeMaterial = this.createWallEdgeMaterial();
         const edgeMesh = new THREE.LineSegments(edgesGeo, edgeMaterial);
         group.add(boxMesh);
         group.add(edgeMesh);
@@ -2371,8 +2373,9 @@ class VisualEngine {
     updateOccluders() {
         const revealEnabled = this.renderPlayerOcclusionMask();
         for (const occluder of this.occluders) {
-            const shader = occluder.boxMesh.material.userData.shader;
-            if (shader) {
+            for (const material of [occluder.boxMesh.material, occluder.edgeMesh.material]) {
+                const shader = material.userData.shader;
+                if (!shader) continue;
                 shader.uniforms.uRevealEnabled.value = revealEnabled ? 1 : 0;
                 shader.uniforms.uPlayerMaskTexture.value = this.playerOcclusionTarget.texture;
                 shader.uniforms.uPlayerDepthTexture.value = this.playerOcclusionTarget.depthTexture;
