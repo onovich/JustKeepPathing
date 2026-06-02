@@ -1003,6 +1003,7 @@ class SoundEngine {
         this.config = this.readStoredSoundConfig();
         this.gameplayMuted = false;
         this.previewPaused = false;
+        this.currentPreviewKey = null;
         this.movementState = { active: false, speed: 1, nextStepTime: 0, stepIndex: 0 };
         this.loopPreviewState = null;
         this.bgmState = { nextNoteTime: 0, stepIndex: 0 };
@@ -1107,12 +1108,32 @@ class SoundEngine {
     }
 
     resumePreview() {
-        if (!this.previewPaused) return;
-        this.previewPaused = false;
         const ctx = this.getContext();
         if (!ctx || ctx.state !== 'running') return;
+        this.previewPaused = false;
         if (this.loopPreviewState) this.loopPreviewState.nextStepTime = ctx.currentTime + 0.03;
         if (this.bgmPreviewState) this.bgmPreviewState.nextNoteTime = ctx.currentTime + 0.03;
+    }
+
+    isContinuousPreviewActive(key = null) {
+        if (!key) return !!(this.loopPreviewState || this.bgmPreviewState);
+        if (key === 'footsteps') return !!this.loopPreviewState;
+        if (key === 'bgm') return !!this.bgmPreviewState;
+        return false;
+    }
+
+    updatePreviewConfig(key, configOverride) {
+        const config = sanitizeSoundConfig(configOverride || this.config);
+        const ctx = this.getContext();
+        if (key === 'footsteps' && this.loopPreviewState) {
+            this.loopPreviewState.config = config;
+            if (ctx && ctx.state === 'running') this.loopPreviewState.nextStepTime = Math.min(this.loopPreviewState.nextStepTime || Infinity, ctx.currentTime + 0.02);
+            return;
+        }
+        if (key === 'bgm' && this.bgmPreviewState) {
+            this.bgmPreviewState.config = config;
+            if (ctx && ctx.state === 'running') this.bgmPreviewState.nextNoteTime = Math.min(this.bgmPreviewState.nextNoteTime || Infinity, ctx.currentTime + 0.02);
+        }
     }
 
     getEffectiveVolume() {
@@ -1434,6 +1455,7 @@ class SoundEngine {
         const config = sanitizeSoundConfig(configOverride || this.config);
         this.stopPreview();
         this.previewPaused = false;
+        this.currentPreviewKey = key;
         if (key === 'footsteps') {
             const ctx = this.getContext();
             if (!ctx || ctx.state !== 'running') return;
@@ -1441,8 +1463,7 @@ class SoundEngine {
                 config,
                 speed: 1.1,
                 nextStepTime: ctx.currentTime + 0.03,
-                stepIndex: 0,
-                until: ctx.currentTime + 3.2
+                stepIndex: 0
             };
             return;
         }
@@ -1452,8 +1473,7 @@ class SoundEngine {
             this.bgmPreviewState = {
                 config,
                 nextNoteTime: ctx.currentTime + 0.03,
-                stepIndex: 0,
-                until: ctx.currentTime + 6.2
+                stepIndex: 0
             };
             return;
         }
@@ -1462,6 +1482,7 @@ class SoundEngine {
 
     stopPreview() {
         this.previewPaused = false;
+        this.currentPreviewKey = null;
         this.loopPreviewState = null;
         this.bgmPreviewState = null;
     }
@@ -1693,6 +1714,7 @@ class VisualEngine {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x000000);
         this.camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
+        this.camera.layers.enable(1);
         this.cameraTarget = new THREE.Vector3();
 
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
@@ -1706,6 +1728,17 @@ class VisualEngine {
         this.glitchPass.enabled = false;
         this.composer.addPass(this.glitchPass);
         this.composer.addPass(new OutputPass());
+        this.playerMaskMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        this.playerOcclusionTarget = new THREE.WebGLRenderTarget(w, h, {
+            minFilter: THREE.LinearFilter,
+            magFilter: THREE.LinearFilter,
+            format: THREE.RGBAFormat,
+            depthBuffer: true,
+            stencilBuffer: false
+        });
+        this.playerOcclusionTarget.texture.generateMipmaps = false;
+        this.playerOcclusionTarget.depthTexture = new THREE.DepthTexture(w, h, THREE.UnsignedShortType);
+        this.playerOcclusionTarget.depthTexture.format = THREE.DepthFormat;
 
         this.tweens = new TweenManager();
         this.clock = new THREE.Clock();
@@ -1748,6 +1781,7 @@ class VisualEngine {
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(w, h);
         this.composer.setSize(w, h);
+        this.playerOcclusionTarget.setSize(w, h);
     }
 
     readStoredAppearanceConfig() {
@@ -2254,28 +2288,29 @@ class VisualEngine {
         const material = this.materials.wallBox.clone();
         material.transparent = true;
         material.onBeforeCompile = (shader) => {
-            shader.uniforms.uRevealPoints = {
-                value: Array.from({ length: 16 }, () => new THREE.Vector3(9999, 9999, 9999))
+            shader.uniforms.uPlayerMaskTexture = { value: this.playerOcclusionTarget.texture };
+            shader.uniforms.uPlayerDepthTexture = { value: this.playerOcclusionTarget.depthTexture };
+            shader.uniforms.uRevealResolution = {
+                value: new THREE.Vector2(this.playerOcclusionTarget.width, this.playerOcclusionTarget.height)
             };
-            shader.uniforms.uRevealPointCount = { value: 0 };
-            shader.uniforms.uRevealRadius = { value: 0.16 };
-            shader.uniforms.uRevealOpacity = { value: 0.18 };
+            shader.uniforms.uRevealOpacity = { value: 0.2 };
+            shader.uniforms.uDepthBias = { value: 0.0015 };
             shader.uniforms.uRevealEnabled = { value: 0 };
 
             shader.vertexShader = shader.vertexShader.replace(
                 '#include <common>',
-                '#include <common>\nvarying vec3 vWorldPos;'
+                '#include <common>\nvarying vec4 vClipPos;'
             ).replace(
-                '#include <begin_vertex>',
-                '#include <begin_vertex>\nvec4 jkpWorldPos = modelMatrix * vec4( transformed, 1.0 );\nvWorldPos = jkpWorldPos.xyz;'
+                '#include <project_vertex>',
+                '#include <project_vertex>\nvClipPos = gl_Position;'
             );
 
             shader.fragmentShader = shader.fragmentShader.replace(
                 '#include <common>',
-                '#include <common>\nvarying vec3 vWorldPos;\nuniform vec3 uRevealPoints[16];\nuniform float uRevealPointCount;\nuniform float uRevealRadius;\nuniform float uRevealOpacity;\nuniform float uRevealEnabled;\nfloat jkpClosestRevealDistance(vec3 worldPos) {\n    float minDist = 9999.0;\n    for (int i = 0; i < 16; i++) {\n        if (float(i) >= uRevealPointCount) continue;\n        minDist = min(minDist, distance(worldPos, uRevealPoints[i]));\n    }\n    return minDist;\n}'
+                '#include <common>\nvarying vec4 vClipPos;\nuniform sampler2D uPlayerMaskTexture;\nuniform sampler2D uPlayerDepthTexture;\nuniform vec2 uRevealResolution;\nuniform float uRevealOpacity;\nuniform float uDepthBias;\nuniform float uRevealEnabled;\nvoid jkpSamplePlayer(vec2 uv, inout float mask, inout float depth) {\n    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return;\n    float sampleMask = texture2D(uPlayerMaskTexture, uv).r;\n    if (sampleMask <= mask) return;\n    mask = sampleMask;\n    depth = texture2D(uPlayerDepthTexture, uv).r;\n}\nfloat jkpOcclusionMask(vec2 uv, float wallDepth) {\n    vec2 texel = 1.0 / max(uRevealResolution, vec2(1.0));\n    float playerMask = 0.0;\n    float playerDepth = 1.0;\n    jkpSamplePlayer(uv, playerMask, playerDepth);\n    jkpSamplePlayer(uv + vec2(texel.x * 1.25, 0.0), playerMask, playerDepth);\n    jkpSamplePlayer(uv - vec2(texel.x * 1.25, 0.0), playerMask, playerDepth);\n    jkpSamplePlayer(uv + vec2(0.0, texel.y * 1.25), playerMask, playerDepth);\n    jkpSamplePlayer(uv - vec2(0.0, texel.y * 1.25), playerMask, playerDepth);\n    float hasPlayer = step(0.01, playerMask) * (1.0 - step(0.9999, playerDepth));\n    float wallInFront = step(wallDepth + uDepthBias, playerDepth);\n    return hasPlayer * wallInFront;\n}'
             ).replace(
                 'vec4 diffuseColor = vec4( diffuse, opacity );',
-                'vec4 diffuseColor = vec4( diffuse, opacity );\nfloat closestRevealDist = jkpClosestRevealDistance(vWorldPos);\nfloat revealMask = 1.0 - smoothstep(uRevealRadius * 0.4, uRevealRadius, closestRevealDist);\nfloat revealStrength = revealMask * uRevealEnabled;\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.82, 0.96), revealStrength * 0.12);\ndiffuseColor.a = mix(diffuseColor.a, uRevealOpacity, revealStrength);'
+                'vec4 diffuseColor = vec4( diffuse, opacity );\nvec2 revealUv = (vClipPos.xy / max(vClipPos.w, 0.0001)) * 0.5 + 0.5;\nfloat wallDepth = (vClipPos.z / max(vClipPos.w, 0.0001)) * 0.5 + 0.5;\nfloat revealStrength = jkpOcclusionMask(revealUv, wallDepth) * uRevealEnabled;\ndiffuseColor.a = mix(diffuseColor.a, uRevealOpacity, revealStrength);'
             );
 
             material.userData.shader = shader;
@@ -2304,49 +2339,46 @@ class VisualEngine {
         return group;
     }
 
+    renderPlayerOcclusionMask() {
+        if (!this.playerObj?.visible) return false;
+
+        const previousRenderTarget = this.renderer.getRenderTarget();
+        const previousAutoClear = this.renderer.autoClear;
+        const previousOverrideMaterial = this.scene.overrideMaterial;
+        const previousBackground = this.scene.background;
+        const previousLayerMask = this.camera.layers.mask;
+        const previousClearColor = this.renderer.getClearColor(new THREE.Color()).clone();
+        const previousClearAlpha = this.renderer.getClearAlpha();
+
+        this.renderer.setRenderTarget(this.playerOcclusionTarget);
+        this.renderer.autoClear = true;
+        this.renderer.setClearColor(0x000000, 0);
+        this.scene.background = null;
+        this.scene.overrideMaterial = this.playerMaskMaterial;
+        this.camera.layers.set(1);
+        this.renderer.clear(true, true, true);
+        this.renderer.render(this.scene, this.camera);
+
+        this.camera.layers.mask = previousLayerMask;
+        this.scene.overrideMaterial = previousOverrideMaterial;
+        this.scene.background = previousBackground;
+        this.renderer.setClearColor(previousClearColor, previousClearAlpha);
+        this.renderer.autoClear = previousAutoClear;
+        this.renderer.setRenderTarget(previousRenderTarget);
+        return true;
+    }
+
     updateOccluders() {
+        const revealEnabled = this.renderPlayerOcclusionMask();
         for (const occluder of this.occluders) {
             const shader = occluder.boxMesh.material.userData.shader;
             if (shader) {
-                shader.uniforms.uRevealEnabled.value = 0;
-                shader.uniforms.uRevealPointCount.value = 0;
+                shader.uniforms.uRevealEnabled.value = revealEnabled ? 1 : 0;
+                shader.uniforms.uPlayerMaskTexture.value = this.playerOcclusionTarget.texture;
+                shader.uniforms.uPlayerDepthTexture.value = this.playerOcclusionTarget.depthTexture;
+                shader.uniforms.uRevealResolution.value.set(this.playerOcclusionTarget.width, this.playerOcclusionTarget.height);
             }
             occluder.edgeMesh.material.opacity = occluder.baseEdgeOpacity;
-        }
-
-        if (!this.playerObj?.visible) return;
-
-        const revealState = this.getPlayerRevealState();
-        if (!revealState) return;
-
-        const occluderMeshes = this.occluders.map((item) => item.boxMesh);
-        const hitOccluders = new Map();
-        for (const samplePoint of this.getPlayerOcclusionSamplePoints(revealState)) {
-            const dir = samplePoint.clone().sub(this.camera.position);
-            const distance = dir.length();
-            if (distance <= 0.01) continue;
-            this.raycaster.set(this.camera.position, dir.normalize());
-            this.raycaster.far = distance;
-            const hits = this.raycaster.intersectObjects(occluderMeshes, false);
-            for (const hit of hits) {
-                const occluder = this.occluderLookup.get(hit.object.uuid);
-                if (!occluder) continue;
-                if (!hitOccluders.has(occluder)) hitOccluders.set(occluder, []);
-                const points = hitOccluders.get(occluder);
-                if (points.length < 16) points.push(hit.point.clone());
-            }
-        }
-
-        for (const [occluder, points] of hitOccluders.entries()) {
-            const shader = occluder.boxMesh.material.userData.shader;
-            if (shader && points.length > 0) {
-                shader.uniforms.uRevealEnabled.value = 1;
-                shader.uniforms.uRevealPointCount.value = points.length;
-                for (let i = 0; i < 16; i++) {
-                    shader.uniforms.uRevealPoints.value[i].copy(points[i] || new THREE.Vector3(9999, 9999, 9999));
-                }
-            }
-            occluder.edgeMesh.material.opacity = 0.48;
         }
     }
 
@@ -2430,6 +2462,9 @@ class VisualEngine {
         this.playerMesh = built.body;
         this.playerTopRotor = built.topRotor;
         this.playerBottomRotor = built.bottomRotor;
+        this.playerObj.traverse((child) => {
+            if (child.isMesh) child.layers.enable(1);
+        });
         this.scene.add(this.playerObj);
         const playerBounds = new THREE.Box3().setFromObject(this.playerObj);
         this.playerRevealRadius = Math.max(0.42, playerBounds.getBoundingSphere(new THREE.Sphere()).radius * 0.92);
@@ -3281,6 +3316,10 @@ class ModelEditor {
         this.canvas = document.getElementById('editor-preview-canvas');
         this.assetSelect = document.getElementById('editor-asset-select');
         this.undoButton = document.getElementById('btn-editor-undo');
+        this.readButton = document.getElementById('btn-editor-read');
+        this.resetButton = document.getElementById('btn-editor-reset');
+        this.saveButton = document.getElementById('btn-editor-save');
+        this.closeButton = document.getElementById('btn-editor-close');
         this.colorPicker = document.getElementById('editor-color-picker');
         this.patternColorPicker = document.getElementById('editor-pattern-color');
         this.patternSelect = document.getElementById('editor-face-pattern');
@@ -3321,8 +3360,20 @@ class ModelEditor {
 
         this.handleResize = this.handleResize.bind(this);
         this.renderLoop = this.renderLoop.bind(this);
+        this.setupHeaderButtons();
         this.bindUi();
         this.syncSelectionUi();
+    }
+
+    setupHeaderButtons() {
+        this.undoButton.textContent = 'Undo';
+        this.readButton.textContent = 'Load';
+        this.resetButton.textContent = 'Reset';
+        this.saveButton.textContent = 'Save';
+        this.closeButton.className = 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800';
+        this.closeButton.title = 'Close';
+        this.closeButton.setAttribute('aria-label', 'Close');
+        this.closeButton.innerHTML = '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18"></path><path d="M18 6 6 18"></path></svg>';
     }
 
     bindUi() {
@@ -3331,10 +3382,10 @@ class ModelEditor {
             this.open();
         });
         this.undoButton.addEventListener('click', () => this.undo());
-        document.getElementById('btn-editor-close').addEventListener('click', () => this.close());
-        document.getElementById('btn-editor-read').addEventListener('click', () => this.readSavedConfig());
-        document.getElementById('btn-editor-reset').addEventListener('click', () => this.resetToBackup());
-        document.getElementById('btn-editor-save').addEventListener('click', () => this.saveToRuntime());
+        this.closeButton.addEventListener('click', () => this.close());
+        this.readButton.addEventListener('click', () => this.readSavedConfig());
+        this.resetButton.addEventListener('click', () => this.resetToBackup());
+        this.saveButton.addEventListener('click', () => this.saveToRuntime());
         this.assetSelect.addEventListener('change', () => this.loadAsset(this.assetSelect.value));
         this.colorPicker.addEventListener('input', () => this.applyColorToSelection(this.colorPicker.value));
         this.patternColorPicker.addEventListener('input', () => this.applyPatternColorToSelection(this.patternColorPicker.value));
@@ -4012,8 +4063,11 @@ class SoundEditor {
         this.logEl = document.getElementById('sound-editor-log');
         this.controlsEl = document.getElementById('sound-editor-controls');
         this.previewButton = document.getElementById('btn-sound-preview');
-        this.pausePreviewButton = null;
         this.stopPreviewButton = document.getElementById('btn-sound-stop-preview');
+        this.readButton = document.getElementById('btn-sound-read');
+        this.resetButton = document.getElementById('btn-sound-reset');
+        this.saveButton = document.getElementById('btn-sound-save');
+        this.closeButton = document.getElementById('btn-sound-close');
         this.workingConfig = this.soundEngine.cloneSoundConfig();
         this.currentSoundKey = 'upgrade';
         this.currentTrackIndex = 0;
@@ -4023,28 +4077,39 @@ class SoundEditor {
         this.populateSelect();
         this.bindUi();
         this.render();
+        this.updateTransportUi();
     }
 
     setupTransportButtons() {
         this.previewButton.className = 'flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-700 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25';
-        this.previewButton.title = '\u8bd5\u542c';
-        this.previewButton.setAttribute('aria-label', '\u8bd5\u542c');
-        this.previewButton.innerHTML = '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true"><path d="M8 6.5v11l9-5.5-9-5.5Z"></path></svg>';
-
         this.stopPreviewButton.className = 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800';
-        this.stopPreviewButton.title = '\u505c\u6b62';
-        this.stopPreviewButton.setAttribute('aria-label', '\u505c\u6b62');
+        this.stopPreviewButton.title = 'Stop';
+        this.stopPreviewButton.setAttribute('aria-label', 'Stop');
         this.stopPreviewButton.innerHTML = '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true"><path d="M7 7h10v10H7z"></path></svg>';
+        this.readButton.textContent = 'Load';
+        this.resetButton.textContent = 'Reset';
+        this.saveButton.textContent = 'Save';
+        this.closeButton.className = 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800';
+        this.closeButton.title = 'Close';
+        this.closeButton.setAttribute('aria-label', 'Close');
+        this.closeButton.innerHTML = '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18"></path><path d="M18 6 6 18"></path></svg>';
+        this.updateTransportUi();
+    }
 
-        const pauseButton = document.createElement('button');
-        pauseButton.id = 'btn-sound-pause-preview';
-        pauseButton.type = 'button';
-        pauseButton.title = '\u6682\u505c';
-        pauseButton.setAttribute('aria-label', '\u6682\u505c');
-        pauseButton.className = 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800';
-        pauseButton.innerHTML = '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"></path></svg>';
-        this.previewButton.insertAdjacentElement('afterend', pauseButton);
-        this.pausePreviewButton = pauseButton;
+    updateTransportUi() {
+        const def = SOUND_EVENT_DEFS[this.currentSoundKey];
+        const isContinuous = def?.type === 'loop' || def?.type === 'bgm';
+        const isCurrentActive = isContinuous && this.soundEngine.currentPreviewKey === this.currentSoundKey && this.soundEngine.isContinuousPreviewActive(this.currentSoundKey);
+        const isPaused = isCurrentActive && this.soundEngine.previewPaused;
+        const showPause = isCurrentActive && !isPaused;
+        this.previewButton.title = showPause ? 'Pause' : 'Play';
+        this.previewButton.setAttribute('aria-label', showPause ? 'Pause' : 'Play');
+        this.previewButton.innerHTML = showPause
+            ? '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"></path></svg>'
+            : '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true"><path d="M8 6.5v11l9-5.5-9-5.5Z"></path></svg>';
+        this.stopPreviewButton.disabled = !isCurrentActive && !this.soundEngine.previewPaused;
+        this.stopPreviewButton.classList.toggle('opacity-40', this.stopPreviewButton.disabled);
+        this.stopPreviewButton.classList.toggle('cursor-not-allowed', this.stopPreviewButton.disabled);
     }
 
     populateSelect() {
@@ -4060,14 +4125,14 @@ class SoundEditor {
             await this.soundEngine.unlock();
             this.open();
         });
-        document.getElementById('btn-sound-close').addEventListener('click', () => this.close());
-        document.getElementById('btn-sound-read').addEventListener('click', () => this.readSavedConfig());
-        document.getElementById('btn-sound-reset').addEventListener('click', () => this.resetToBackup());
-        document.getElementById('btn-sound-save').addEventListener('click', () => this.saveToRuntime());
-        this.previewButton.addEventListener('click', () => this.previewCurrent());
-        this.pausePreviewButton.addEventListener('click', () => this.pausePreview());
+        this.closeButton.addEventListener('click', () => this.close());
+        this.readButton.addEventListener('click', () => this.readSavedConfig());
+        this.resetButton.addEventListener('click', () => this.resetToBackup());
+        this.saveButton.addEventListener('click', () => this.saveToRuntime());
+        this.previewButton.addEventListener('click', () => this.handlePreviewToggle());
         this.stopPreviewButton.addEventListener('click', () => this.stopPreview());
         this.select.addEventListener('change', () => {
+            this.stopPreview(false);
             this.currentSoundKey = this.select.value;
             this.currentTrackIndex = 0;
             this.render();
@@ -4083,6 +4148,7 @@ class SoundEditor {
         this.soundEngine.setGameplayMuted(true);
         this.modal.classList.remove('hidden');
         this.render();
+        this.updateTransportUi();
         this.log('音效编辑器已打开。');
     }
 
@@ -4091,6 +4157,7 @@ class SoundEditor {
         this.modal.classList.add('hidden');
         this.stopPreview(false);
         this.soundEngine.setGameplayMuted(false);
+        this.updateTransportUi();
     }
 
     log(message) {
@@ -4159,6 +4226,7 @@ class SoundEditor {
         else this.renderBgmControls();
 
         this.bindRenderedControls();
+        this.updateTransportUi();
     }
 
     renderOneShotControls() {
@@ -4308,24 +4376,51 @@ class SoundEditor {
 
         this.workingConfig = sanitizeSoundConfig(this.workingConfig);
         this.setStatus('已修改未保存');
+        if (this.soundEngine.currentPreviewKey === this.currentSoundKey && this.soundEngine.isContinuousPreviewActive(this.currentSoundKey)) {
+            this.soundEngine.updatePreviewConfig(this.currentSoundKey, this.workingConfig);
+        }
+        this.updateTransportUi();
+    }
+
+    async handlePreviewToggle() {
+        await this.soundEngine.unlock();
+        const def = this.getCurrentSoundDef();
+        const isContinuous = def.type === 'loop' || def.type === 'bgm';
+        const isCurrentActive = isContinuous && this.soundEngine.currentPreviewKey === this.currentSoundKey && this.soundEngine.isContinuousPreviewActive(this.currentSoundKey);
+
+        if (isCurrentActive && !this.soundEngine.previewPaused) {
+            this.pausePreview();
+            return;
+        }
+
+        if (isCurrentActive && this.soundEngine.previewPaused) {
+            this.soundEngine.resumePreview();
+            this.setStatus('试听中');
+            this.updateTransportUi();
+            return;
+        }
+
+        this.previewCurrent();
     }
 
     async previewCurrent() {
         await this.soundEngine.unlock();
-        this.soundEngine.resumePreview();
         this.soundEngine.previewSound(this.currentSoundKey, this.workingConfig);
         this.setStatus('试听中');
+        this.updateTransportUi();
         this.log(`试听 ${SOUND_EVENT_DEFS[this.currentSoundKey].label}。`);
     }
 
     pausePreview() {
         this.soundEngine.pausePreview();
         this.setStatus('\u5df2\u6682\u505c\u8bd5\u542c');
+        this.updateTransportUi();
     }
 
     stopPreview(updateStatus = true) {
         this.soundEngine.stopPreview();
         if (updateStatus) this.setStatus('已停止试听');
+        this.updateTransportUi();
     }
 
     readSavedConfig() {
