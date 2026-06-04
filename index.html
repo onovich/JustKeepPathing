@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Dungeon Reaper</title>
+    <title>JustKeepPathing</title>
     <link rel="icon" href="data:,">
     <script src="./vendor/tailwind/tailwindcss.js"></script>
     
@@ -3030,14 +3030,46 @@ class GameController {
     }
 
     getSpawnTargets(openCellCount) {
-        const sizeFactor = GameState.getMazeSizeFactor();
-        const monsterDensity = GameState.maze.baseMonsterRate * (0.9 + sizeFactor * 0.55);
-        const chestDensity = GameState.maze.baseChestRate * (0.85 + sizeFactor * 0.4);
-        const monsterTarget = Math.max(1, Math.round(openCellCount * monsterDensity));
-        const chestTarget = Math.max(1, Math.round(openCellCount * chestDensity));
-        const maxPlacements = Math.max(0, openCellCount - 1);
-        const monsters = Math.min(monsterTarget, maxPlacements);
-        const chests = Math.min(chestTarget, Math.max(0, maxPlacements - monsters));
+        const side = GameState.getMazeSide();
+        const sideSpan = Math.max(1, GameState.maze.maxSide - GameState.maze.baseSide);
+        const sizeProgress = THREE.MathUtils.clamp((side - GameState.maze.baseSide) / sideSpan, 0, 1);
+
+        // Small mazes keep more breathing room; larger mazes can spend more of their open cells on content.
+        const placementBudgetRatio = 0.12 + sizeProgress * 0.16;
+        const placementBudget = Math.min(
+            Math.max(0, openCellCount - 1),
+            Math.floor(openCellCount * placementBudgetRatio)
+        );
+        if (placementBudget <= 0) return { monsters: 0, chests: 0 };
+
+        const monsterDensity = GameState.maze.baseMonsterRate * (0.78 + sizeProgress * 0.45) * (0.58 + sizeProgress * 0.42);
+        const chestDensity = GameState.maze.baseChestRate * (0.72 + sizeProgress * 0.4) * (0.58 + sizeProgress * 0.42);
+        const monsterTarget = Math.round(openCellCount * monsterDensity);
+        const chestTarget = Math.round(openCellCount * chestDensity);
+
+        let monsters = monsterTarget;
+        let chests = chestTarget;
+        const totalTargets = monsterTarget + chestTarget;
+
+        if (totalTargets > placementBudget) {
+            const monsterShare = totalTargets > 0 ? monsterTarget / totalTargets : 0.5;
+            monsters = Math.min(monsterTarget, Math.round(placementBudget * monsterShare));
+            chests = Math.min(chestTarget, placementBudget - monsters);
+
+            const remainder = placementBudget - monsters - chests;
+            if (remainder > 0) {
+                if (monsterTarget - monsters >= chestTarget - chests) monsters += remainder;
+                else chests += remainder;
+            }
+        }
+
+        if (monsters === 0 && GameState.maze.lvMonster > 0 && placementBudget > 0) monsters = 1;
+        if (chests === 0 && GameState.maze.lvChest > 0 && placementBudget - monsters > 0) chests = 1;
+
+        if (monsters + chests > placementBudget) {
+            if (chests > monsters) chests = Math.max(0, placementBudget - monsters);
+            else monsters = Math.max(0, placementBudget - chests);
+        }
         return { monsters, chests };
     }
 
