@@ -313,6 +313,22 @@
             </div>
 
             <!-- 升级面板 -->
+            <div id="ui-supply-card" class="bg-slate-800 rounded-xl p-4 border-2 border-slate-700 shadow-inner">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400 font-bold text-sm">层补给</span>
+                    <span id="ui-supply-count" class="text-xl font-black text-emerald-400">0</span>
+                </div>
+                <div id="ui-supply-status" class="mt-2 text-[11px] font-bold text-slate-400">当前没有激活的层补给</div>
+                <div class="mt-3 grid grid-cols-1 gap-2">
+                <button id="btn-up-supply-assault" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-emerald-300 flex items-center gap-2">补一份层补给 <span id="val-supply" class="text-[10px] bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800/50">x0</span></div>
+                        <div id="desc-supply" class="text-[10px] text-slate-500 mt-0.5">每层开始会自动消耗 1 份，带来本层增益</div>
+                    </div>
+                    <div class="text-right"><div id="cost-supply" class="text-yellow-400 font-bold text-sm">60</div></div>
+                </button>
+            </div>
+
             <div id="upgrade-strip" class="space-y-3">
                 <button id="btn-up-speed" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
@@ -539,118 +555,45 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-const ENEMY_ARCHETYPES = [
-    {
-        id: 'scout',
-        name: '棱镜侦察者',
-        color: 0xf97316,
-        accent: 0xfdba74,
-        minLevel: 1,
-        weight: 4,
-        baseHp: 28,
-        baseAtk: 7,
-        reward: 95,
-        hoverAmplitude: 0.07,
-        hoverSpeed: 2.8,
-        scale: 0.9,
-        intro: '棱镜侦察者切入视野，战斗开始！',
-        attackVerb: '高速撞击'
-    },
-    {
-        id: 'brute',
-        name: '熔核冲锋兽',
-        color: 0xef4444,
-        accent: 0xfca5a5,
-        minLevel: 1,
-        weight: 3,
-        baseHp: 44,
-        baseAtk: 10,
-        reward: 130,
-        hoverAmplitude: 0.04,
-        hoverSpeed: 1.9,
-        scale: 1.05,
-        intro: '熔核冲锋兽正面堵截，战斗开始！',
-        attackVerb: '熔核突进'
-    },
-    {
-        id: 'spine',
-        name: '裂脊潜伏体',
-        color: 0xa855f7,
-        accent: 0xe9d5ff,
-        minLevel: 2,
-        weight: 2,
-        baseHp: 34,
-        baseAtk: 12,
-        reward: 145,
-        hoverAmplitude: 0.09,
-        hoverSpeed: 3.1,
-        scale: 0.96,
-        intro: '裂脊潜伏体从阴影跃出，战斗开始！',
-        attackVerb: '脊刺穿刺'
-    },
-    {
-        id: 'warden',
-        name: '幽环守望者',
-        color: 0x14b8a6,
-        accent: 0x99f6e4,
-        minLevel: 3,
-        weight: 2,
-        baseHp: 40,
-        baseAtk: 11,
-        reward: 165,
-        hoverAmplitude: 0.08,
-        hoverSpeed: 2.3,
-        scale: 1.02,
-        intro: '幽环守望者展开护环，战斗开始！',
-        attackVerb: '环刃碾压'
-    },
-    {
-        id: 'boss',
-        name: '深渊主脑',
-        color: 0xf59e0b,
-        accent: 0xfef08a,
-        minLevel: 4,
-        weight: 0,
-        baseHp: 135,
-        baseAtk: 18,
-        reward: 460,
-        hoverAmplitude: 0.11,
-        hoverSpeed: 1.8,
-        scale: 1.55,
-        intro: '警报：深渊主脑已被投放，Boss 战开始！',
-        attackVerb: '核心湮灭脉冲',
-        boss: true
-    }
-];
-
-const MODEL_EDITOR_STORAGE_KEY = 'jkp-model-appearance-v1';
-const MODEL_EDITOR_DEFAULT_CONFIG = Object.freeze({ version: 1, assets: {} });
-const MODEL_EDITOR_DEFAULT_FACE_PATTERN = Object.freeze({
-    pattern: 'none',
-    patternColor: '#0f172a',
-    patternScale: 8
-});
-const MODEL_EDITOR_DEFAULT_LINE_STYLE = Object.freeze({
-    style: 'solid',
-    width: 2
-});
-const MODEL_EDITOR_FACE_PATTERN_IDS = Object.freeze({
-    none: 0,
-    halftone: 1,
-    dither: 2,
-    hatch: 3
-});
-const MODEL_EDITOR_FACE_PATTERN_KEYS = Object.freeze(['none', 'halftone', 'dither', 'hatch']);
-const MODEL_EDITOR_ASSET_LABELS = Object.freeze({
-    player: '玩家飞碟',
-    scout: '棱镜侦察者',
-    brute: '熔核冲锋兽',
-    spine: '裂脊潜伏体',
-    warden: '幽环守望者',
-    boss: '深渊主脑',
-    chest: '数据宝藏',
-    exit: '出口信标'
-});
+import {
+    buildFloorContentPlan,
+    calculateSpawnTargets,
+    getBossFloorChance as getMazeBossFloorChance,
+    getMaxMazeSizeLevel as getMazeMaxLevel,
+    getMazeDimensions as getMazeDims,
+    getMazeSide as getMazeSideValue,
+    getMazeSizeFactor as getMazeSizeFactorValue,
+    isBossUnlocked as isMazeBossUnlocked,
+    isMazeSizeMaxed as isMazeAtMaxSize,
+    pickFloorArchetypeKey
+} from './src/logic/maze-progression.mjs';
+import {
+    buildEliteRoomSupportLoadout,
+    buildEliteRoomVariant,
+    buildHiddenRoomPlan,
+    getHiddenRoomAccentColor,
+    getHiddenRoomDiversionThreshold,
+    getHiddenRoomRewardTier
+} from './src/logic/hidden-rooms.mjs';
+import {
+    BGM_KERNELS,
+    ENEMY_ARCHETYPES,
+    MODEL_EDITOR_ASSET_LABELS,
+    MODEL_EDITOR_DEFAULT_CONFIG,
+    MODEL_EDITOR_DEFAULT_FACE_PATTERN,
+    MODEL_EDITOR_DEFAULT_LINE_STYLE,
+    MODEL_EDITOR_FACE_PATTERN_IDS,
+    MODEL_EDITOR_FACE_PATTERN_KEYS,
+    MODEL_EDITOR_STORAGE_KEY,
+    SOUND_EDITOR_DEFAULT_CONFIG,
+    SOUND_EDITOR_MAX_TRACKS,
+    SOUND_EDITOR_STORAGE_KEY,
+    SOUND_EVENT_DEFS,
+    SOUND_WAVE_TYPES,
+    createDefaultSoundConfig,
+    createFootstepTrack,
+    createOneShotSoundConfig
+} from './src/data/game-config.mjs';
 
 function normalizeColorHex(value, fallback = '#ffffff') {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -770,136 +713,6 @@ function getLineAppearanceEntry(part, lineIndex, defaultColor) {
             : MODEL_EDITOR_DEFAULT_LINE_STYLE.width
     };
 }
-
-const SOUND_EDITOR_STORAGE_KEY = 'jkp-sound-config-v1';
-const SOUND_EDITOR_MAX_TRACKS = 5;
-const SOUND_WAVE_TYPES = Object.freeze(['sine', 'triangle', 'square', 'sawtooth']);
-const SOUND_EVENT_DEFS = Object.freeze({
-    upgrade: { label: '升级成功', type: 'oneshot', usage: '购买任意升级后立刻播放', description: '偏明亮上扬的提示音，让升级反馈更明显。' },
-    chest: { label: '打开宝箱', type: 'oneshot', usage: '玩家拾取宝箱奖励时播放', description: '清脆一点，突出奖励到手的瞬间。' },
-    levelClear: { label: '突破出口', type: 'oneshot', usage: '成功到达出口并进入下一层时播放', description: '会自动补一层和声音色，让通关更像阶段胜利。' },
-    enemyHit: { label: '命中敌人', type: 'oneshot', usage: '玩家在战斗里打到敌人时播放', description: '偏短促、带攻击感的打击音。' },
-    playerHit: { label: '玩家受击', type: 'oneshot', usage: '敌人在战斗里命中玩家时播放', description: '整体更沉、更硬，突出受伤压力。' },
-    enemyDefeat: { label: '击败敌人', type: 'oneshot', usage: '战斗胜利时播放', description: '带一点下坠感，像把敌人彻底收掉。' },
-    bossIntro: { label: 'Boss 登场', type: 'oneshot', usage: 'Boss 战刚开始时播放', description: '低频更厚、滤波更重，用来拉开压迫感。' },
-    defeat: { label: '玩家倒下', type: 'oneshot', usage: '玩家战败后播放', description: '会自动加一点低八度尾音，做出失速感。' },
-    footsteps: { label: '移动脚步', type: 'loop', usage: '玩家在探索阶段持续移动时循环播放', description: '这是连续音效，可调节整体节奏，并最多叠加 5 条音轨。' },
-    bgm: { label: '背景音乐', type: 'bgm', usage: '游戏运行时作为背景音乐持续播放', description: '使用和弦卷积核生成偏舒服的 MIDI 风格织体，试听时会播放一小段。' }
-});
-
-function createOneShotSoundConfig(overrides = {}) {
-    return {
-        waveform: 'triangle',
-        volume: 0.11,
-        startFreq: 440,
-        endFreq: 660,
-        duration: 0.18,
-        attack: 0.005,
-        hold: 0.02,
-        release: 0.14,
-        filterCutoff: 2600,
-        resonance: 3,
-        vibratoRate: 0,
-        vibratoDepth: 0,
-        detune: 8,
-        subMix: 0.18,
-        distortion: 0.02,
-        delayMix: 0.08,
-        pan: 0,
-        ...overrides
-    };
-}
-
-function createFootstepTrack(overrides = {}) {
-    return {
-        enabled: true,
-        waveform: 'square',
-        volume: 0.12,
-        startFreq: 170,
-        endFreq: 92,
-        duration: 0.07,
-        attack: 0.002,
-        hold: 0.01,
-        release: 0.06,
-        filterCutoff: 960,
-        resonance: 2.4,
-        vibratoRate: 0,
-        vibratoDepth: 0,
-        detune: 0,
-        subMix: 0.1,
-        distortion: 0.03,
-        delayMix: 0.02,
-        pan: 0,
-        stepDiv: 1,
-        offset: 0,
-        ...overrides
-    };
-}
-
-function createDefaultSoundConfig() {
-    return {
-        version: 1,
-        sounds: {
-            upgrade: createOneShotSoundConfig({ waveform: 'triangle', volume: 0.12, startFreq: 420, endFreq: 760, duration: 0.18, filterCutoff: 3200, delayMix: 0.12, subMix: 0.12 }),
-            chest: createOneShotSoundConfig({ waveform: 'triangle', volume: 0.115, startFreq: 620, endFreq: 980, duration: 0.13, filterCutoff: 3600, delayMix: 0.09, subMix: 0.08 }),
-            levelClear: createOneShotSoundConfig({ waveform: 'sine', volume: 0.12, startFreq: 392, endFreq: 588, duration: 0.24, filterCutoff: 3000, delayMix: 0.14, detune: 11, subMix: 0.22 }),
-            enemyHit: createOneShotSoundConfig({ waveform: 'sawtooth', volume: 0.105, startFreq: 310, endFreq: 156, duration: 0.11, filterCutoff: 1800, resonance: 4.8, distortion: 0.1, detune: 5 }),
-            playerHit: createOneShotSoundConfig({ waveform: 'square', volume: 0.115, startFreq: 220, endFreq: 88, duration: 0.18, filterCutoff: 1400, resonance: 6.2, distortion: 0.08, subMix: 0.28 }),
-            enemyDefeat: createOneShotSoundConfig({ waveform: 'sawtooth', volume: 0.12, startFreq: 250, endFreq: 88, duration: 0.24, filterCutoff: 1700, resonance: 4.4, delayMix: 0.06, subMix: 0.2 }),
-            bossIntro: createOneShotSoundConfig({ waveform: 'sawtooth', volume: 0.16, startFreq: 130, endFreq: 98, duration: 0.42, filterCutoff: 1100, resonance: 8.5, distortion: 0.14, subMix: 0.32 }),
-            defeat: createOneShotSoundConfig({ waveform: 'square', volume: 0.145, startFreq: 240, endFreq: 72, duration: 0.34, filterCutoff: 1200, resonance: 5.2, distortion: 0.06, delayMix: 0.04, subMix: 0.26 }),
-            footsteps: {
-                volume: 0.28,
-                tempo: 132,
-                stride: 1,
-                swing: 0.06,
-                stepBeats: 0.5,
-                accent: 1.16,
-                tracks: [
-                    createFootstepTrack({ waveform: 'square', volume: 0.12, startFreq: 168, endFreq: 84, filterCutoff: 900, pan: -0.14 }),
-                    createFootstepTrack({ waveform: 'triangle', volume: 0.09, startFreq: 410, endFreq: 220, duration: 0.05, filterCutoff: 2100, stepDiv: 2, offset: 1, pan: 0.16 }),
-                    createFootstepTrack({ waveform: 'sawtooth', volume: 0.05, startFreq: 680, endFreq: 240, duration: 0.045, filterCutoff: 2600, stepDiv: 4, offset: 2, distortion: 0.12, pan: 0.04 }),
-                    createFootstepTrack({ enabled: false, waveform: 'triangle', volume: 0.05, startFreq: 1200, endFreq: 620, duration: 0.035, filterCutoff: 3600, stepDiv: 2, offset: 0, pan: -0.24 }),
-                    createFootstepTrack({ enabled: false, waveform: 'square', volume: 0.08, startFreq: 96, endFreq: 62, duration: 0.09, filterCutoff: 720, stepDiv: 3, offset: 1, pan: 0.24 })
-                ]
-            },
-            bgm: {
-                enabled: true,
-                volume: 0.15,
-                tempo: 92,
-                root: 45,
-                kernel: 'warmPop',
-                brightness: 0.58,
-                swing: 0.08,
-                noteLength: 0.8,
-                attack: 0.012,
-                release: 0.28,
-                stereoSpread: 0.34,
-                humanize: 0.02,
-                detune: 9
-            }
-        }
-    };
-}
-
-const SOUND_EDITOR_DEFAULT_CONFIG = Object.freeze(createDefaultSoundConfig());
-const BGM_KERNELS = Object.freeze({
-    warmPop: {
-        label: '温暖流行',
-        progression: [[0, 4, 7, 11], [7, 11, 14, 18], [9, 12, 16, 19], [5, 9, 12, 16]],
-        melody: [0, 7, 4, 11, 14, 11, 7, 4]
-    },
-    dreamGlass: {
-        label: '玻璃梦境',
-        progression: [[0, 7, 11, 14], [4, 9, 12, 16], [5, 12, 16, 19], [2, 9, 14, 17]],
-        melody: [0, 11, 7, 14, 12, 16, 9, 7]
-    },
-    nightCruise: {
-        label: '夜行巡航',
-        progression: [[0, 3, 7, 10], [5, 8, 12, 15], [7, 10, 14, 17], [3, 7, 10, 14]],
-        melody: [0, 7, 10, 7, 12, 10, 7, 3]
-    }
-});
 
 function clampSoundValue(value, min, max, fallback) {
     const num = Number(value);
@@ -1539,6 +1352,26 @@ const GameState = {
     score: 0,
     player: { lvSpeed: 1, baseSpeed: 0.15, lvAtk: 1, baseAtk: 10, lvHp: 1, baseHp: 50, currentHp: 50 },
     maze: { lvChest: 1, baseChestRate: 0.05, lvMonster: 1, baseMonsterRate: 0.03, lvSize: 1, baseSide: 11, maxSide: 25 },
+    items: {
+        supplies: {
+            assault: 0,
+            salvage: 0,
+            scout: 0
+        }
+    },
+    floorBuff: {
+        supplyActive: false,
+        supplyKey: null,
+        supplyLabel: '',
+        hiddenRoomBonus: 0,
+        chestRewardMult: 1,
+        attackMult: 1,
+        supplyDropBonus: 0,
+        diversionBonus: 0
+    },
+    floorContent: null,
+    floorStats: { kills: 0, chests: 0, hiddenRoomsCleared: 0 },
+    meta: { nextHiddenRoomBonus: 0 },
     costs: {
         speed: () => Math.floor(10 * Math.pow(1.5, GameState.player.lvSpeed - 1)),
         atk: () => Math.floor(20 * Math.pow(1.5, GameState.player.lvAtk - 1)),
@@ -1547,29 +1380,145 @@ const GameState = {
         size: () => Math.floor(40 * Math.pow(1.7, GameState.maze.lvSize - 1)),
         monster: () => Math.floor(100 * Math.pow(1.8, GameState.maze.lvMonster - 1))
     },
+    supplyDefs: {
+        assault: { label: '战备补给', color: '#fda4af', manualCostMult: 1.08 },
+        salvage: { label: '探宝补给', color: '#fcd34d', manualCostMult: 1.02 },
+        scout: { label: '侦测补给', color: '#67e8f9', manualCostMult: 1.04 }
+    },
     getMazeSide() {
-        return Math.min(this.maze.maxSide, this.maze.baseSide + (this.maze.lvSize - 1) * 2);
+        return getMazeSideValue(this.maze);
     },
     getMazeDimensions() {
-        const side = this.getMazeSide();
-        return { cols: side, rows: side };
+        return getMazeDims(this.maze);
     },
     getMaxMazeSizeLevel() {
-        return 1 + Math.floor((this.maze.maxSide - this.maze.baseSide) / 2);
+        return getMazeMaxLevel(this.maze);
     },
     isMazeSizeMaxed() {
-        return this.maze.lvSize >= this.getMaxMazeSizeLevel();
+        return isMazeAtMaxSize(this.maze);
     },
     getMazeSizeFactor() {
-        const side = this.getMazeSide();
-        return (side * side) / (this.maze.baseSide * this.maze.baseSide);
+        return getMazeSizeFactorValue(this.maze);
     },
     isBossUnlocked() {
-        return this.maze.lvMonster >= 4;
+        return isMazeBossUnlocked(this.maze);
     },
     getBossFloorChance() {
-        if (!this.isBossUnlocked()) return 0;
-        return Math.min(0.58, 0.14 + (this.maze.lvMonster - 4) * 0.11);
+        return getMazeBossFloorChance(this.maze);
+    },
+    getSupplyCost(type) {
+        const base = 56 * Math.pow(1.16, Math.max(0, this.level - 1));
+        return Math.floor(base * (this.supplyDefs[type]?.manualCostMult || 1));
+    },
+    getSupplyCount(type) {
+        return Math.max(0, this.items.supplies[type] || 0);
+    },
+    getTotalSupplyCount() {
+        return Object.values(this.items.supplies).reduce((sum, value) => sum + Math.max(0, value || 0), 0);
+    },
+    getPreferredSupplyType(archetypeKey = 'combat') {
+        if (archetypeKey === 'treasure' || archetypeKey === 'rest' || archetypeKey === 'merchant') return 'salvage';
+        if (archetypeKey === 'event') return 'scout';
+        return 'assault';
+    },
+    getSupplyPriority(archetypeKey = 'combat') {
+        const preferred = this.getPreferredSupplyType(archetypeKey);
+        const others = ['assault', 'salvage', 'scout'].filter((key) => key !== preferred);
+        if (preferred === 'assault') return [preferred, 'scout', 'salvage'];
+        if (preferred === 'salvage') return [preferred, 'scout', 'assault'];
+        return [preferred, 'salvage', 'assault'];
+    },
+    getMostNeededSupplyType(archetypeKey = this.floorContent?.archetypeKey || 'combat') {
+        const priority = this.getSupplyPriority(archetypeKey);
+        return [...priority].sort((a, b) => {
+            const countDiff = this.getSupplyCount(a) - this.getSupplyCount(b);
+            if (countDiff !== 0) return countDiff;
+            return priority.indexOf(a) - priority.indexOf(b);
+        })[0];
+    },
+    resetFloorStats() {
+        this.floorStats = { kills: 0, chests: 0, hiddenRoomsCleared: 0 };
+    },
+    grantFloorSupply(type = 'salvage', amount = 1) {
+        this.items.supplies[type] = Math.max(0, (this.items.supplies[type] || 0) + amount);
+        this.updateUI();
+    },
+    grantRandomFloorSupply(source = 'chest') {
+        const rolls = source === 'cache'
+            ? [
+                { key: 'salvage', weight: 0.5 },
+                { key: 'scout', weight: 0.32 },
+                { key: 'assault', weight: 0.18 }
+            ]
+            : [
+                { key: 'salvage', weight: 0.48 },
+                { key: 'assault', weight: 0.3 },
+                { key: 'scout', weight: 0.22 }
+            ];
+        let roll = Math.random();
+        for (const entry of rolls) {
+            roll -= entry.weight;
+            if (roll <= 0) {
+                this.grantFloorSupply(entry.key, 1);
+                return entry.key;
+            }
+        }
+        this.grantFloorSupply(rolls[rolls.length - 1].key, 1);
+        return rolls[rolls.length - 1].key;
+    },
+    consumeFloorSupplyIfAvailable(archetypeKey = 'combat') {
+        const priority = this.getSupplyPriority(archetypeKey);
+        const chosenType = priority.find((type) => this.getSupplyCount(type) > 0) || null;
+        if (!chosenType) {
+            this.floorBuff = {
+                supplyActive: false,
+                supplyKey: null,
+                supplyLabel: '',
+                hiddenRoomBonus: 0,
+                chestRewardMult: 1,
+                attackMult: 1,
+                supplyDropBonus: 0,
+                diversionBonus: 0
+            };
+            return false;
+        }
+        this.items.supplies[chosenType] -= 1;
+        if (chosenType === 'assault') {
+            this.floorBuff = {
+                supplyActive: true,
+                supplyKey: chosenType,
+                supplyLabel: this.supplyDefs[chosenType].label,
+                hiddenRoomBonus: 0,
+                chestRewardMult: 1,
+                attackMult: 1.24,
+                supplyDropBonus: 0,
+                diversionBonus: 0
+            };
+        } else if (chosenType === 'salvage') {
+            this.floorBuff = {
+                supplyActive: true,
+                supplyKey: chosenType,
+                supplyLabel: this.supplyDefs[chosenType].label,
+                hiddenRoomBonus: 0,
+                chestRewardMult: 1.42,
+                attackMult: 1,
+                supplyDropBonus: 0.14,
+                diversionBonus: 0
+            };
+        } else {
+            this.floorBuff = {
+                supplyActive: true,
+                supplyKey: chosenType,
+                supplyLabel: this.supplyDefs[chosenType].label,
+                hiddenRoomBonus: 0.1,
+                chestRewardMult: 1,
+                attackMult: 1,
+                supplyDropBonus: 0.04,
+                diversionBonus: 0.08
+            };
+        }
+        this.updateUI();
+        return true;
     },
     addScore(val) {
         this.score += val;
@@ -1607,6 +1556,8 @@ const GameState = {
 
         const statusSpan = document.getElementById('ui-status');
         const statusBox = document.getElementById('ui-status-box');
+        const supplyPill = document.getElementById('ui-supply-pill');
+        const supplyPillText = document.getElementById('ui-supply-pill-text');
         const statusMap = { GENERATING: '挖掘中', EXPLORING: '自动寻路', COMBAT: 'RPG 战斗模式!', SELFTEST: '自测场景' };
         statusSpan.innerText = statusMap[this.phase] || '就绪';
 
@@ -1616,6 +1567,26 @@ const GameState = {
         } else {
             statusBox.className = 'bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]';
             statusSpan.className = 'text-emerald-400 font-bold ml-1';
+        }
+        if (supplyPill && supplyPillText) {
+            if (this.floorBuff.supplyActive && this.floorBuff.supplyLabel) {
+                const supplyColors = {
+                    assault: 'text-rose-300',
+                    salvage: 'text-amber-300',
+                    scout: 'text-cyan-300'
+                };
+                const pillClasses = {
+                    assault: 'bg-rose-950/80 border-rose-700/80',
+                    salvage: 'bg-amber-950/80 border-amber-700/80',
+                    scout: 'bg-cyan-950/80 border-cyan-700/80'
+                };
+                supplyPill.classList.remove('hidden');
+                supplyPill.className = `px-4 py-2 rounded-lg border-2 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)] ${pillClasses[this.floorBuff.supplyKey] || 'bg-slate-900/95 border-slate-700'}`;
+                supplyPillText.className = `ml-1 inline-block font-bold ${supplyColors[this.floorBuff.supplyKey] || 'text-emerald-300'}`;
+                supplyPillText.innerText = this.floorBuff.supplyLabel;
+            } else {
+                supplyPill.classList.add('hidden');
+            }
         }
 
         document.getElementById('ui-score').innerText = Math.floor(this.score);
@@ -1631,6 +1602,34 @@ const GameState = {
             if (!isSizeMaxed && this.score >= cost) btn.classList.remove('opacity-50', 'grayscale');
             else btn.classList.add('opacity-50', 'grayscale');
         });
+        const supplyKeys = ['assault', 'salvage', 'scout'];
+        for (const key of supplyKeys) {
+            const valueEl = document.getElementById(`val-supply-${key}`);
+            const costEl = document.getElementById(`cost-supply-${key}`);
+            const btnEl = document.getElementById(`btn-up-supply-${key}`);
+            if (!valueEl || !costEl || !btnEl) continue;
+            valueEl.innerText = `x${this.getSupplyCount(key)}`;
+            costEl.innerText = this.getSupplyCost(key);
+            if (this.score >= this.getSupplyCost(key)) btnEl.classList.remove('opacity-50', 'grayscale');
+            else btnEl.classList.add('opacity-50', 'grayscale');
+        }
+        const totalSupply = this.getTotalSupplyCount();
+        document.getElementById('ui-supply-count').innerText = totalSupply;
+        document.getElementById('ui-supply-status').innerText = this.floorBuff.supplyActive
+            ? `本层已启用：${this.floorBuff.supplyLabel}`
+            : '当前没有激活的层补给';
+        const supplyDesc = document.getElementById('ui-supply-desc');
+        if (supplyDesc) {
+            if (this.floorBuff.supplyKey === 'assault') {
+                supplyDesc.innerText = '本层战备补给生效中：伤害提高，更适合战斗层和 Boss。';
+            } else if (this.floorBuff.supplyKey === 'salvage') {
+                supplyDesc.innerText = '本层探宝补给生效中：宝箱收益提高，补给掉落更积极。';
+            } else if (this.floorBuff.supplyKey === 'scout') {
+                supplyDesc.innerText = '本层侦测补给生效中：密室更容易出现，也更愿意绕路进入。';
+            } else {
+                supplyDesc.innerText = '每层开始会自动消耗 1 份，并按楼层类型选更合适的补给。';
+            }
+        }
 
         const sizeDesc = document.getElementById('desc-size');
         if (sizeDesc) {
@@ -1642,13 +1641,64 @@ const GameState = {
 
         const monsterDesc = document.getElementById('desc-monster');
         if (monsterDesc) {
-            monsterDesc.innerText = this.isBossUnlocked()
+            const floorLabels = { combat: '普通楼层', treasure: '藏宝楼层', event: '异象楼层', elite: '精英楼层' };
+            const baseText = this.isBossUnlocked()
                 ? `怪物更容易出现，Boss 出现概率 ${Math.round(this.getBossFloorChance() * 100)}%`
                 : '怪物更容易出现，升到 Lv.4 解锁 Boss';
+            const floorLabel = floorLabels[this.floorContent?.archetypeKey] || floorLabels.combat;
+            monsterDesc.innerText = `${baseText} · ${floorLabel}`;
         }
     }
 };
 
+function initializeSupplyCardUi() {
+    const card = document.getElementById('ui-supply-card');
+    if (!card) return;
+    card.innerHTML = `
+        <div class="flex items-center justify-between">
+            <span class="text-slate-400 font-bold text-sm">层补给</span>
+            <span id="ui-supply-count" class="text-xl font-black text-emerald-400">0</span>
+        </div>
+        <div id="ui-supply-status" class="mt-2 text-[11px] font-bold text-slate-400">当前没有激活的层补给</div>
+        <div id="ui-supply-desc" class="mt-1 text-[10px] text-slate-500">每层开始会自动消耗 1 份，并按楼层类型选更合适的补给。</div>
+        <div class="mt-3 grid grid-cols-1 gap-2">
+            <button id="btn-up-supply-assault" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                <div>
+                    <div class="font-bold text-rose-300 flex items-center gap-2">战备补给 <span id="val-supply-assault" class="text-[10px] bg-rose-950 text-rose-300 px-1.5 py-0.5 rounded border border-rose-800/50">x0</span></div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">本层伤害更高，适合战斗和 Boss</div>
+                </div>
+                <div class="text-right"><div id="cost-supply-assault" class="text-yellow-400 font-bold text-sm">60</div></div>
+            </button>
+            <button id="btn-up-supply-salvage" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                <div>
+                    <div class="font-bold text-amber-300 flex items-center gap-2">探宝补给 <span id="val-supply-salvage" class="text-[10px] bg-amber-950 text-amber-300 px-1.5 py-0.5 rounded border border-amber-800/50">x0</span></div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">本层宝箱收益更高，也更容易掉补给</div>
+                </div>
+                <div class="text-right"><div id="cost-supply-salvage" class="text-yellow-400 font-bold text-sm">60</div></div>
+            </button>
+            <button id="btn-up-supply-scout" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+                <div>
+                    <div class="font-bold text-cyan-300 flex items-center gap-2">侦测补给 <span id="val-supply-scout" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">x0</span></div>
+                    <div class="text-[10px] text-slate-500 mt-0.5">本层更容易刷出密室，也更愿意绕路进入</div>
+                </div>
+                <div class="text-right"><div id="cost-supply-scout" class="text-yellow-400 font-bold text-sm">60</div></div>
+            </button>
+        </div>
+    `;
+}
+
+function initializeSupplyStatusPill() {
+    const host = document.getElementById('ui-status-box')?.parentElement;
+    if (!host || document.getElementById('ui-supply-pill')) return;
+    const pill = document.createElement('div');
+    pill.id = 'ui-supply-pill';
+    pill.className = 'hidden bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]';
+    pill.innerHTML = '<span class="whitespace-nowrap">补给</span><span id="ui-supply-pill-text" class="ml-1 inline-block font-bold text-emerald-300">未启用</span>';
+    host.appendChild(pill);
+}
+
+initializeSupplyCardUi();
+initializeSupplyStatusPill();
 window.GameState = GameState;
 
 const Easing = {
@@ -2888,11 +2938,27 @@ class GameController {
         this.currentEnemy = null;
         this.combatUiHideTimer = null;
         this.selfTestActive = false;
+        this.floorPlan = null;
+        this.hiddenRooms = [];
+        this.hiddenRoomLookup = new Map();
+        this.currentPathTarget = 'end';
 
         ['speed', 'atk', 'hp', 'chest', 'size', 'monster'].forEach((type) => {
             document.getElementById(`btn-up-${type}`).addEventListener('click', async () => {
                 await window.soundEngine?.unlock();
                 GameState.tryBuy(type);
+            });
+        });
+        ['assault', 'salvage', 'scout'].forEach((type) => {
+            document.getElementById(`btn-up-supply-${type}`).addEventListener('click', async () => {
+                await window.soundEngine?.unlock();
+                const cost = GameState.getSupplyCost(type);
+                if (GameState.score < cost) return;
+                GameState.score -= cost;
+                GameState.grantFloorSupply(type, 1);
+                window.soundEngine?.upgrade();
+                if (window.engine) window.engine.triggerUpgradeEffect();
+                GameState.updateUI();
             });
         });
 
@@ -2931,6 +2997,1408 @@ class GameController {
 
     getWorldPos(c, r) {
         return new THREE.Vector3(c + this.offsetC, 0, r + this.offsetR);
+    }
+
+    getCellKey(c, r) {
+        return `${c},${r}`;
+    }
+
+    getCellByKey(key) {
+        const [c, r] = key.split(',').map(Number);
+        return this.grid?.[r]?.[c] || null;
+    }
+
+    getWalkableNeighbors(c, r) {
+        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+        const neighbors = [];
+        for (const [dc, dr] of dirs) {
+            const nc = c + dc;
+            const nr = r + dr;
+            if (nc <= 0 || nr <= 0 || nc >= this.cols || nr >= this.rows) continue;
+            const cell = this.grid?.[nr]?.[nc];
+            if (cell && !cell.isWall) neighbors.push(cell);
+        }
+        return neighbors;
+    }
+
+    computePathBetween(start, target, options = {}) {
+        const startKey = this.getCellKey(start.c, start.r);
+        const targetKey = this.getCellKey(target.c, target.r);
+        if (startKey === targetKey) return [];
+
+        const queue = [{ c: start.c, r: start.r }];
+        const visited = new Set([startKey]);
+        const prev = new Map();
+
+        while (queue.length > 0) {
+            const curr = queue.shift();
+            for (const neighbor of this.getWalkableNeighbors(curr.c, curr.r)) {
+                if (options.avoidUnclearedHiddenRooms && neighbor.hiddenRoomId) {
+                    const hiddenRoom = this.getHiddenRoomById(neighbor.hiddenRoomId);
+                    const isTargetCell = neighbor.c === target.c && neighbor.r === target.r;
+                    const isAllowedRoom = hiddenRoom?.id && hiddenRoom.id === options.allowedHiddenRoomId;
+                    if (hiddenRoom && !hiddenRoom.cleared && !isTargetCell && !isAllowedRoom) continue;
+                }
+                const key = this.getCellKey(neighbor.c, neighbor.r);
+                if (visited.has(key)) continue;
+                visited.add(key);
+                prev.set(key, this.getCellKey(curr.c, curr.r));
+                if (key === targetKey) {
+                    const path = [];
+                    let cursor = key;
+                    while (cursor !== startKey) {
+                        const [c, r] = cursor.split(',').map(Number);
+                        path.unshift({ c, r });
+                        cursor = prev.get(cursor);
+                        if (!cursor) return [];
+                    }
+                    return path;
+                }
+                queue.push({ c: neighbor.c, r: neighbor.r });
+            }
+        }
+
+        return [];
+    }
+
+    buildDistanceMap(start) {
+        const startKey = this.getCellKey(start.c, start.r);
+        const distances = new Map([[startKey, 0]]);
+        const queue = [{ c: start.c, r: start.r }];
+
+        while (queue.length > 0) {
+            const curr = queue.shift();
+            const currentKey = this.getCellKey(curr.c, curr.r);
+            const nextDistance = (distances.get(currentKey) || 0) + 1;
+            for (const neighbor of this.getWalkableNeighbors(curr.c, curr.r)) {
+                const key = this.getCellKey(neighbor.c, neighbor.r);
+                if (distances.has(key)) continue;
+                distances.set(key, nextDistance);
+                queue.push({ c: neighbor.c, r: neighbor.r });
+            }
+        }
+
+        return distances;
+    }
+
+    buildHiddenRoomCandidates(openCells, basePath) {
+        const basePathSet = new Set([
+            this.getCellKey(this.playerPos.c, this.playerPos.r),
+            ...basePath.map((node) => this.getCellKey(node.c, node.r))
+        ]);
+        const startDistances = this.buildDistanceMap(this.playerPos);
+        const exitDistances = this.buildDistanceMap(this.endPos);
+        const rawCandidates = [];
+        const basePathLength = Math.max(1, basePath.length);
+        let maxDistStart = 1;
+        let maxDetour = 1;
+
+        for (const cell of openCells) {
+            const key = this.getCellKey(cell.c, cell.r);
+            if (basePathSet.has(key)) continue;
+            const distStart = startDistances.get(key);
+            const distExit = exitDistances.get(key);
+            if (!Number.isFinite(distStart) || !Number.isFinite(distExit)) continue;
+            if (distStart < 3) continue;
+
+            const openNeighbors = this.getWalkableNeighbors(cell.c, cell.r);
+            const neighborCount = openNeighbors.length;
+            const deadEndScore = neighborCount <= 1 ? 1 : neighborCount === 2 ? 0.42 : 0;
+            const detourSteps = Math.max(0, distStart + distExit - basePathLength);
+            const entranceNeighbor = [...openNeighbors]
+                .sort((a, b) => (startDistances.get(this.getCellKey(a.c, a.r)) || 9999) - (startDistances.get(this.getCellKey(b.c, b.r)) || 9999))[0];
+            maxDistStart = Math.max(maxDistStart, distStart);
+            maxDetour = Math.max(maxDetour, detourSteps);
+            rawCandidates.push({
+                key,
+                c: cell.c,
+                r: cell.r,
+                distStart,
+                distExit,
+                neighborCount,
+                deadEndScore,
+                detourSteps,
+                basePathLength,
+                entranceDir: entranceNeighbor
+                    ? { dc: entranceNeighbor.c - cell.c, dr: entranceNeighbor.r - cell.r }
+                    : { dc: 0, dr: -1 }
+            });
+        }
+
+        return rawCandidates
+            .map((candidate) => {
+                const branchDepthNorm = THREE.MathUtils.clamp(candidate.distStart / maxDistStart, 0, 1);
+                const detourNorm = THREE.MathUtils.clamp(candidate.detourSteps / Math.max(1, maxDetour), 0, 1);
+                return {
+                    ...candidate,
+                    branchDepthNorm,
+                    detourNorm,
+                    difficultyScore: THREE.MathUtils.clamp(
+                        branchDepthNorm * 0.48
+                        + detourNorm * 0.34
+                        + candidate.deadEndScore * 0.18,
+                        0,
+                        1
+                    )
+                };
+            })
+            .sort((a, b) => b.difficultyScore - a.difficultyScore);
+    }
+
+    cloneTintMaterial(material, colorHex) {
+        const clone = material.clone();
+        if (clone.color) clone.color.set(colorHex);
+        return clone;
+    }
+
+    tintGroup(group, meshColor, edgeColor = meshColor) {
+        group.traverse((child) => {
+            if (!child.material) return;
+            if (child.isMesh) {
+                child.material = this.cloneTintMaterial(child.material, meshColor);
+            } else if (child.isLineSegments) {
+                child.material = this.cloneTintMaterial(child.material, edgeColor);
+            }
+        });
+        return group;
+    }
+
+    getLeftDir(dir) {
+        return { dc: dir.dr, dr: -dir.dc };
+    }
+
+    getRightDir(dir) {
+        return { dc: -dir.dr, dr: dir.dc };
+    }
+
+    addDir(origin, dir, scale = 1) {
+        return {
+            c: origin.c + dir.dc * scale,
+            r: origin.r + dir.dr * scale
+        };
+    }
+
+    getHiddenRoomChamberBlueprint(room) {
+        const candidate = room.candidate || {};
+        const entranceDir = candidate.entranceDir || { dc: 0, dr: -1 };
+        const forward = { dc: -entranceDir.dc, dr: -entranceDir.dr };
+        const left = this.getLeftDir(forward);
+        const right = this.getRightDir(forward);
+        const offsets = [{ c: 0, r: 0 }];
+        const eliteStyle = room.eliteVariant?.chamberStyle || 'bastion';
+
+        const pushOffset = (c, r) => {
+            if (!offsets.some((offset) => offset.c === c && offset.r === r)) offsets.push({ c, r });
+        };
+
+        if (room.typeKey === 'elite' && eliteStyle === 'corridor') {
+            pushOffset(forward.dc, forward.dr);
+            pushOffset(forward.dc * 2, forward.dr * 2);
+            pushOffset(forward.dc * 3, forward.dr * 3);
+            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+            pushOffset(forward.dc * 2 + right.dc, forward.dr * 2 + right.dr);
+            pushOffset(forward.dc * 3 + left.dc, forward.dr * 3 + left.dr);
+        } else if (room.typeKey === 'elite' && eliteStyle === 'fork') {
+            pushOffset(forward.dc, forward.dr);
+            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+            pushOffset(forward.dc + right.dc, forward.dr + right.dr);
+            pushOffset(forward.dc * 2 + left.dc, forward.dr * 2 + left.dr);
+            pushOffset(forward.dc * 2 + right.dc, forward.dr * 2 + right.dr);
+            pushOffset(forward.dc * 2, forward.dr * 2);
+        } else if (room.placementKey === 'deep_route_reward' || room.typeKey === 'elite') {
+            pushOffset(forward.dc, forward.dr);
+            pushOffset(forward.dc * 2, forward.dr * 2);
+            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+            pushOffset(forward.dc + right.dc, forward.dr + right.dr);
+            pushOffset(forward.dc * 2 + left.dc, forward.dr * 2 + left.dr);
+            pushOffset(forward.dc * 2 + right.dc, forward.dr * 2 + right.dr);
+        } else if (room.placementKey === 'sealed_chamber') {
+            pushOffset(left.dc, left.dr);
+            pushOffset(right.dc, right.dr);
+            pushOffset(forward.dc, forward.dr);
+            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+            pushOffset(forward.dc + right.dc, forward.dr + right.dr);
+        } else {
+            pushOffset(forward.dc, forward.dr);
+            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+            pushOffset(forward.dc + right.dc, forward.dr + right.dr);
+        }
+
+        return { forward, left, right, offsets };
+    }
+
+    carveHiddenRoomChamber(room) {
+        const blueprint = this.getHiddenRoomChamberBlueprint(room);
+        const cells = [];
+
+        for (const offset of blueprint.offsets) {
+            const c = room.anchor.c + offset.c;
+            const r = room.anchor.r + offset.r;
+            if (c <= 0 || r <= 0 || c >= this.cols - 1 || r >= this.rows - 1) continue;
+            if ((c === 1 && r === 1) || (c === this.endPos.c && r === this.endPos.r)) continue;
+            const cell = this.grid?.[r]?.[c];
+            if (!cell) continue;
+            if (cell.hiddenRoomId && cell.hiddenRoomId !== room.id) continue;
+            if (cell.isWall) this.digWall(cell);
+            if (!cells.includes(cell)) cells.push(cell);
+        }
+
+        room.chamberCells = cells.map((cell) => ({ c: cell.c, r: cell.r }));
+        room.chamberBlueprint = blueprint;
+        return cells;
+    }
+
+    createHiddenRoomOutline(cell, colorHex, opacity = 0.95) {
+        const pos = this.getWorldPos(cell.c, cell.r);
+        const y = 0.035;
+        const half = 0.44;
+        const points = [
+            new THREE.Vector3(pos.x - half, y, pos.z - half),
+            new THREE.Vector3(pos.x + half, y, pos.z - half),
+            new THREE.Vector3(pos.x + half, y, pos.z + half),
+            new THREE.Vector3(pos.x - half, y, pos.z + half)
+        ];
+        return this.engine.createLineLoop(points, colorHex, opacity);
+    }
+
+    createSupportAdornment(kind, colorHex) {
+        const group = new THREE.Group();
+        const makeLoop = (radiusX, radiusZ, y, opacity, segments = 10) => this.engine.createLineLoop(
+            Array.from({ length: segments }, (_, index) => {
+                const angle = index / segments * Math.PI * 2;
+                return new THREE.Vector3(
+                    Math.cos(angle) * radiusX,
+                    y,
+                    Math.sin(angle) * radiusZ
+                );
+            }),
+            colorHex,
+            opacity
+        );
+        group.add(makeLoop(0.34, 0.34, 0.02, 0.75, 12));
+        if (kind === 'amp_pylon') {
+            group.add(makeLoop(0.18, 0.18, 0.22, 0.62, 8));
+        } else if (kind === 'shield_core') {
+            group.add(makeLoop(0.26, 0.18, 0.18, 0.68, 12));
+            group.add(makeLoop(0.18, 0.26, 0.18, 0.42, 12));
+        } else if (kind === 'jammer') {
+            group.add(this.engine.createLineLoop([
+                new THREE.Vector3(-0.24, 0.16, 0),
+                new THREE.Vector3(0, 0.24, -0.24),
+                new THREE.Vector3(0.24, 0.16, 0),
+                new THREE.Vector3(0, 0.08, 0.24)
+            ], colorHex, 0.7));
+        }
+        return group;
+    }
+
+    decorateHiddenRoom(room, chamberCells) {
+        const colorHex = getHiddenRoomAccentColor(room.typeKey);
+        room.decorationGroup = new THREE.Group();
+
+        for (const cell of chamberCells) {
+            const outline = this.createHiddenRoomOutline(cell, colorHex, cell.c === room.anchor.c && cell.r === room.anchor.r ? 1 : 0.62);
+            room.decorationGroup.add(outline);
+        }
+
+        const anchorPos = this.getWorldPos(room.anchor.c, room.anchor.r);
+        const ring = this.engine.createLineLoop(
+            Array.from({ length: 10 }, (_, index) => {
+                const angle = index / 10 * Math.PI * 2;
+                return new THREE.Vector3(
+                    anchorPos.x + Math.cos(angle) * 0.32,
+                    0.05,
+                    anchorPos.z + Math.sin(angle) * 0.32
+                );
+            }),
+            colorHex,
+            0.75
+        );
+        room.decorationGroup.add(ring);
+        if (room.typeKey === 'elite') {
+            const anchorPos = this.getWorldPos(room.anchor.c, room.anchor.r);
+            if (room.eliteVariant?.key === 'gauntlet') {
+                const lane = [
+                    new THREE.Vector3(anchorPos.x, 0.045, anchorPos.z),
+                    new THREE.Vector3(anchorPos.x + room.chamberBlueprint.forward.dc * 1.4, 0.045, anchorPos.z + room.chamberBlueprint.forward.dr * 1.4),
+                    new THREE.Vector3(anchorPos.x + room.chamberBlueprint.forward.dc * 2.6, 0.045, anchorPos.z + room.chamberBlueprint.forward.dr * 2.6)
+                ];
+                room.decorationGroup.add(this.engine.createLineLoop(lane, colorHex, 0.42));
+            } else if (room.eliteVariant?.key === 'pincer') {
+                const wingLeft = this.engine.createLineLoop([
+                    new THREE.Vector3(anchorPos.x, 0.045, anchorPos.z),
+                    new THREE.Vector3(anchorPos.x + room.chamberBlueprint.forward.dc + room.chamberBlueprint.left.dc, 0.045, anchorPos.z + room.chamberBlueprint.forward.dr + room.chamberBlueprint.left.dr),
+                    new THREE.Vector3(anchorPos.x + room.chamberBlueprint.forward.dc * 2 + room.chamberBlueprint.left.dc, 0.045, anchorPos.z + room.chamberBlueprint.forward.dr * 2 + room.chamberBlueprint.left.dr)
+                ], colorHex, 0.4);
+                const wingRight = this.engine.createLineLoop([
+                    new THREE.Vector3(anchorPos.x, 0.045, anchorPos.z),
+                    new THREE.Vector3(anchorPos.x + room.chamberBlueprint.forward.dc + room.chamberBlueprint.right.dc, 0.045, anchorPos.z + room.chamberBlueprint.forward.dr + room.chamberBlueprint.right.dr),
+                    new THREE.Vector3(anchorPos.x + room.chamberBlueprint.forward.dc * 2 + room.chamberBlueprint.right.dc, 0.045, anchorPos.z + room.chamberBlueprint.forward.dr * 2 + room.chamberBlueprint.right.dr)
+                ], colorHex, 0.4);
+                room.decorationGroup.add(wingLeft);
+                room.decorationGroup.add(wingRight);
+            }
+        }
+        this.mazeGroup.add(room.decorationGroup);
+    }
+
+    createHiddenMarkerEntity(room) {
+        const anchorPos = this.getWorldPos(room.anchor.c, room.anchor.r);
+        if (room.typeKey === 'event') {
+            const built = this.engine.buildExitModel();
+            this.tintGroup(built.group, 0xc084fc, 0x581c87);
+            built.group.position.set(anchorPos.x, 4.8, anchorPos.z);
+            built.group.scale.setScalar(1.16);
+            this.engine.scene.add(built.group);
+            this.engine.tweens.add(built.group.position, { y: 0.12 }, 0.7, Easing.easeOutBounce);
+            return {
+                type: 'hidden-room',
+                mesh: built.group,
+                c: room.anchor.c,
+                r: room.anchor.r,
+                hiddenRoomId: room.id,
+                baseY: 0.12,
+                hoverAmplitude: 0.05,
+                hoverSpeed: 2.4,
+                hoverOffset: Math.random() * Math.PI * 2,
+                spinSpeed: 1.4,
+                counterSpinSpeed: 0,
+                spinGroup: built.group,
+                counterSpinGroup: null
+            };
+        }
+        if (room.typeKey === 'rest') {
+            const built = this.engine.buildExitModel();
+            this.tintGroup(built.group, 0x34d399, 0x047857);
+            built.group.position.set(anchorPos.x, 4.6, anchorPos.z);
+            built.group.scale.setScalar(1.02);
+            this.engine.scene.add(built.group);
+            this.engine.tweens.add(built.group.position, { y: 0.14 }, 0.65, Easing.easeOutBounce);
+            return {
+                type: 'hidden-room',
+                mesh: built.group,
+                c: room.anchor.c,
+                r: room.anchor.r,
+                hiddenRoomId: room.id,
+                baseY: 0.14,
+                hoverAmplitude: 0.045,
+                hoverSpeed: 2.1,
+                hoverOffset: Math.random() * Math.PI * 2,
+                spinSpeed: 1.12,
+                counterSpinSpeed: 0,
+                spinGroup: built.group,
+                counterSpinGroup: null
+            };
+        }
+        if (room.typeKey === 'merchant') {
+            const built = this.engine.buildChestModel();
+            this.tintGroup(built.group, 0xf59e0b, 0x92400e);
+            built.group.position.set(anchorPos.x, 4.8, anchorPos.z);
+            built.group.scale.setScalar(0.98);
+            this.engine.scene.add(built.group);
+            this.engine.tweens.add(built.group.position, { y: 0.22 }, 0.6, Easing.easeOutBounce);
+            return {
+                type: 'hidden-room',
+                mesh: built.group,
+                c: room.anchor.c,
+                r: room.anchor.r,
+                hiddenRoomId: room.id,
+                baseY: 0.22,
+                hoverAmplitude: 0.05,
+                hoverSpeed: 1.72,
+                hoverOffset: Math.random() * Math.PI * 2,
+                spinSpeed: 0.82,
+                counterSpinSpeed: 0,
+                spinGroup: built.group,
+                counterSpinGroup: null
+            };
+        }
+
+        const built = this.engine.buildChestModel();
+        const tint = room.typeKey === 'treasure' ? [0xfacc15, 0x854d0e] : [0x38bdf8, 0x164e63];
+        this.tintGroup(built.group, tint[0], tint[1]);
+        built.group.position.set(anchorPos.x, 4.8, anchorPos.z);
+        built.group.scale.setScalar(room.typeKey === 'treasure' ? 1.02 : 0.94);
+        this.engine.scene.add(built.group);
+        this.engine.tweens.add(built.group.position, { y: 0.25 }, 0.6, Easing.easeOutBounce);
+        return {
+            type: 'hidden-room',
+            mesh: built.group,
+            c: room.anchor.c,
+            r: room.anchor.r,
+            hiddenRoomId: room.id,
+            baseY: 0.25,
+            hoverAmplitude: 0.05,
+            hoverSpeed: 1.8,
+            hoverOffset: Math.random() * Math.PI * 2,
+            spinSpeed: 0.75,
+            counterSpinSpeed: 0,
+            spinGroup: built.group,
+            counterSpinGroup: null
+        };
+    }
+
+    createHiddenCacheEntity(room, slot, index) {
+        const built = this.engine.buildChestModel();
+        this.tintGroup(built.group, 0xfde68a, 0x92400e);
+        const pos = this.getWorldPos(slot.c, slot.r);
+        built.group.position.set(pos.x, 4.2, pos.z);
+        built.group.scale.setScalar(0.72 + index * 0.03);
+        this.engine.scene.add(built.group);
+        this.engine.tweens.add(built.group.position, { y: 0.19 }, 0.45, Easing.easeOutBounce);
+        const reward = Math.max(8, Math.floor((18 + room.rewardProfile.chestBonus * 7 + index * 3) * GameState.level * (0.7 + room.rewardProfile.scoreMult)));
+        return {
+            id: `${room.id}-cache-${index + 1}`,
+            type: 'hidden-cache',
+            mesh: built.group,
+            c: slot.c,
+            r: slot.r,
+            hiddenRoomId: room.id,
+            reward,
+            baseY: 0.19,
+            hoverAmplitude: 0.035,
+            hoverSpeed: 2.2,
+            hoverOffset: Math.random() * Math.PI * 2,
+            spinSpeed: 0.92,
+            counterSpinSpeed: 0,
+            spinGroup: built.group,
+            counterSpinGroup: null
+        };
+    }
+
+    createEventNodeEntity(room, slot, index) {
+        const built = this.engine.buildExitModel();
+        this.tintGroup(built.group, 0xe879f9, 0x6b21a8);
+        const pos = this.getWorldPos(slot.c, slot.r);
+        built.group.position.set(pos.x, 4.1, pos.z);
+        built.group.scale.setScalar(0.66 + index * 0.04);
+        this.engine.scene.add(built.group);
+        this.engine.tweens.add(built.group.position, { y: 0.12 }, 0.42, Easing.easeOutBounce);
+        const reward = Math.max(10, Math.floor((14 + room.rewardTier * 5 + index * 2) * GameState.level * 0.8));
+        return {
+            id: `${room.id}-event-node-${index + 1}`,
+            type: 'hidden-event-node',
+            mesh: built.group,
+            c: slot.c,
+            r: slot.r,
+            hiddenRoomId: room.id,
+            reward,
+            baseY: 0.12,
+            hoverAmplitude: 0.045,
+            hoverSpeed: 2.6,
+            hoverOffset: Math.random() * Math.PI * 2,
+            spinSpeed: 1.35,
+            counterSpinSpeed: 0,
+            spinGroup: built.group,
+            counterSpinGroup: null
+        };
+    }
+
+    createEliteSupportEntity(room, slot, supportDef, index) {
+        const built = this.engine.buildExitModel();
+        const tintMap = {
+            amp_pylon: [0x60a5fa, 0x1d4ed8],
+            shield_core: [0x67e8f9, 0x0f766e],
+            jammer: [0xf59e0b, 0xb45309]
+        };
+        const tint = tintMap[supportDef?.id] || [0x93c5fd, 0x1d4ed8];
+        this.tintGroup(built.group, tint[0], tint[1]);
+        const adornment = this.createSupportAdornment(supportDef?.id, tint[0]);
+        built.group.add(adornment);
+        const pos = this.getWorldPos(slot.c, slot.r);
+        built.group.position.set(pos.x, 4.15, pos.z);
+        built.group.scale.setScalar(0.7 + index * 0.05);
+        this.engine.scene.add(built.group);
+        this.engine.tweens.add(built.group.position, { y: 0.14 }, 0.42, Easing.easeOutBounce);
+        const reward = Math.max(12, Math.floor((16 + room.rewardTier * 6 + index * 3) * GameState.level * (supportDef?.rewardMult || 1)));
+        return {
+            id: `${room.id}-elite-node-${index + 1}`,
+            type: 'hidden-elite-node',
+            mesh: built.group,
+            c: slot.c,
+            r: slot.r,
+            hiddenRoomId: room.id,
+            reward,
+            supportData: supportDef,
+            baseY: 0.14,
+            hoverAmplitude: 0.05,
+            hoverSpeed: 2.3,
+            hoverOffset: Math.random() * Math.PI * 2,
+            spinSpeed: 1.24,
+            counterSpinSpeed: 0,
+            spinGroup: built.group,
+            counterSpinGroup: adornment
+        };
+    }
+
+    buildEliteArchetype(room) {
+        const base = this.pickEnemyArchetype();
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        return {
+            ...base,
+            id: `${base.id}-elite-${room.id}`,
+            name: `${base.name}·精英`,
+            baseHp: Math.floor(base.baseHp * 1.52),
+            baseAtk: Math.floor(base.baseAtk * 1.26),
+            reward: Math.floor(base.reward * (1.55 + rewardProfile.scoreMult * 0.35)),
+            scale: (base.scale || 1) * 1.12,
+            hoverAmplitude: base.hoverAmplitude * 1.08,
+            hoverSpeed: Math.max(1.5, base.hoverSpeed * 0.94),
+            intro: `${room.displayName}里的 ${base.name} 发起封锁，战斗开始！`,
+            attackVerb: `精英${base.attackVerb}`,
+            elite: true,
+            hiddenRoomId: room.id,
+            hiddenRoomRewardTier: room.rewardTier
+        };
+    }
+
+    prepareTreasureRoomCaches(room) {
+        if (room.typeKey !== 'treasure') return;
+        const slots = (room.chamberCells || [])
+            .filter((cell) => !(cell.c === room.anchor.c && cell.r === room.anchor.r))
+            .map((cell) => ({
+                c: cell.c,
+                r: cell.r,
+                score: Math.abs(cell.c - room.anchor.c) + Math.abs(cell.r - room.anchor.r)
+            }))
+            .sort((a, b) => b.score - a.score);
+        const count = Math.min(slots.length, Math.max(2, room.rewardProfile.chestBonus));
+        room.cacheSlots = slots.slice(0, count);
+        room.cacheEntities = [];
+        room.pendingCacheIds = [];
+        room.cacheSpawned = false;
+    }
+
+    prepareEventRoomNodes(room) {
+        if (room.typeKey !== 'event') return;
+        const slots = (room.chamberCells || [])
+            .filter((cell) => !(cell.c === room.anchor.c && cell.r === room.anchor.r))
+            .map((cell) => ({
+                c: cell.c,
+                r: cell.r,
+                score: Math.abs(cell.c - room.anchor.c) + Math.abs(cell.r - room.anchor.r)
+            }))
+            .sort((a, b) => b.score - a.score);
+        const count = Math.min(slots.length, Math.max(1, Math.min(2, room.rewardTier)));
+        room.eventNodeSlots = slots.slice(0, count);
+        room.eventNodeEntities = [];
+        room.pendingEventNodeIds = [];
+        room.eventNodesSpawned = false;
+        room.eventCharge = 0;
+    }
+
+    prepareEliteRoomEncounter(room) {
+        if (room.typeKey !== 'elite') return;
+        const slots = (room.chamberCells || [])
+            .filter((cell) => !(cell.c === room.anchor.c && cell.r === room.anchor.r))
+            .map((cell) => ({
+                c: cell.c,
+                r: cell.r,
+                depth: Math.abs(cell.c - room.anchor.c) + Math.abs(cell.r - room.anchor.r),
+                sideBias: room.chamberBlueprint
+                    ? Math.abs((cell.c - room.anchor.c) * room.chamberBlueprint.left.dc + (cell.r - room.anchor.r) * room.chamberBlueprint.left.dr)
+                    : 0
+            }));
+        const supportDefs = buildEliteRoomSupportLoadout(GameState.level, room.rewardTier);
+        const variantKey = room.eliteVariant?.key || 'bulwark';
+        const eliteSlots = [...slots].sort((a, b) => {
+            if (variantKey === 'pincer') return (b.depth + b.sideBias * 0.45) - (a.depth + a.sideBias * 0.45);
+            if (variantKey === 'gauntlet') return (b.depth * 1.4 - b.sideBias * 0.1) - (a.depth * 1.4 - a.sideBias * 0.1);
+            return (b.depth * 1.2 - b.sideBias * 0.08) - (a.depth * 1.2 - a.sideBias * 0.08);
+        });
+        room.eliteSlot = eliteSlots.shift() || { c: room.anchor.c, r: room.anchor.r };
+        const remainingSlots = slots.filter((slot) => !(slot.c === room.eliteSlot.c && slot.r === room.eliteSlot.r));
+        const supportSlots = remainingSlots.sort((a, b) => {
+            if (variantKey === 'pincer') return (b.sideBias * 1.2 + b.depth * 0.4) - (a.sideBias * 1.2 + a.depth * 0.4);
+            if (variantKey === 'gauntlet') return (a.depth - b.depth) || (b.sideBias - a.sideBias);
+            return (b.depth * 0.9 + b.sideBias * 0.5) - (a.depth * 0.9 + a.sideBias * 0.5);
+        });
+        room.eliteSupportDefs = supportDefs.slice(0, Math.max(0, Math.min(supportDefs.length, supportSlots.length)));
+        room.eliteSupportSlots = supportSlots.slice(0, room.eliteSupportDefs.length);
+        room.eliteNodeEntities = [];
+        room.pendingEliteNodeIds = [];
+        room.eliteEncounterRevealed = false;
+        room.eliteEntity = null;
+    }
+
+    revealTreasureRoomCaches(room) {
+        if (!room || room.typeKey !== 'treasure' || room.cacheSpawned) return;
+        room.cacheSpawned = true;
+        for (const [index, slot] of (room.cacheSlots || []).entries()) {
+            const cell = this.grid?.[slot.r]?.[slot.c];
+            if (!cell || cell.entity) continue;
+            const cache = this.createHiddenCacheEntity(room, slot, index);
+            this.engine.entities.push(cache);
+            room.cacheEntities.push(cache);
+            room.pendingCacheIds.push(cache.id);
+            cell.entity = 'hidden-cache';
+            cell.hiddenRoomId = room.id;
+        }
+    }
+
+    revealEventRoomNodes(room) {
+        if (!room || room.typeKey !== 'event' || room.eventNodesSpawned) return;
+        room.eventNodesSpawned = true;
+        for (const [index, slot] of (room.eventNodeSlots || []).entries()) {
+            const cell = this.grid?.[slot.r]?.[slot.c];
+            if (!cell || cell.entity) continue;
+            const node = this.createEventNodeEntity(room, slot, index);
+            this.engine.entities.push(node);
+            room.eventNodeEntities.push(node);
+            room.pendingEventNodeIds.push(node.id);
+            cell.entity = 'hidden-event-node';
+            cell.hiddenRoomId = room.id;
+        }
+    }
+
+    revealEliteRoomEncounter(room) {
+        if (!room || room.typeKey !== 'elite' || room.eliteEncounterRevealed) return;
+        room.eliteEncounterRevealed = true;
+
+        for (const [index, slot] of (room.eliteSupportSlots || []).entries()) {
+            const cell = this.grid?.[slot.r]?.[slot.c];
+            if (!cell || cell.entity) continue;
+            const supportEntity = this.createEliteSupportEntity(room, slot, room.eliteSupportDefs?.[index], index);
+            this.engine.entities.push(supportEntity);
+            room.eliteNodeEntities.push(supportEntity);
+            room.pendingEliteNodeIds.push(supportEntity.id);
+            cell.entity = 'hidden-elite-node';
+            cell.hiddenRoomId = room.id;
+            this.engine.addFloatingText(room.eliteSupportDefs?.[index]?.label || '增幅装置', supportEntity.mesh.position, '#7dd3fc');
+        }
+
+        const eliteCell = this.grid?.[room.eliteSlot?.r]?.[room.eliteSlot?.c];
+        if (eliteCell && !eliteCell.entity) {
+            const eliteEntity = this.createMonsterEntity(this.buildEliteArchetype(room), room.eliteSlot.c, room.eliteSlot.r);
+            eliteEntity.hiddenRoomId = room.id;
+            eliteEntity.hiddenRoomType = room.typeKey;
+            this.engine.entities.push(eliteEntity);
+            room.eliteEntity = eliteEntity;
+            eliteCell.entity = 'monster';
+            eliteCell.hiddenRoomId = room.id;
+            this.engine.addFloatingText(room.eliteVariant?.label || room.displayName, eliteEntity.mesh.position, '#93c5fd', true);
+        }
+    }
+
+    getPendingHiddenRoomCaches(room) {
+        if (!room?.pendingCacheIds?.length) return [];
+        return room.pendingCacheIds
+            .map((cacheId) => room.cacheEntities?.find((entity) => entity.id === cacheId))
+            .filter(Boolean);
+    }
+
+    getPendingHiddenEventNodes(room) {
+        if (!room?.pendingEventNodeIds?.length) return [];
+        return room.pendingEventNodeIds
+            .map((nodeId) => room.eventNodeEntities?.find((entity) => entity.id === nodeId))
+            .filter(Boolean);
+    }
+
+    getPendingHiddenEliteNodes(room) {
+        if (!room?.pendingEliteNodeIds?.length) return [];
+        return room.pendingEliteNodeIds
+            .map((nodeId) => room.eliteNodeEntities?.find((entity) => entity.id === nodeId))
+            .filter(Boolean);
+    }
+
+    getPendingHiddenRoomSweepEntities(room) {
+        return [
+            ...this.getPendingHiddenRoomCaches(room),
+            ...this.getPendingHiddenEventNodes(room),
+            ...this.getPendingHiddenEliteNodes(room)
+        ];
+    }
+
+    getHiddenRoomObjectiveCell(room) {
+        const pendingSweepEntities = this.getPendingHiddenRoomSweepEntities(room);
+        if (pendingSweepEntities.length > 0) {
+            const ranked = pendingSweepEntities
+                .map((entity) => ({
+                    entity,
+                    pathLength: this.computePathBetween(this.playerPos, { c: entity.c, r: entity.r }, {
+                        avoidUnclearedHiddenRooms: true,
+                        allowedHiddenRoomId: room.id
+                    }).length
+                }))
+                .filter((item) => item.pathLength > 0 || (this.playerPos.c === item.entity.c && this.playerPos.r === item.entity.r))
+                .sort((a, b) => a.pathLength - b.pathLength);
+            if (ranked.length > 0) return { c: ranked[0].entity.c, r: ranked[0].entity.r };
+        }
+        if (room?.typeKey === 'elite' && room.eliteEntity && this.engine.entities.includes(room.eliteEntity)) {
+            return { c: room.eliteEntity.c, r: room.eliteEntity.r };
+        }
+        return room.anchor;
+    }
+
+    placeHiddenRoomEntities(openCells, basePath) {
+        this.hiddenRooms = [];
+        this.hiddenRoomLookup = new Map();
+        const candidates = this.buildHiddenRoomCandidates(openCells, basePath);
+        const rooms = buildHiddenRoomPlan({
+            level: GameState.level,
+            maze: GameState.maze,
+            floorPlan: this.floorPlan,
+            candidates
+        });
+        if (rooms.length === 0) {
+            if (GameState.floorContent) GameState.floorContent.hiddenRooms = [];
+            return;
+        }
+
+        for (const room of rooms) {
+            const cell = this.grid[room.anchor.r]?.[room.anchor.c];
+            if (!cell || cell.entity) continue;
+            if (room.typeKey === 'elite') {
+                room.eliteVariant = buildEliteRoomVariant(GameState.level, room.rewardTier, room.placementKey);
+            }
+            const chamberCells = this.carveHiddenRoomChamber(room);
+            if (chamberCells.length === 0) continue;
+            for (const chamberCell of chamberCells) {
+                chamberCell.hiddenRoomId = room.id;
+            }
+            const entity = this.createHiddenMarkerEntity(room);
+            this.engine.entities.push(entity);
+            cell.entity = 'hidden-room';
+            room.entity = entity;
+            this.decorateHiddenRoom(room, chamberCells);
+            this.prepareTreasureRoomCaches(room);
+            this.prepareEventRoomNodes(room);
+            this.prepareEliteRoomEncounter(room);
+            this.hiddenRooms.push(room);
+            this.hiddenRoomLookup.set(room.id, room);
+        }
+
+        if (GameState.floorContent) {
+            GameState.floorContent.hiddenRooms = this.hiddenRooms;
+        }
+    }
+
+    getHiddenRoomById(roomId) {
+        return roomId ? this.hiddenRoomLookup.get(roomId) || null : null;
+    }
+
+    updateHiddenRoomLocks() {
+        let unlockedAny = false;
+        for (const room of this.hiddenRooms) {
+            if (room.cleared || room.unlocked) continue;
+            let shouldUnlock = false;
+            if (room.gateType === 'kills_this_floor') {
+                shouldUnlock = GameState.floorStats.kills >= room.gateThreshold;
+            }
+            if (!shouldUnlock) continue;
+            room.unlocked = true;
+            unlockedAny = true;
+            const markerPos = room.entity?.mesh?.position || this.engine.playerObj.position;
+            this.engine.spawnBurst(markerPos, 0xa78bfa, 14, 1.6);
+            this.engine.addFloatingText(`${room.displayName}开启`, markerPos, '#c084fc', true);
+        }
+        if (unlockedAny && GameState.phase === 'EXPLORING') {
+            this.refreshExplorationPath();
+        }
+    }
+
+    chooseHiddenRoomTarget(directExitPath) {
+        const threshold = getHiddenRoomDiversionThreshold();
+        let best = null;
+
+        for (const room of this.hiddenRooms) {
+            if (room.cleared || !room.unlocked) continue;
+            const objective = this.getHiddenRoomObjectiveCell(room);
+            const pathToRoom = this.computePathBetween(this.playerPos, objective, {
+                avoidUnclearedHiddenRooms: true,
+                allowedHiddenRoomId: room.id
+            });
+            const pathRoomToExit = this.computePathBetween(objective, this.endPos, {
+                avoidUnclearedHiddenRooms: true,
+                allowedHiddenRoomId: room.id
+            });
+            if (!Array.isArray(pathToRoom) || !Array.isArray(pathRoomToExit)) continue;
+            if (this.playerPos.c !== objective.c || this.playerPos.r !== objective.r) {
+                if (pathToRoom.length === 0) continue;
+            }
+            if (pathRoomToExit.length === 0 && (objective.c !== this.endPos.c || objective.r !== this.endPos.r)) continue;
+
+            const detourExtra = Math.max(0, pathToRoom.length + pathRoomToExit.length - directExitPath.length);
+            let score = room.accessScore - Math.min(0.34, detourExtra * 0.032);
+            if (room.typeKey === 'treasure') score += 0.04;
+            if (room.typeKey === 'elite' && GameState.player.currentHp < GameState.player.baseHp * 0.45) score -= 0.12;
+            if (room.typeKey === 'event' && room.eventSeed?.effect === 'heal_or_shield' && GameState.player.currentHp < GameState.player.baseHp * 0.7) score += 0.08;
+            if (room.typeKey === 'rest') {
+                const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
+                const totalSupply = GameState.getTotalSupplyCount();
+                const supplyNeed = totalSupply <= 0 ? 0.18 : totalSupply === 1 ? 0.1 : 0;
+                if (hpRatio < 0.45) score += 0.24 + supplyNeed;
+                else if (hpRatio < 0.72) score += 0.12 + supplyNeed;
+                else score += supplyNeed - 0.05;
+            }
+            if (room.typeKey === 'merchant') {
+                const cheapest = Math.min(
+                    GameState.costs.atk(),
+                    GameState.costs.hp(),
+                    GameState.costs.chest(),
+                    GameState.isMazeSizeMaxed() ? Infinity : GameState.costs.size()
+                );
+                const totalSupply = GameState.getTotalSupplyCount();
+                const supplyNeed = totalSupply <= 0 ? 0.22 : totalSupply === 1 ? 0.12 : 0;
+                const neededSupplyType = GameState.getMostNeededSupplyType();
+                if (GameState.score >= cheapest * 0.8 || GameState.score >= GameState.getSupplyCost(neededSupplyType) * 0.72) score += 0.08 + supplyNeed;
+                else score += supplyNeed - 0.08;
+            }
+            if (room.typeKey === 'treasure' && room.entered && room.pendingCacheIds?.length) score += 0.22;
+            if (room.typeKey === 'event' && room.entered && room.pendingEventNodeIds?.length) score += 0.2;
+            if (room.typeKey === 'elite' && room.entered && room.pendingEliteNodeIds?.length) score += 0.24;
+            if (room.typeKey === 'elite' && room.entered && room.eliteEntity && !(room.pendingEliteNodeIds?.length > 0)) score += 0.14;
+            score += GameState.floorBuff?.diversionBonus || 0;
+
+            if (score >= threshold && (!best || score > best.score)) {
+                best = { room, score, path: pathToRoom };
+            }
+        }
+
+        return best;
+    }
+
+    refreshExplorationPath() {
+        const directExitPath = this.computePathBetween(this.playerPos, this.endPos, {
+            avoidUnclearedHiddenRooms: true
+        });
+        const diversion = this.chooseHiddenRoomTarget(directExitPath);
+        if (diversion) {
+            this.path = diversion.path;
+            this.currentPathTarget = diversion.room.id;
+            if (!diversion.room.announced) {
+                diversion.room.announced = true;
+                const markerPos = diversion.room.entity?.mesh?.position || this.engine.playerObj.position;
+                this.engine.addFloatingText(diversion.room.displayName, markerPos, '#a78bfa', true);
+            }
+            return;
+        }
+        this.path = directExitPath;
+        this.currentPathTarget = 'end';
+    }
+
+    resolveEventRoom(room) {
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const seed = room.eventSeed;
+        const chargeBonus = (room.eventCharge || 0) * 0.18;
+        const baseReward = Math.floor((70 + rewardProfile.chestBonus * 18) * GameState.level * (rewardProfile.scoreMult + chargeBonus));
+        let message = `${room.displayName}回响稳定。`;
+
+        if (seed?.effect === 'heal_or_shield') {
+            const heal = Math.max(10, Math.floor(GameState.player.baseHp * (0.14 + rewardProfile.repairValue + chargeBonus * 0.4)));
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
+            GameState.addScore(baseReward);
+            message = `${room.displayName}修复护盾，恢复 ${heal} 点生命并获得 ${baseReward} 魂能。`;
+        } else if (seed?.effect === 'next_floor_hidden_room_bonus') {
+            const bonus = 0.05 + room.rewardTier * 0.015 + chargeBonus * 0.05;
+            GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + bonus);
+            GameState.addScore(Math.floor(baseReward * 0.85));
+            message = `${room.displayName}发送侦测脉冲，下一层更容易出现密室。`;
+        } else if (seed?.effect === 'power_up_with_penalty') {
+            GameState.player.baseAtk += 2 + room.rewardTier + Math.round(room.eventCharge || 0);
+            GameState.player.currentHp = Math.max(1, GameState.player.currentHp - Math.floor(GameState.player.baseHp * 0.08));
+            GameState.addScore(Math.floor(baseReward * 1.15));
+            message = `${room.displayName}灌注超载核心，火力提高，但护盾被撕开了一道口子。`;
+        } else if (seed?.effect === 'chest_density_boost') {
+            const bonus = 0.012 + room.rewardTier * 0.004 + chargeBonus * 0.01;
+            GameState.maze.baseChestRate += bonus;
+            GameState.addScore(Math.floor(baseReward * 0.92));
+            message = `${room.displayName}展开回收矩阵，之后几层更容易刷出宝箱。`;
+        } else if (seed?.effect === 'monster_density_boost') {
+            const bonus = 0.009 + room.rewardTier * 0.003 + chargeBonus * 0.008;
+            GameState.maze.baseMonsterRate += bonus;
+            GameState.player.baseAtk += 1 + room.rewardTier + Math.round((room.eventCharge || 0) * 0.6);
+            GameState.addScore(Math.floor(baseReward * 1.02));
+            message = `${room.displayName}放大了狩猎信号，怪会更多，但火力也被同步放大。`;
+        } else {
+            GameState.addScore(Math.floor(baseReward * 1.08));
+            GameState.player.currentHp = Math.max(1, GameState.player.currentHp - Math.floor(GameState.player.baseHp * 0.05));
+            message = `${room.displayName}抖出一份不稳定缓存，立刻换来一笔额外魂能。`;
+        }
+
+        GameState.updateUI();
+        return message;
+    }
+
+    resolveRestRoom(room) {
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
+        const scoreReward = Math.floor((26 + room.rewardTier * 12) * GameState.level * (0.7 + rewardProfile.scoreMult));
+        let message = `${room.displayName}让飞船短暂稳定了下来。`;
+        const neededSupply = GameState.getMostNeededSupplyType();
+        const shouldRestockSupply = GameState.getTotalSupplyCount() <= 1
+            || GameState.getSupplyCount(neededSupply) <= 0
+            || !GameState.floorBuff.supplyActive;
+
+        if (hpRatio < 0.88) {
+            const heal = Math.max(12, Math.floor(GameState.player.baseHp * (0.16 + rewardProfile.repairValue * 0.85)));
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
+            GameState.addScore(scoreReward);
+            message = `${room.displayName}完成了紧急修整，恢复 ${heal} 点生命，并带回 ${scoreReward} 魂能。`;
+        } else {
+            const atkBoost = 1 + Math.max(0, room.rewardTier - 1);
+            const chestBoost = 0.004 + room.rewardTier * 0.002;
+            GameState.player.baseAtk += atkBoost;
+            GameState.maze.baseChestRate += chestBoost;
+            GameState.addScore(Math.floor(scoreReward * 0.8));
+            message = `${room.displayName}把多余时间用于调校火力，攻击 +${atkBoost}，后续宝箱率小幅提升。`;
+        }
+        if (shouldRestockSupply) {
+            GameState.grantFloorSupply(neededSupply, 1);
+            message += ` 顺手补了 1 份${GameState.supplyDefs[neededSupply]?.label || '层补给'}。`;
+        }
+
+        GameState.updateUI();
+        return message;
+    }
+
+    resolveMerchantRoom(room) {
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const discount = Math.max(0.68, 0.86 - room.rewardTier * 0.05);
+        const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
+        const neededSupply = GameState.getMostNeededSupplyType();
+        const supplyPrice = Math.max(18, Math.floor(GameState.getSupplyCost(neededSupply) * Math.max(0.68, discount - 0.08)));
+        if ((GameState.getTotalSupplyCount() <= 1 || GameState.getSupplyCount(neededSupply) <= 0) && GameState.score >= supplyPrice) {
+            GameState.score -= supplyPrice;
+            GameState.grantFloorSupply(neededSupply, 1);
+            GameState.updateUI();
+            return `${room.displayName}补进了 1 份${GameState.supplyDefs[neededSupply]?.label || '层补给'}，折后花费 ${supplyPrice} 魂能。`;
+        }
+        const candidateTypes = ['atk', 'hp', 'chest', 'size'];
+        if (GameState.isMazeSizeMaxed()) {
+            const sizeIndex = candidateTypes.indexOf('size');
+            if (sizeIndex > -1) candidateTypes.splice(sizeIndex, 1);
+        }
+
+        const pickWeight = (type) => {
+            if (type === 'hp') return hpRatio < 0.55 ? 100 : hpRatio < 0.82 ? 60 : 18;
+            if (type === 'atk') return 74 + room.rewardTier * 6;
+            if (type === 'chest') return 52 + GameState.maze.lvChest * 4;
+            if (type === 'size') return GameState.maze.lvSize < 3 ? 78 : 42;
+            return 30;
+        };
+
+        const sortedCandidates = candidateTypes
+            .map((type) => ({
+                type,
+                baseCost: GameState.costs[type](),
+                discountedCost: Math.max(1, Math.floor(GameState.costs[type]() * discount)),
+                weight: pickWeight(type)
+            }))
+            .sort((a, b) => b.weight - a.weight);
+
+        const purchase = sortedCandidates.find((candidate) => GameState.score >= candidate.discountedCost);
+        if (!purchase) {
+            const consolation = Math.floor((22 + rewardProfile.chestBonus * 8) * GameState.level * 0.85);
+            GameState.addScore(consolation);
+            GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + 0.02 + room.rewardTier * 0.01);
+            GameState.updateUI();
+            return `${room.displayName}没找到合适买卖，商贩给了份情报，下一层更容易刷出密室。`;
+        }
+
+        const baseCost = purchase.baseCost;
+        const rebate = Math.max(0, baseCost - purchase.discountedCost);
+        const bought = GameState.tryBuy(purchase.type);
+        if (!bought) {
+            const fallback = Math.floor((20 + rewardProfile.chestBonus * 7) * GameState.level * 0.75);
+            GameState.addScore(fallback);
+            return `${room.displayName}临时收摊，转手换回了 ${fallback} 魂能。`;
+        }
+        if (rebate > 0) {
+            GameState.score += rebate;
+        }
+        GameState.updateUI();
+
+        const typeLabels = {
+            atk: '火力升级',
+            hp: '装甲整备',
+            chest: '寻宝模块',
+            size: '迷宫扩容蓝图'
+        };
+        return `${room.displayName}自动代购了${typeLabels[purchase.type] || '补给'}，折后花费 ${purchase.discountedCost} 魂能。`;
+    }
+
+    clearHiddenRoom(room) {
+        if (!room || room.cleared) return;
+        room.cleared = true;
+        room.entered = true;
+        GameState.floorStats.hiddenRoomsCleared += 1;
+        for (const chamberCell of room.chamberCells || [room.anchor]) {
+            const cell = this.grid?.[chamberCell.r]?.[chamberCell.c];
+            if (cell) cell.hiddenRoomId = null;
+        }
+        if (room.decorationGroup) {
+            room.decorationGroup.traverse((child) => {
+                if (child.material && 'opacity' in child.material) child.material.opacity *= 0.38;
+            });
+        }
+    }
+
+    async resolveHiddenRoomInteraction(room, entityObj) {
+        if (!room || room.cleared) return;
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const worldPos = entityObj?.mesh?.position || this.engine.playerObj.position;
+        let message = `${room.displayName}被清空。`;
+
+        if (room.typeKey === 'treasure') {
+            room.entered = true;
+            this.revealTreasureRoomCaches(room);
+            if (entityObj && !this.engine.entities.includes(entityObj)) {
+                this.engine.entities.push(entityObj);
+            }
+            window.soundEngine?.chest();
+            message = room.pendingCacheIds?.length
+                ? `${room.displayName}展开了，自动开始回收室内宝物。`
+                : `${room.displayName}打开了，但里面已经空了。`;
+        } else if (room.typeKey === 'event') {
+            room.entered = true;
+            this.revealEventRoomNodes(room);
+            if (entityObj && !this.engine.entities.includes(entityObj)) {
+                this.engine.entities.push(entityObj);
+            }
+            window.soundEngine?.upgrade();
+            message = room.pendingEventNodeIds?.length
+                ? `${room.displayName}开始共振，先扫清室内回响节点。`
+                : this.resolveEventRoom(room);
+        }
+
+        if (entityObj?.mesh && room.typeKey !== 'treasure' && room.typeKey !== 'event') {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.8, y: 1.8, z: 1.8 }, 0.2, Easing.easeOutQuad, () => {
+                this.engine.scene.remove(entityObj.mesh);
+            });
+        } else if (entityObj?.mesh && (room.typeKey === 'treasure' || room.typeKey === 'event')) {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.15, y: 1.15, z: 1.15 }, 0.18, Easing.easeOutQuad, () => {
+                this.engine.tweens.add(entityObj.mesh.scale, { x: 0.7, y: 0.7, z: 0.7 }, 0.28, Easing.easeOutBack);
+            });
+        }
+        this.engine.spawnBurst(worldPos, room.typeKey === 'event' ? 0xc084fc : 0xfacc15, 24, 1.8);
+        this.engine.addFloatingText(room.displayName, worldPos, room.typeKey === 'event' ? '#c084fc' : '#facc15', true);
+        if ((room.typeKey === 'event' && !(room.pendingEventNodeIds?.length > 0))
+            || (room.typeKey !== 'event' && !(room.pendingCacheIds?.length > 0))) {
+            if (room.typeKey === 'treasure' && entityObj?.mesh) {
+                this.engine.scene.remove(entityObj.mesh);
+            }
+            if (room.typeKey === 'event' && entityObj?.mesh) {
+                this.engine.scene.remove(entityObj.mesh);
+            }
+            const markerIdx = this.engine.entities.findIndex((entity) => entity === entityObj);
+            if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
+            this.clearHiddenRoom(room);
+        }
+        await this.sleep(120);
+        this.engine.addFloatingText(message, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.3, 0)), '#e2e8f0');
+    }
+
+    async resolveHiddenEliteRoomClear(room, enemyMesh) {
+        if (!room || room.cleared) return;
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const bonusReward = Math.floor((120 + rewardProfile.chestBonus * 24) * GameState.level * rewardProfile.scoreMult);
+        const repair = Math.floor(GameState.player.baseHp * rewardProfile.repairValue * 0.45);
+        GameState.addScore(bonusReward);
+        if (repair > 0) {
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
+        }
+        window.soundEngine?.upgrade();
+        this.engine.spawnBurst(enemyMesh.position, 0xa78bfa, 26, 2.4);
+        this.engine.addFloatingText(`${room.displayName}肃清`, enemyMesh.position, '#c084fc', true);
+        this.clearHiddenRoom(room);
+        await this.typeText(`你扫清了 ${room.displayName}，额外获得 ${bonusReward} 魂能${repair > 0 ? `，并修复了 ${repair} 点护盾` : ''}。`);
+        await this.sleep(520);
+    }
+
+    async resolveHiddenCachePickup(room, entityObj) {
+        if (!room || room.cleared || !entityObj) return;
+        const reward = Math.floor((entityObj.reward || Math.max(10, 16 * GameState.level)) * (GameState.floorBuff?.chestRewardMult || 1));
+        GameState.addScore(reward);
+        GameState.floorStats.chests += 1;
+        window.soundEngine?.chest();
+        if (entityObj.mesh) {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.6, y: 1.6, z: 1.6 }, 0.16, Easing.easeOutQuad, () => {
+                this.engine.scene.remove(entityObj.mesh);
+            });
+            this.engine.spawnBurst(entityObj.mesh.position, 0xfacc15, 18, 1.35);
+            this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#fde68a');
+        }
+        if (Math.random() < 0.28 + (GameState.floorBuff?.supplyDropBonus || 0)) {
+            const droppedSupply = GameState.grantRandomFloorSupply('cache');
+            this.showSupplyPickupEffect(droppedSupply, entityObj?.mesh?.position?.clone() || this.engine.playerObj.position.clone());
+        }
+        room.pendingCacheIds = (room.pendingCacheIds || []).filter((cacheId) => cacheId !== entityObj.id);
+        room.cacheEntities = (room.cacheEntities || []).filter((cache) => cache !== entityObj);
+        if (room.pendingCacheIds.length === 0) {
+            if (room.entity?.mesh) {
+                this.engine.spawnBurst(room.entity.mesh.position, 0xfacc15, 22, 1.8);
+                this.engine.addFloatingText(`${room.displayName}扫荡完成`, room.entity.mesh.position, '#facc15', true);
+                this.engine.scene.remove(room.entity.mesh);
+            }
+            const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
+            if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
+            this.clearHiddenRoom(room);
+        }
+        await this.sleep(90);
+    }
+
+    async resolveHiddenEventNodePickup(room, entityObj) {
+        if (!room || room.cleared || !entityObj) return;
+        const reward = entityObj.reward || Math.max(10, 12 * GameState.level);
+        room.eventCharge = (room.eventCharge || 0) + 1;
+        GameState.addScore(reward);
+        window.soundEngine?.upgrade();
+        if (entityObj.mesh) {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.5, y: 1.5, z: 1.5 }, 0.14, Easing.easeOutQuad, () => {
+                this.engine.scene.remove(entityObj.mesh);
+            });
+            this.engine.spawnBurst(entityObj.mesh.position, 0xc084fc, 16, 1.2);
+            this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#e879f9');
+        }
+        room.pendingEventNodeIds = (room.pendingEventNodeIds || []).filter((nodeId) => nodeId !== entityObj.id);
+        room.eventNodeEntities = (room.eventNodeEntities || []).filter((node) => node !== entityObj);
+        if (room.pendingEventNodeIds.length === 0) {
+            const message = this.resolveEventRoom(room);
+            if (room.entity?.mesh) {
+                this.engine.spawnBurst(room.entity.mesh.position, 0xc084fc, 24, 1.9);
+                this.engine.addFloatingText(`${room.displayName}稳定完成`, room.entity.mesh.position, '#e879f9', true);
+                this.engine.scene.remove(room.entity.mesh);
+            }
+            const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
+            if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
+            this.clearHiddenRoom(room);
+            this.engine.addFloatingText(message, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.3, 0)), '#e2e8f0');
+        }
+        await this.sleep(90);
+    }
+
+    async resolveHiddenEliteNodePickup(room, entityObj) {
+        if (!room || room.cleared || !entityObj) return;
+        const reward = entityObj.reward || Math.max(12, 16 * GameState.level);
+        GameState.addScore(reward);
+        window.soundEngine?.upgrade();
+        if (entityObj.mesh) {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.55, y: 1.55, z: 1.55 }, 0.14, Easing.easeOutQuad, () => {
+                this.engine.scene.remove(entityObj.mesh);
+            });
+            this.engine.spawnBurst(entityObj.mesh.position, 0x38bdf8, 16, 1.2);
+            this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#7dd3fc');
+        }
+        room.pendingEliteNodeIds = (room.pendingEliteNodeIds || []).filter((nodeId) => nodeId !== entityObj.id);
+        room.eliteNodeEntities = (room.eliteNodeEntities || []).filter((node) => node !== entityObj);
+        if (room.eliteEntity?.mesh) {
+            this.engine.spawnBurst(room.eliteEntity.mesh.position, 0x38bdf8, 10, 1);
+            this.engine.addFloatingText(`${entityObj.supportData?.label || '增幅装置'}已拆除`, room.eliteEntity.mesh.position, '#7dd3fc');
+        }
+        await this.sleep(90);
+    }
+
+    async resolveHiddenRoomInteraction(room, entityObj) {
+        if (!room || room.cleared) return;
+        const worldPos = entityObj?.mesh?.position || this.engine.playerObj.position;
+        let message = `${room.displayName}已处理。`;
+        const accentColor = room.typeKey === 'event'
+            ? 0xc084fc
+            : room.typeKey === 'elite'
+                ? 0x38bdf8
+                : 0xfacc15;
+        const accentTextColor = room.typeKey === 'event'
+            ? '#c084fc'
+            : room.typeKey === 'elite'
+                ? '#38bdf8'
+                : '#facc15';
+
+        if (room.typeKey === 'treasure') {
+            room.entered = true;
+            this.revealTreasureRoomCaches(room);
+            if (entityObj && !this.engine.entities.includes(entityObj)) {
+                this.engine.entities.push(entityObj);
+            }
+            window.soundEngine?.chest();
+            message = room.pendingCacheIds?.length
+                ? `${room.displayName}打开了，先把里面的藏品清完。`
+                : `${room.displayName}打开了，但里面已经被搬空。`;
+        } else if (room.typeKey === 'event') {
+            room.entered = true;
+            this.revealEventRoomNodes(room);
+            if (entityObj && !this.engine.entities.includes(entityObj)) {
+                this.engine.entities.push(entityObj);
+            }
+            window.soundEngine?.upgrade();
+            message = room.pendingEventNodeIds?.length
+                ? `${room.displayName}开始共振，先扫清里面的异象节点。`
+                : this.resolveEventRoom(room);
+        } else if (room.typeKey === 'elite') {
+            room.entered = true;
+            this.revealEliteRoomEncounter(room);
+            if (entityObj && !this.engine.entities.includes(entityObj)) {
+                this.engine.entities.push(entityObj);
+            }
+            window.soundEngine?.upgrade();
+            const eliteLabel = room.eliteVariant?.label || room.displayName;
+            message = room.pendingEliteNodeIds?.length
+                ? `${eliteLabel}已经苏醒，先拆掉里面的增幅装置。`
+                : `${eliteLabel}已经打开，精英现身了。`;
+        }
+
+        if (entityObj?.mesh && room.typeKey !== 'treasure' && room.typeKey !== 'event' && room.typeKey !== 'elite') {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.8, y: 1.8, z: 1.8 }, 0.2, Easing.easeOutQuad, () => {
+                this.engine.scene.remove(entityObj.mesh);
+            });
+        } else if (entityObj?.mesh && (room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'elite')) {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.15, y: 1.15, z: 1.15 }, 0.18, Easing.easeOutQuad, () => {
+                const targetScale = room.typeKey === 'elite' ? 0.62 : 0.7;
+                this.engine.tweens.add(entityObj.mesh.scale, { x: targetScale, y: targetScale, z: targetScale }, 0.28, Easing.easeOutBack);
+            });
+        }
+        this.engine.spawnBurst(worldPos, accentColor, 24, 1.8);
+        this.engine.addFloatingText(room.displayName, worldPos, accentTextColor, true);
+        const shouldClearAfterInteraction = (room.typeKey === 'treasure' && !(room.pendingCacheIds?.length > 0))
+            || (room.typeKey === 'event' && !(room.pendingEventNodeIds?.length > 0));
+        if (shouldClearAfterInteraction) {
+            if ((room.typeKey === 'treasure' || room.typeKey === 'event') && entityObj?.mesh) {
+                this.engine.scene.remove(entityObj.mesh);
+            }
+            const markerIdx = this.engine.entities.findIndex((entity) => entity === entityObj);
+            if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
+            this.clearHiddenRoom(room);
+        }
+        await this.sleep(120);
+        this.engine.addFloatingText(message, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.3, 0)), '#e2e8f0');
+    }
+
+    async resolveHiddenEliteRoomClear(room, enemyMesh) {
+        if (!room || room.cleared) return;
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const bonusReward = Math.floor((120 + rewardProfile.chestBonus * 24) * GameState.level * rewardProfile.scoreMult);
+        const repair = Math.floor(GameState.player.baseHp * rewardProfile.repairValue * 0.45);
+        GameState.addScore(bonusReward);
+        if (repair > 0) {
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
+        }
+        window.soundEngine?.upgrade();
+        this.engine.spawnBurst(enemyMesh.position, 0xa78bfa, 26, 2.4);
+        this.engine.addFloatingText(`${room.displayName}已肃清`, enemyMesh.position, '#c084fc', true);
+        if (room.entity?.mesh) {
+            this.engine.scene.remove(room.entity.mesh);
+        }
+        const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
+        if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
+        this.clearHiddenRoom(room);
+        await this.typeText(`你扫清了 ${room.displayName}，额外获得 ${bonusReward} 魂能${repair > 0 ? `，并修复了 ${repair} 点护盾` : ''}。`);
+        await this.sleep(520);
+    }
+
+    buildEliteArchetype(room) {
+        const base = this.pickEnemyArchetype();
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const variantLabel = room.eliteVariant?.label || room.displayName;
+        const variantHint = room.eliteVariant?.introHint || '精英正在深处待命。';
+        return {
+            ...base,
+            id: `${base.id}-elite-${room.id}`,
+            name: `${base.name}精英`,
+            baseHp: Math.floor(base.baseHp * 1.52),
+            baseAtk: Math.floor(base.baseAtk * 1.26),
+            reward: Math.floor(base.reward * (1.55 + rewardProfile.scoreMult * 0.35)),
+            scale: (base.scale || 1) * 1.12,
+            hoverAmplitude: base.hoverAmplitude * 1.08,
+            hoverSpeed: Math.max(1.5, base.hoverSpeed * 0.94),
+            intro: `${variantLabel}里的 ${base.name} 精英开始反击。${variantHint}`,
+            attackVerb: `精英${base.attackVerb}`,
+            elite: true,
+            hiddenRoomId: room.id,
+            hiddenRoomRewardTier: room.rewardTier
+        };
+    }
+
+    async resolveHiddenRoomInteraction(room, entityObj) {
+        if (!room || room.cleared) return;
+        const worldPos = entityObj?.mesh?.position || this.engine.playerObj.position;
+        let message = `${room.displayName}已处理。`;
+        const accentColor = room.typeKey === 'event'
+            ? 0xc084fc
+            : room.typeKey === 'elite'
+                ? 0x38bdf8
+                : room.typeKey === 'rest'
+                    ? 0x34d399
+                    : room.typeKey === 'merchant'
+                        ? 0xf59e0b
+                        : 0xfacc15;
+        const accentTextColor = room.typeKey === 'event'
+            ? '#c084fc'
+            : room.typeKey === 'elite'
+                ? '#38bdf8'
+                : room.typeKey === 'rest'
+                    ? '#34d399'
+                    : room.typeKey === 'merchant'
+                        ? '#f59e0b'
+                        : '#facc15';
+
+        if (room.typeKey === 'treasure') {
+            room.entered = true;
+            this.revealTreasureRoomCaches(room);
+            if (entityObj && !this.engine.entities.includes(entityObj)) {
+                this.engine.entities.push(entityObj);
+            }
+            window.soundEngine?.chest();
+            message = room.pendingCacheIds?.length
+                ? `${room.displayName}打开了，先把里面的藏品清完。`
+                : `${room.displayName}打开了，但里面已经被搬空。`;
+        } else if (room.typeKey === 'event') {
+            room.entered = true;
+            this.revealEventRoomNodes(room);
+            if (entityObj && !this.engine.entities.includes(entityObj)) {
+                this.engine.entities.push(entityObj);
+            }
+            window.soundEngine?.upgrade();
+            message = room.pendingEventNodeIds?.length
+                ? `${room.displayName}开始共振，先扫清里面的异象节点。`
+                : this.resolveEventRoom(room);
+        } else if (room.typeKey === 'elite') {
+            room.entered = true;
+            this.revealEliteRoomEncounter(room);
+            if (entityObj && !this.engine.entities.includes(entityObj)) {
+                this.engine.entities.push(entityObj);
+            }
+            window.soundEngine?.upgrade();
+            const eliteLabel = room.eliteVariant?.label || room.displayName;
+            message = room.pendingEliteNodeIds?.length
+                ? `${eliteLabel}已经苏醒，先拆掉里面的增幅装置。`
+                : `${eliteLabel}已经打开，精英现身了。`;
+        } else if (room.typeKey === 'rest') {
+            room.entered = true;
+            window.soundEngine?.upgrade();
+            message = this.resolveRestRoom(room);
+        } else if (room.typeKey === 'merchant') {
+            room.entered = true;
+            window.soundEngine?.upgrade();
+            message = this.resolveMerchantRoom(room);
+        }
+
+        if (entityObj?.mesh && room.typeKey !== 'treasure' && room.typeKey !== 'event' && room.typeKey !== 'elite') {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.8, y: 1.8, z: 1.8 }, 0.2, Easing.easeOutQuad, () => {
+                this.engine.scene.remove(entityObj.mesh);
+            });
+        } else if (entityObj?.mesh && (room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'elite')) {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.15, y: 1.15, z: 1.15 }, 0.18, Easing.easeOutQuad, () => {
+                const targetScale = room.typeKey === 'elite' ? 0.62 : 0.7;
+                this.engine.tweens.add(entityObj.mesh.scale, { x: targetScale, y: targetScale, z: targetScale }, 0.28, Easing.easeOutBack);
+            });
+        }
+
+        this.engine.spawnBurst(worldPos, accentColor, 24, 1.8);
+        this.engine.addFloatingText(room.displayName, worldPos, accentTextColor, true);
+        const shouldClearAfterInteraction = (room.typeKey === 'treasure' && !(room.pendingCacheIds?.length > 0))
+            || (room.typeKey === 'event' && !(room.pendingEventNodeIds?.length > 0))
+            || room.typeKey === 'rest'
+            || room.typeKey === 'merchant';
+        if (shouldClearAfterInteraction) {
+            if ((room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'rest' || room.typeKey === 'merchant') && entityObj?.mesh) {
+                this.engine.scene.remove(entityObj.mesh);
+            }
+            const markerIdx = this.engine.entities.findIndex((entity) => entity === entityObj);
+            if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
+            this.clearHiddenRoom(room);
+        }
+        await this.sleep(120);
+        this.engine.addFloatingText(message, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.3, 0)), '#e2e8f0');
     }
 
     runOcclusionSelfTest(mode = 'player') {
@@ -2980,6 +4448,29 @@ class GameController {
         if (this.selfTestActive) return;
         GameState.phase = 'GENERATING';
         GameState.player.currentHp = GameState.player.baseHp;
+        GameState.resetFloorStats();
+        const archetypeKey = pickFloorArchetypeKey(GameState.level);
+        GameState.floorBuff = {
+            supplyActive: false,
+            supplyKey: null,
+            supplyLabel: '',
+            hiddenRoomBonus: 0,
+            chestRewardMult: 1,
+            attackMult: 1,
+            supplyDropBonus: 0,
+            diversionBonus: 0
+        };
+        GameState.consumeFloorSupplyIfAvailable(archetypeKey);
+        const hiddenRoomUnlockBonus = (GameState.meta.nextHiddenRoomBonus || 0) + (GameState.floorBuff.hiddenRoomBonus || 0);
+        GameState.meta.nextHiddenRoomBonus = 0;
+        GameState.updateUI();
+        this.floorPlan = buildFloorContentPlan({
+            level: GameState.level,
+            maze: GameState.maze,
+            archetypeKey,
+            hiddenRoomUnlockBonus
+        });
+        GameState.floorContent = this.floorPlan;
         GameState.updateUI();
         const dims = GameState.getMazeDimensions();
         this.cols = dims.cols;
@@ -2993,6 +4484,9 @@ class GameController {
         this.engine.occluders = [];
         this.engine.occluderLookup.clear();
         this.grid = [];
+        this.hiddenRooms = [];
+        this.hiddenRoomLookup = new Map();
+        this.currentPathTarget = 'end';
 
         const floorGeo = new THREE.PlaneGeometry(this.cols + 2, this.rows + 2);
         const floorMesh = new THREE.Mesh(floorGeo, this.engine.materials.floor);
@@ -3008,7 +4502,7 @@ class GameController {
                 const pos = this.getWorldPos(c, r);
                 const group = this.engine.createWallCell(wallGeo, edgesGeo, pos);
                 this.mazeGroup.add(group);
-                row.push({ c, r, isWall: true, mesh: group, visited: false, entity: null });
+                row.push({ c, r, isWall: true, mesh: group, visited: false, entity: null, hiddenRoomId: null });
             }
             this.grid.push(row);
         }
@@ -3030,47 +4524,11 @@ class GameController {
     }
 
     getSpawnTargets(openCellCount) {
-        const side = GameState.getMazeSide();
-        const sideSpan = Math.max(1, GameState.maze.maxSide - GameState.maze.baseSide);
-        const sizeProgress = THREE.MathUtils.clamp((side - GameState.maze.baseSide) / sideSpan, 0, 1);
-
-        // Small mazes keep more breathing room; larger mazes can spend more of their open cells on content.
-        const placementBudgetRatio = 0.12 + sizeProgress * 0.16;
-        const placementBudget = Math.min(
-            Math.max(0, openCellCount - 1),
-            Math.floor(openCellCount * placementBudgetRatio)
-        );
-        if (placementBudget <= 0) return { monsters: 0, chests: 0 };
-
-        const monsterDensity = GameState.maze.baseMonsterRate * (0.78 + sizeProgress * 0.45) * (0.58 + sizeProgress * 0.42);
-        const chestDensity = GameState.maze.baseChestRate * (0.72 + sizeProgress * 0.4) * (0.58 + sizeProgress * 0.42);
-        const monsterTarget = Math.round(openCellCount * monsterDensity);
-        const chestTarget = Math.round(openCellCount * chestDensity);
-
-        let monsters = monsterTarget;
-        let chests = chestTarget;
-        const totalTargets = monsterTarget + chestTarget;
-
-        if (totalTargets > placementBudget) {
-            const monsterShare = totalTargets > 0 ? monsterTarget / totalTargets : 0.5;
-            monsters = Math.min(monsterTarget, Math.round(placementBudget * monsterShare));
-            chests = Math.min(chestTarget, placementBudget - monsters);
-
-            const remainder = placementBudget - monsters - chests;
-            if (remainder > 0) {
-                if (monsterTarget - monsters >= chestTarget - chests) monsters += remainder;
-                else chests += remainder;
-            }
-        }
-
-        if (monsters === 0 && GameState.maze.lvMonster > 0 && placementBudget > 0) monsters = 1;
-        if (chests === 0 && GameState.maze.lvChest > 0 && placementBudget - monsters > 0) chests = 1;
-
-        if (monsters + chests > placementBudget) {
-            if (chests > monsters) chests = Math.max(0, placementBudget - monsters);
-            else monsters = Math.max(0, placementBudget - chests);
-        }
-        return { monsters, chests };
+        return calculateSpawnTargets({
+            openCellCount,
+            maze: GameState.maze,
+            floorPlan: this.floorPlan || GameState.floorContent
+        });
     }
 
     digWall(cell) {
@@ -3149,6 +4607,78 @@ class GameController {
         };
     }
 
+    createSupplyPickupAdornment(supplyKey, colorHex) {
+        const group = new THREE.Group();
+        const makeLoop = (points, opacity = 0.82) => this.engine.createLineLoop(points, colorHex, opacity);
+        const makeCircle = (radius, y, segments = 16) => Array.from({ length: segments }, (_, index) => {
+            const angle = index / segments * Math.PI * 2;
+            return new THREE.Vector3(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+        });
+
+        if (supplyKey === 'assault') {
+            group.add(makeLoop([
+                new THREE.Vector3(0, 0.28, 0.26),
+                new THREE.Vector3(-0.2, 0.08, -0.08),
+                new THREE.Vector3(0, 0.34, -0.3),
+                new THREE.Vector3(0.2, 0.08, -0.08)
+            ], 0.9));
+            group.add(makeLoop([
+                new THREE.Vector3(-0.24, 0.16, 0.12),
+                new THREE.Vector3(0, 0.02, -0.18),
+                new THREE.Vector3(0.24, 0.16, 0.12)
+            ], 0.7));
+        } else if (supplyKey === 'salvage') {
+            group.add(makeLoop(makeCircle(0.28, 0.06, 14), 0.88));
+            group.add(makeLoop([
+                new THREE.Vector3(-0.16, 0.26, -0.16),
+                new THREE.Vector3(0.16, 0.26, -0.16),
+                new THREE.Vector3(0.16, 0.26, 0.16),
+                new THREE.Vector3(-0.16, 0.26, 0.16)
+            ], 0.74));
+            group.add(makeLoop([
+                new THREE.Vector3(-0.1, 0.14, 0),
+                new THREE.Vector3(0, 0.24, 0.1),
+                new THREE.Vector3(0.1, 0.14, 0),
+                new THREE.Vector3(0, 0.04, -0.1)
+            ], 0.66));
+        } else {
+            group.add(makeLoop(makeCircle(0.3, 0.05, 16), 0.86));
+            group.add(makeLoop(makeCircle(0.18, 0.18, 12), 0.72));
+            group.add(makeLoop([
+                new THREE.Vector3(0, 0.32, 0.24),
+                new THREE.Vector3(0.12, 0.16, 0),
+                new THREE.Vector3(0, 0.32, -0.24),
+                new THREE.Vector3(-0.12, 0.16, 0)
+            ], 0.82));
+        }
+
+        return group;
+    }
+
+    showSupplyPickupEffect(supplyKey, pos3D) {
+        const def = GameState.supplyDefs[supplyKey];
+        const colorHexMap = {
+            assault: 0xfb7185,
+            salvage: 0xfbbf24,
+            scout: 0x22d3ee
+        };
+        const colorHex = colorHexMap[supplyKey] || 0x34d399;
+        const built = this.engine.buildExitModel();
+        this.tintGroup(built.group, colorHex, colorHex);
+        const adornment = this.createSupplyPickupAdornment(supplyKey, colorHex);
+        built.group.add(adornment);
+        built.group.scale.setScalar(supplyKey === 'assault' ? 0.42 : supplyKey === 'salvage' ? 0.38 : 0.4);
+        built.group.position.set(pos3D.x, 0.22, pos3D.z);
+        this.engine.scene.add(built.group);
+        this.engine.spawnBurst(pos3D, colorHex, 14, 1.15);
+        this.engine.addFloatingText(`+1 ${def?.label || '层补给'}`, pos3D.clone().add(new THREE.Vector3(0, 0.28, 0)), def?.color || '#34d399');
+        this.engine.tweens.add(built.group.position, { y: 0.98 }, 0.6, Easing.easeOutQuad, () => {
+            this.engine.scene.remove(built.group);
+        });
+        this.engine.tweens.add(built.group.scale, { x: 0.04, y: 0.04, z: 0.04 }, 0.6, Easing.easeOutQuad);
+        this.engine.tweens.add(adornment.rotation, { y: supplyKey === 'assault' ? Math.PI * 0.9 : Math.PI * 1.15 }, 0.6, Easing.easeOutQuad);
+    }
+
     createMonsterEntity(archetype, c, r) {
         const built = this.engine.buildEnemyModel(archetype);
         const pos = this.getWorldPos(c, r);
@@ -3183,7 +4713,10 @@ class GameController {
             }
         }
 
-        const shuffledCells = this.shuffleCells([...openCells]);
+        const basePath = this.computePathBetween(this.playerPos, this.endPos);
+        this.placeHiddenRoomEntities(openCells, basePath);
+        const spawnableCells = openCells.filter((cell) => cell.entity === null && !cell.hiddenRoomId);
+        const shuffledCells = this.shuffleCells([...spawnableCells]);
         const spawnTargets = this.getSpawnTargets(shuffledCells.length);
         let spawnCursor = 0;
 
@@ -3202,7 +4735,7 @@ class GameController {
         }
 
         if (GameState.level >= 4 && GameState.isBossUnlocked() && Math.random() < GameState.getBossFloorChance()) {
-            const bossCandidates = openCells.filter((cell) => cell.entity === null);
+            const bossCandidates = openCells.filter((cell) => cell.entity === null && !cell.hiddenRoomId);
             if (bossCandidates.length > 0) {
                 const bossCell = bossCandidates[Math.floor(Math.random() * bossCandidates.length)];
                 const boss = this.createMonsterEntity(ENEMY_ARCHETYPES.find((enemy) => enemy.id === 'boss'), bossCell.c, bossCell.r);
@@ -3226,32 +4759,15 @@ class GameController {
             if (this.selfTestActive) return;
             GameState.phase = 'EXPLORING';
             GameState.updateUI();
+            this.refreshExplorationPath();
             this.exploreNext();
         });
     }
 
     findPath() {
-        const queue = [{ c: this.playerPos.c, r: this.playerPos.r, path: [] }];
-        const visited = new Set([`${this.playerPos.c},${this.playerPos.r}`]);
-        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-        while (queue.length > 0) {
-            const curr = queue.shift();
-            if (curr.c === this.endPos.c && curr.r === this.endPos.r) {
-                this.path = curr.path;
-                return;
-            }
-            for (const dir of dirs) {
-                const nc = curr.c + dir[0];
-                const nr = curr.r + dir[1];
-                if (nc > 0 && nc < this.cols && nr > 0 && nr < this.rows && !this.grid[nr][nc].isWall) {
-                    const key = `${nc},${nr}`;
-                    if (!visited.has(key)) {
-                        visited.add(key);
-                        queue.push({ c: nc, r: nr, path: [...curr.path, { c: nc, r: nr }] });
-                    }
-                }
-            }
-        }
+        this.path = this.computePathBetween(this.playerPos, this.endPos, {
+            avoidUnclearedHiddenRooms: true
+        });
     }
 
     exploreNext() {
@@ -3279,6 +4795,7 @@ class GameController {
     async checkInteraction() {
         if (this.selfTestActive) return;
         const cell = this.grid[this.playerPos.r][this.playerPos.c];
+        const room = this.getHiddenRoomById(cell.hiddenRoomId);
         if (cell.entity) {
             const type = cell.entity;
             cell.entity = null;
@@ -3286,8 +4803,9 @@ class GameController {
             const entityObj = entityIndex > -1 ? this.engine.entities.splice(entityIndex, 1)[0] : null;
 
             if (type === 'chest') {
-                const reward = 15 * GameState.level;
+                const reward = Math.floor(15 * GameState.level * (GameState.floorBuff?.chestRewardMult || 1));
                 GameState.addScore(reward);
+                GameState.floorStats.chests += 1;
                 window.soundEngine?.chest();
                 if (entityObj) {
                     this.engine.tweens.add(entityObj.mesh.scale, { x: 2, y: 2, z: 2 }, 0.2, Easing.easeOutQuad, () => {
@@ -3296,7 +4814,20 @@ class GameController {
                     this.engine.spawnBurst(entityObj.mesh.position, 0xfacc15, 20, 1.5);
                     this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#facc15');
                 }
+                if (Math.random() < 0.18 + (GameState.floorBuff?.supplyDropBonus || 0)) {
+                    const droppedSupply = GameState.grantRandomFloorSupply('chest');
+                    this.showSupplyPickupEffect(droppedSupply, entityObj?.mesh?.position?.clone() || this.engine.playerObj.position.clone());
+                }
                 await this.sleep(100);
+                this.updateHiddenRoomLocks();
+            } else if (type === 'hidden-cache') {
+                await this.resolveHiddenCachePickup(room, entityObj);
+            } else if (type === 'hidden-event-node') {
+                await this.resolveHiddenEventNodePickup(room, entityObj);
+            } else if (type === 'hidden-elite-node') {
+                await this.resolveHiddenEliteNodePickup(room, entityObj);
+            } else if (type === 'hidden-room') {
+                await this.resolveHiddenRoomInteraction(room, entityObj);
             } else if (type === 'end') {
                 const reward = 100 * GameState.level;
                 GameState.addScore(reward);
@@ -3308,7 +4839,10 @@ class GameController {
                 return;
             }
         }
-        if (GameState.phase === 'EXPLORING') this.exploreNext();
+        if (GameState.phase === 'EXPLORING') {
+            this.refreshExplorationPath();
+            this.exploreNext();
+        }
     }
 
     async typeText(text) {
@@ -3351,13 +4885,32 @@ class GameController {
         const data = enemyObj.enemyData;
         const linearScale = data.boss ? 1 + (GameState.level - 1) * 0.34 : 1 + (GameState.level - 1) * 0.18;
         const curveScale = Math.pow(data.boss ? 1.1 : 1.06, Math.max(0, GameState.level - 1));
+        let supportHpMult = 0;
+        let supportAtkMult = 0;
+        let intro = data.intro;
+        if (data.elite && data.hiddenRoomId) {
+            const room = this.getHiddenRoomById(data.hiddenRoomId);
+            const activeEliteSupports = this.getPendingHiddenEliteNodes(room);
+            for (const supportNode of activeEliteSupports) {
+                supportHpMult += supportNode.supportData?.hpMult || 0;
+                supportAtkMult += supportNode.supportData?.atkMult || 0;
+            }
+            if (activeEliteSupports.length > 0) {
+                const supportSummary = activeEliteSupports
+                    .map((supportNode) => supportNode.supportData?.label)
+                    .filter(Boolean)
+                    .slice(0, 3)
+                    .join('、');
+                intro = `${data.intro} 当前仍有 ${activeEliteSupports.length} 个装置在运转${supportSummary ? `：${supportSummary}` : ''}。`;
+            }
+        }
         return {
             name: data.name,
-            intro: data.intro,
+            intro,
             attackVerb: data.attackVerb,
             reward: Math.floor(data.reward * (1 + GameState.level * 0.18)),
-            maxHp: Math.floor(data.baseHp * linearScale * curveScale),
-            atk: Math.floor(data.baseAtk * linearScale),
+            maxHp: Math.floor(data.baseHp * linearScale * curveScale * (1 + supportHpMult)),
+            atk: Math.floor(data.baseAtk * linearScale * (1 + supportAtkMult)),
             boss: !!data.boss,
             color: data.color
         };
@@ -3392,7 +4945,7 @@ class GameController {
             await this.typeText(`【玩家的回合】飞碟主炮锁定 ${profile.name}！`);
             await this.sleep(320);
 
-            const damage = Math.floor(GameState.player.baseAtk * (0.84 + Math.random() * 0.42) * (profile.boss ? 0.92 : 1));
+            const damage = Math.floor(GameState.player.baseAtk * (GameState.floorBuff?.attackMult || 1) * (0.84 + Math.random() * 0.42) * (profile.boss ? 0.92 : 1));
             const origPos = playerMesh.position.clone();
             const dashPos = origPos.clone().add(dir.clone().multiplyScalar(dashDist));
 
@@ -3443,6 +4996,8 @@ class GameController {
 
         if (enemyHp <= 0) {
             GameState.addScore(profile.reward);
+            GameState.floorStats.kills += 1;
+            const hiddenRoom = this.getHiddenRoomById(this.grid[enemyNode.r][enemyNode.c].hiddenRoomId);
             window.soundEngine?.enemyDefeat(profile.boss);
             await this.typeText(`战斗胜利！击溃 ${profile.name}，获得了 ${profile.reward} 魂能！`);
 
@@ -3455,6 +5010,10 @@ class GameController {
             this.grid[enemyNode.r][enemyNode.c].entity = null;
             const entIdx = this.engine.entities.findIndex((entity) => entity === enemyObj);
             if (entIdx > -1) this.engine.entities.splice(entIdx, 1);
+            this.updateHiddenRoomLocks();
+            if (hiddenRoom?.typeKey === 'elite') {
+                await this.resolveHiddenEliteRoomClear(hiddenRoom, enemyMesh);
+            }
 
             await this.sleep(profile.boss ? 1900 : 1400);
             this.hideCombatUI();
@@ -3462,6 +5021,7 @@ class GameController {
             this.currentEnemy = null;
             GameState.phase = 'EXPLORING';
             GameState.updateUI();
+            this.refreshExplorationPath();
             this.exploreNext();
         } else {
             window.soundEngine?.defeat();

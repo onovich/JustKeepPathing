@@ -7,7 +7,12 @@
   "scripts": {
     "dev": "node scripts/local-static-server.mjs",
     "start": "node scripts/local-static-server.mjs",
-    "check": "node --check scripts/local-static-server.mjs"
+    "check:server": "node --check scripts/local-static-server.mjs",
+    "check:data": "node --check src/data/game-config.mjs",
+    "check:content": "node --check src/data/floor-content.mjs",
+    "check:hidden": "node --check src/logic/hidden-rooms.mjs",
+    "check:logic": "node --check src/logic/maze-progression.mjs",
+    "check:app": "node scripts/check-index-module.mjs",
+    "check": "npm run check:server && npm run check:data && npm run check:content && npm run check:hidden && npm run check:logic && npm run check:app"
   }
 }
-

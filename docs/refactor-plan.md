@@ -1,0 +1,69 @@
+# Refactor Plan
+
+## Goals
+
+- Protect the current playable baseline before deeper structural work.
+- Split the monolithic `index.html` into small, understandable modules without changing gameplay feel, PC layout, or editor workflows.
+- Add repeatable validation so Windows UTF-8 handling does not create false breakages during future edits.
+
+## Current Constraints
+
+- The app is a single static-page game whose runtime, UI, editors, rendering, and audio all live in one module script inside `index.html`.
+- The game already has meaningful live features: combat, idle progression, maze generation, hidden room design docs, model editor, and sound editor.
+- The project is intentionally build-free for local manual testing and GitHub Pages deployment, so refactors should stay static-host friendly.
+
+## Phase 0: Baseline Protection
+
+- Keep `index.html` as the canonical runnable entry until later phases are proven.
+- Use a UTF-8-safe module extraction check in `scripts/check-index-module.mjs`.
+- Keep the explicit recovery backup out of the runtime path and avoid casual rewrites through tools that may re-encode files unexpectedly on Windows.
+
+## Phase 1: Data Extraction
+
+- Move pure configuration and content data into `src/data/` modules.
+- Start with low-risk constants:
+  - enemy archetypes
+  - model editor defaults and labels
+  - sound event definitions
+  - sound preset factories and BGM kernel tables
+- Keep behavioral functions in `index.html` unless they are already pure and dependency-light.
+
+## Phase 2: System Separation
+
+- Extract pure game rules into `src/logic/engine/`:
+  - spawn formulas
+  - maze scaling and reward formulas
+  - hidden room roll rules
+  - combat value calculations
+- Extract shared state helpers into `src/logic/state/` or equivalent modules.
+- Preserve current runtime ordering to avoid subtle regressions in timers, audio, and rendering.
+
+## Phase 3: UI And Editor Separation
+
+- Move model editor UI logic into `src/view/editors/model-editor.mjs`.
+- Move sound editor UI logic into `src/view/editors/sound-editor.mjs`.
+- Keep DOM ids, layout hooks, and existing mobile/PC presentation behavior stable while code moves behind the scenes.
+
+## Phase 4: Render And Scene Separation
+
+- Split Three.js scene construction from gameplay state mutation.
+- Extract reusable factories for:
+  - actor models
+  - maze tiles and walls
+  - occlusion reveal materials/effects
+  - combat scene dressing and post-processing
+
+## Phase 5: Validation And Smoke
+
+- Keep `npm run check` fast and local.
+- Add one browser smoke pass after risky visual changes, especially for:
+  - editor overlays
+  - mobile layout
+  - wall occlusion reveal
+  - looping audio/editor interactions
+
+## Recommended Next Slices
+
+1. Extract hidden room tables and maze progression formulas into dedicated data/logic modules.
+2. Isolate the sound runtime from the sound editor UI so live preview and in-game playback rules are easier to reason about.
+3. Split the wall-occlusion reveal code path into a dedicated rendering helper and verify it with screenshots before further visual tweaks.
