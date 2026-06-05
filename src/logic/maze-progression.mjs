@@ -1,4 +1,6 @@
 import {
+    FLOOR_THEME_DEFS,
+    FLOOR_THEME_ROTATION,
     FLOOR_ARCHETYPE_DEFS,
     HIDDEN_ROOM_COUNT_PARAMS
 } from '../data/floor-content.mjs';
@@ -58,6 +60,25 @@ export function pickFloorArchetypeKey(level) {
     return 'combat';
 }
 
+export function getFloorThemePlan(level) {
+    const normalizedLevel = Math.max(1, level || 1);
+    const actLength = 6;
+    const actIndex = Math.floor((normalizedLevel - 1) / actLength);
+    const actFloor = ((normalizedLevel - 1) % actLength) + 1;
+    const themeKey = FLOOR_THEME_ROTATION[actIndex % FLOOR_THEME_ROTATION.length] || FLOOR_THEME_ROTATION[0];
+    const theme = FLOOR_THEME_DEFS[themeKey] || FLOOR_THEME_DEFS[FLOOR_THEME_ROTATION[0]];
+    const finale = actFloor === actLength ? (theme?.finale || null) : null;
+    return {
+        actIndex,
+        actFloor,
+        actLength,
+        themeKey,
+        theme,
+        isFinaleFloor: !!finale,
+        finale
+    };
+}
+
 export function rollHiddenRoomCount({
     sizeProgress,
     specialFloorBonus = 0,
@@ -96,17 +117,25 @@ export function buildFloorContentPlan({
 }) {
     const resolvedArchetypeKey = archetypeKey || pickFloorArchetypeKey(level);
     const archetype = FLOOR_ARCHETYPE_DEFS[resolvedArchetypeKey] || FLOOR_ARCHETYPE_DEFS.combat;
+    const themePlan = getFloorThemePlan(level);
     const sizeProgress = getMazeSizeProgress(maze);
     const sizeBand = getMazeSizeBand(maze);
     return {
         level,
         archetypeKey: resolvedArchetypeKey,
         archetype,
+        actIndex: themePlan.actIndex,
+        actFloor: themePlan.actFloor,
+        actLength: themePlan.actLength,
+        themeKey: themePlan.themeKey,
+        theme: themePlan.theme,
+        isFinaleFloor: themePlan.isFinaleFloor,
+        finale: themePlan.finale,
         sizeProgress,
         sizeBand,
         hiddenRoomCount: rollHiddenRoomCount({
             sizeProgress,
-            specialFloorBonus: archetype.hiddenRoomBonus || 0,
+            specialFloorBonus: (archetype.hiddenRoomBonus || 0) + (themePlan.theme?.hiddenRoomBonus || 0) + (themePlan.finale?.hiddenRoomBonus || 0),
             unlockBonus: hiddenRoomUnlockBonus,
             random
         }),
@@ -121,6 +150,8 @@ export function calculateSpawnTargets({
 }) {
     const sizeProgress = floorPlan?.sizeProgress ?? getMazeSizeProgress(maze);
     const archetype = floorPlan?.archetype ?? FLOOR_ARCHETYPE_DEFS.combat;
+    const theme = floorPlan?.theme ?? getFloorThemePlan(floorPlan?.level ?? 1).theme;
+    const finale = floorPlan?.finale ?? null;
 
     const placementBudgetRatio = 0.12 + sizeProgress * 0.16;
     const placementBudget = Math.min(
@@ -130,8 +161,8 @@ export function calculateSpawnTargets({
     if (placementBudget <= 0) return { monsters: 0, chests: 0 };
 
     const densityScale = 0.58 + sizeProgress * 0.42;
-    const monsterDensity = maze.baseMonsterRate * (0.78 + sizeProgress * 0.45) * densityScale * (archetype.monsterRateMult ?? 1);
-    const chestDensity = maze.baseChestRate * (0.72 + sizeProgress * 0.4) * densityScale * (archetype.chestRateMult ?? 1);
+    const monsterDensity = maze.baseMonsterRate * (0.78 + sizeProgress * 0.45) * densityScale * (archetype.monsterRateMult ?? 1) * (theme?.monsterRateMult ?? 1) * (finale?.monsterRateMult ?? 1);
+    const chestDensity = maze.baseChestRate * (0.72 + sizeProgress * 0.4) * densityScale * (archetype.chestRateMult ?? 1) * (theme?.chestRateMult ?? 1) * (finale?.chestRateMult ?? 1);
     const monsterTarget = Math.round(openCellCount * monsterDensity);
     const chestTarget = Math.round(openCellCount * chestDensity);
 

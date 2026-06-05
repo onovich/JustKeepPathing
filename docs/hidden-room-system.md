@@ -8,6 +8,13 @@ The main rule is simple:
 - hidden rooms add surprise, value, and run texture
 - hidden rooms must never require the player to be present to keep the game moving
 
+Each group of floors can also carry a lightweight biome theme.
+
+- themes should change room appetite, density bias, and flavor
+- themes should not interrupt automation or add route prompts
+- the player should feel the floor identity through repeated small biases rather than one giant rules popup
+- the last floor of a biome cycle can carry a short "收束" modifier that intensifies the floor without breaking idle flow
+
 ## 1. Design Goals
 
 The hidden room system should solve four problems at once:
@@ -55,6 +62,13 @@ One useful supporting loop is a floor-consumable supply item:
 - merchant and rest rooms can help refill that inventory
 - this makes room diversion decisions feel resource-driven instead of arbitrary
 
+Recommended player-facing automation settings:
+
+- hidden-room diversion style: cautious / balanced / greedy
+- rest-room preference: emergency-only / balanced / proactive sustain
+- merchant-room policy: power first / supply first / save currency
+- floor-supply preference: adaptive / combat bias / loot bias / exploration bias
+
 Recommended early supply set:
 
 - `战备补给`: more damage for the floor, best for combat and boss pressure
@@ -100,6 +114,7 @@ Recommended usage:
 
 - moderate rarity
 - better once several event definitions exist
+- event-room templates should differ not only by reward text, but by node count, payout bias, and how attractive the autopather considers the detour
 
 ### 4.3 Elite Room
 
@@ -174,6 +189,7 @@ Recommended usage:
 
 - unlocked later
 - entered only if the ship's auto-diversion priority is high enough
+- should have multiple templates such as overclock, salvage, survey, or endurance trials so repeated runs do not feel identical
 
 ## 5. Placement Archetypes
 

@@ -233,6 +233,14 @@ Autopathing rules can still stay automatic:
 
 The maze itself should change by floor role and hidden-room composition, not only by size.
 
+One layer above floor role, the run should also rotate through lightweight biome themes.
+
+- each theme shifts density and room appetite a bit
+- the effect should be visible across several floors, not only one room
+- themes should add identity without stopping unattended progression
+- themes should also bias enemy families and special-room template pools so the run feels like it is passing through a real region
+- each 6-floor biome segment should have a final-floor "收束" modifier that lightly sharpens the last floor instead of forcing a manual chapter cutscene
+
 `combat`
 
 - medium maze

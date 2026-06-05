@@ -253,7 +253,7 @@
                     </svg>
                 </button>
             </div>
-            <div id="settings-panel" class="hidden settings-panel-enter mt-2 w-56 rounded-xl border-2 border-slate-700 bg-slate-900/95 p-3 shadow-[0_10px_30px_rgba(0,0,0,0.6)] backdrop-blur-sm">
+            <div id="settings-panel" class="hidden settings-panel-enter mt-2 w-72 rounded-xl border-2 border-slate-700 bg-slate-900/95 p-3 shadow-[0_10px_30px_rgba(0,0,0,0.6)] backdrop-blur-sm">
                 <div class="flex items-center justify-between text-xs font-bold tracking-wide text-slate-200">
                     <span>设置</span>
                     <span id="val-volume" class="text-cyan-300">70%</span>
@@ -261,6 +261,45 @@
                 <div class="mt-3">
                     <label for="slider-volume" class="mb-2 block text-[11px] font-bold text-slate-400">音效强度</label>
                     <input id="slider-volume" class="settings-slider w-full" type="range" min="0" max="100" step="1" value="70">
+                </div>
+                <div class="mt-4 border-t border-slate-800 pt-3">
+                    <div class="text-[11px] font-bold text-slate-400">挂机风格</div>
+                    <div class="mt-3 space-y-3">
+                        <div>
+                            <label for="select-strategy-risk" class="mb-1 block text-[11px] font-bold text-slate-500">密室绕路</label>
+                            <select id="select-strategy-risk" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-bold text-slate-100 outline-none focus:border-cyan-500">
+                                <option value="cautious">稳一点</option>
+                                <option value="balanced">正常</option>
+                                <option value="greedy">贪一点</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="select-strategy-rest" class="mb-1 block text-[11px] font-bold text-slate-500">休整密室</label>
+                            <select id="select-strategy-rest" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-bold text-slate-100 outline-none focus:border-cyan-500">
+                                <option value="emergency">快没血再去</option>
+                                <option value="balanced">正常</option>
+                                <option value="prefer">有机会就补状态</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="select-strategy-merchant" class="mb-1 block text-[11px] font-bold text-slate-500">商贩密室</label>
+                            <select id="select-strategy-merchant" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-bold text-slate-100 outline-none focus:border-cyan-500">
+                                <option value="power">优先变强</option>
+                                <option value="supplies">优先补给</option>
+                                <option value="save">能省就省</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="select-strategy-supply" class="mb-1 block text-[11px] font-bold text-slate-500">自动用哪种层补给</label>
+                            <select id="select-strategy-supply" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-bold text-slate-100 outline-none focus:border-cyan-500">
+                                <option value="balanced">按楼层自动挑</option>
+                                <option value="combat">更偏战斗</option>
+                                <option value="loot">更偏探宝</option>
+                                <option value="explore">更偏探路</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="settings-strategy-hint" class="mt-3 text-[10px] leading-4 text-slate-500">当前会按楼层类型自动挑补给，并以正常风格判断是否绕路。</div>
                 </div>
             </div>
         </div>
@@ -1372,6 +1411,13 @@ const GameState = {
     floorContent: null,
     floorStats: { kills: 0, chests: 0, hiddenRoomsCleared: 0 },
     meta: { nextHiddenRoomBonus: 0 },
+    strategyStorageKey: 'jkp-auto-strategy',
+    autoStrategy: {
+        risk: 'balanced',
+        rest: 'balanced',
+        merchant: 'power',
+        supply: 'balanced'
+    },
     costs: {
         speed: () => Math.floor(10 * Math.pow(1.5, GameState.player.lvSpeed - 1)),
         atk: () => Math.floor(20 * Math.pow(1.5, GameState.player.lvAtk - 1)),
@@ -1416,7 +1462,44 @@ const GameState = {
     getTotalSupplyCount() {
         return Object.values(this.items.supplies).reduce((sum, value) => sum + Math.max(0, value || 0), 0);
     },
+    sanitizeAutoStrategy(raw) {
+        const next = raw && typeof raw === 'object' ? raw : {};
+        return {
+            risk: ['cautious', 'balanced', 'greedy'].includes(next.risk) ? next.risk : 'balanced',
+            rest: ['emergency', 'balanced', 'prefer'].includes(next.rest) ? next.rest : 'balanced',
+            merchant: ['power', 'supplies', 'save'].includes(next.merchant) ? next.merchant : 'power',
+            supply: ['balanced', 'combat', 'loot', 'explore'].includes(next.supply) ? next.supply : 'balanced'
+        };
+    },
+    loadAutoStrategy() {
+        try {
+            const raw = window.localStorage.getItem(this.strategyStorageKey);
+            this.autoStrategy = this.sanitizeAutoStrategy(raw ? JSON.parse(raw) : null);
+        } catch {
+            this.autoStrategy = this.sanitizeAutoStrategy(null);
+        }
+        return this.autoStrategy;
+    },
+    saveAutoStrategy() {
+        try {
+            window.localStorage.setItem(this.strategyStorageKey, JSON.stringify(this.autoStrategy));
+        } catch {}
+    },
+    setAutoStrategy(partial = {}) {
+        this.autoStrategy = this.sanitizeAutoStrategy({ ...this.autoStrategy, ...partial });
+        this.saveAutoStrategy();
+        this.updateUI();
+    },
+    getDiversionThreshold() {
+        const base = getHiddenRoomDiversionThreshold();
+        if (this.autoStrategy.risk === 'cautious') return Math.min(0.78, base + 0.07);
+        if (this.autoStrategy.risk === 'greedy') return Math.max(0.34, base - 0.06);
+        return base;
+    },
     getPreferredSupplyType(archetypeKey = 'combat') {
+        if (this.autoStrategy.supply === 'combat') return 'assault';
+        if (this.autoStrategy.supply === 'loot') return 'salvage';
+        if (this.autoStrategy.supply === 'explore') return 'scout';
         if (archetypeKey === 'treasure' || archetypeKey === 'rest' || archetypeKey === 'merchant') return 'salvage';
         if (archetypeKey === 'event') return 'scout';
         return 'assault';
@@ -1556,6 +1639,8 @@ const GameState = {
 
         const statusSpan = document.getElementById('ui-status');
         const statusBox = document.getElementById('ui-status-box');
+        const themePill = document.getElementById('ui-theme-pill');
+        const themePillText = document.getElementById('ui-theme-pill-text');
         const supplyPill = document.getElementById('ui-supply-pill');
         const supplyPillText = document.getElementById('ui-supply-pill-text');
         const statusMap = { GENERATING: '挖掘中', EXPLORING: '自动寻路', COMBAT: 'RPG 战斗模式!', SELFTEST: '自测场景' };
@@ -1567,6 +1652,22 @@ const GameState = {
         } else {
             statusBox.className = 'bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]';
             statusSpan.className = 'text-emerald-400 font-bold ml-1';
+        }
+        if (themePill && themePillText) {
+            const themeLabel = this.floorContent?.theme?.label;
+            const accent = this.floorContent?.theme?.accentColor || '#93c5fd';
+            if (themeLabel) {
+                themePill.classList.remove('hidden');
+                themePill.style.borderColor = `${accent}66`;
+                themePill.style.backgroundColor = `${accent}22`;
+                themePillText.style.color = accent;
+                const finaleLabel = this.floorContent?.isFinaleFloor ? this.floorContent?.finale?.label : '';
+                themePillText.innerText = finaleLabel
+                    ? `${themeLabel} · ${this.floorContent?.actFloor || 1}/${this.floorContent?.actLength || 6} · ${finaleLabel}`
+                    : `${themeLabel} · ${this.floorContent?.actFloor || 1}/${this.floorContent?.actLength || 6}`;
+            } else {
+                themePill.classList.add('hidden');
+            }
         }
         if (supplyPill && supplyPillText) {
             if (this.floorBuff.supplyActive && this.floorBuff.supplyLabel) {
@@ -1646,7 +1747,12 @@ const GameState = {
                 ? `怪物更容易出现，Boss 出现概率 ${Math.round(this.getBossFloorChance() * 100)}%`
                 : '怪物更容易出现，升到 Lv.4 解锁 Boss';
             const floorLabel = floorLabels[this.floorContent?.archetypeKey] || floorLabels.combat;
-            monsterDesc.innerText = `${baseText} · ${floorLabel}`;
+            const themeLabel = this.floorContent?.theme?.label;
+            const finaleLabel = this.floorContent?.isFinaleFloor ? this.floorContent?.finale?.label : '';
+            const themedMonsterText = themeLabel
+                ? `${baseText} · ${floorLabel} · ${themeLabel}${finaleLabel ? ` · ${finaleLabel}` : ''}`
+                : `${baseText} · ${floorLabel}`;
+            monsterDesc.innerText = themedMonsterText;
         }
     }
 };
@@ -1697,7 +1803,18 @@ function initializeSupplyStatusPill() {
     host.appendChild(pill);
 }
 
+function initializeThemeStatusPill() {
+    const host = document.getElementById('ui-status-box')?.parentElement;
+    if (!host || document.getElementById('ui-theme-pill')) return;
+    const pill = document.createElement('div');
+    pill.id = 'ui-theme-pill';
+    pill.className = 'hidden px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]';
+    pill.innerHTML = '<span class="whitespace-nowrap">地带</span><span id="ui-theme-pill-text" class="ml-1 inline-block font-bold text-sky-300">未定</span>';
+    host.appendChild(pill);
+}
+
 initializeSupplyCardUi();
+initializeThemeStatusPill();
 initializeSupplyStatusPill();
 window.GameState = GameState;
 
@@ -3292,6 +3409,29 @@ class GameController {
         return group;
     }
 
+    createTrialAdornment(colorHex) {
+        const group = new THREE.Group();
+        group.add(this.engine.createLineLoop([
+            new THREE.Vector3(0, 0.02, -0.28),
+            new THREE.Vector3(0.22, 0.02, 0),
+            new THREE.Vector3(0, 0.02, 0.28),
+            new THREE.Vector3(-0.22, 0.02, 0)
+        ], colorHex, 0.76));
+        group.add(this.engine.createLineLoop([
+            new THREE.Vector3(-0.12, 0.2, -0.12),
+            new THREE.Vector3(0.12, 0.2, -0.12),
+            new THREE.Vector3(0.12, 0.2, 0.12),
+            new THREE.Vector3(-0.12, 0.2, 0.12)
+        ], colorHex, 0.58));
+        group.add(this.engine.createLineLoop([
+            new THREE.Vector3(0, 0.3, -0.2),
+            new THREE.Vector3(0.16, 0.3, 0),
+            new THREE.Vector3(0, 0.3, 0.2),
+            new THREE.Vector3(-0.16, 0.3, 0)
+        ], colorHex, 0.48));
+        return group;
+    }
+
     decorateHiddenRoom(room, chamberCells) {
         const colorHex = getHiddenRoomAccentColor(room.typeKey);
         room.decorationGroup = new THREE.Group();
@@ -3413,6 +3553,31 @@ class GameController {
                 counterSpinGroup: null
             };
         }
+        if (room.typeKey === 'trial') {
+            const built = this.engine.buildExitModel();
+            this.tintGroup(built.group, 0xfb7185, 0x9f1239);
+            const adornment = this.createTrialAdornment(0xfb7185);
+            built.group.add(adornment);
+            built.group.position.set(anchorPos.x, 4.7, anchorPos.z);
+            built.group.scale.setScalar(1.08);
+            this.engine.scene.add(built.group);
+            this.engine.tweens.add(built.group.position, { y: 0.16 }, 0.65, Easing.easeOutBounce);
+            return {
+                type: 'hidden-room',
+                mesh: built.group,
+                c: room.anchor.c,
+                r: room.anchor.r,
+                hiddenRoomId: room.id,
+                baseY: 0.16,
+                hoverAmplitude: 0.05,
+                hoverSpeed: 2.4,
+                hoverOffset: Math.random() * Math.PI * 2,
+                spinSpeed: 0.92,
+                counterSpinSpeed: 1.28,
+                spinGroup: built.group,
+                counterSpinGroup: adornment
+            };
+        }
 
         const built = this.engine.buildChestModel();
         const tint = room.typeKey === 'treasure' ? [0xfacc15, 0x854d0e] : [0x38bdf8, 0x164e63];
@@ -3474,7 +3639,8 @@ class GameController {
         built.group.scale.setScalar(0.66 + index * 0.04);
         this.engine.scene.add(built.group);
         this.engine.tweens.add(built.group.position, { y: 0.12 }, 0.42, Easing.easeOutBounce);
-        const reward = Math.max(10, Math.floor((14 + room.rewardTier * 5 + index * 2) * GameState.level * 0.8));
+        const eventSeed = room.eventSeed || {};
+        const reward = Math.max(10, Math.floor((14 + room.rewardTier * 5 + index * 2) * GameState.level * 0.8 * (eventSeed.rewardMult || 1)));
         return {
             id: `${room.id}-event-node-${index + 1}`,
             type: 'hidden-event-node',
@@ -3531,6 +3697,39 @@ class GameController {
         };
     }
 
+    createTrialNodeEntity(room, slot, index) {
+        const built = this.engine.buildExitModel();
+        this.tintGroup(built.group, 0xfb7185, 0x9f1239);
+        const adornment = this.createTrialAdornment(0xfb7185);
+        built.group.add(adornment);
+        const pos = this.getWorldPos(slot.c, slot.r);
+        built.group.position.set(pos.x, 4.1, pos.z);
+        built.group.scale.setScalar(0.64 + index * 0.04);
+        this.engine.scene.add(built.group);
+        this.engine.tweens.add(built.group.position, { y: 0.15 }, 0.42, Easing.easeOutBounce);
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const trialSeed = room.trialSeed || {};
+        const reward = Math.max(14, Math.floor((18 + room.rewardTier * 7 + index * 4) * GameState.level * (0.82 + rewardProfile.scoreMult * 0.32) * (trialSeed.rewardMult || 1)));
+        return {
+            id: `${room.id}-trial-node-${index + 1}`,
+            type: 'hidden-trial-node',
+            mesh: built.group,
+            c: slot.c,
+            r: slot.r,
+            hiddenRoomId: room.id,
+            reward,
+            hazardRatio: Math.min(0.2, (0.045 + room.rewardTier * 0.012 + index * 0.008) * (trialSeed.hazardMult || 1)),
+            baseY: 0.15,
+            hoverAmplitude: 0.05,
+            hoverSpeed: 2.55,
+            hoverOffset: Math.random() * Math.PI * 2,
+            spinSpeed: 1.2,
+            counterSpinSpeed: 1.55,
+            spinGroup: built.group,
+            counterSpinGroup: adornment
+        };
+    }
+
     buildEliteArchetype(room) {
         const base = this.pickEnemyArchetype();
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
@@ -3579,7 +3778,8 @@ class GameController {
                 score: Math.abs(cell.c - room.anchor.c) + Math.abs(cell.r - room.anchor.r)
             }))
             .sort((a, b) => b.score - a.score);
-        const count = Math.min(slots.length, Math.max(1, Math.min(2, room.rewardTier)));
+        const eventSeed = room.eventSeed || {};
+        const count = Math.min(slots.length, Math.max(1, Math.min(3, Math.min(2, room.rewardTier) + (eventSeed.nodeCountBias || 0))));
         room.eventNodeSlots = slots.slice(0, count);
         room.eventNodeEntities = [];
         room.pendingEventNodeIds = [];
@@ -3613,12 +3813,42 @@ class GameController {
             if (variantKey === 'gauntlet') return (a.depth - b.depth) || (b.sideBias - a.sideBias);
             return (b.depth * 0.9 + b.sideBias * 0.5) - (a.depth * 0.9 + a.sideBias * 0.5);
         });
-        room.eliteSupportDefs = supportDefs.slice(0, Math.max(0, Math.min(supportDefs.length, supportSlots.length)));
+        const supportLabelMap = {
+            amp_pylon: '增幅装置',
+            shield_core: '护盾核心',
+            jammer: '干扰核心'
+        };
+        room.eliteSupportDefs = supportDefs
+            .slice(0, Math.max(0, Math.min(supportDefs.length, supportSlots.length)))
+            .map((supportDef) => ({
+                ...supportDef,
+                label: supportLabelMap[supportDef.id] || supportDef.label
+            }));
         room.eliteSupportSlots = supportSlots.slice(0, room.eliteSupportDefs.length);
         room.eliteNodeEntities = [];
         room.pendingEliteNodeIds = [];
         room.eliteEncounterRevealed = false;
         room.eliteEntity = null;
+    }
+
+    prepareTrialRoomNodes(room) {
+        if (room.typeKey !== 'trial') return;
+        const slots = (room.chamberCells || [])
+            .filter((cell) => !(cell.c === room.anchor.c && cell.r === room.anchor.r))
+            .map((cell) => ({
+                c: cell.c,
+                r: cell.r,
+                score: Math.abs(cell.c - room.anchor.c) + Math.abs(cell.r - room.anchor.r)
+            }))
+            .sort((a, b) => b.score - a.score);
+        const trialSeed = room.trialSeed || {};
+        const count = Math.min(slots.length, Math.max(2, Math.min(5, room.rewardTier + (trialSeed.nodeCountBias || 0))));
+        room.trialNodeSlots = slots.slice(0, count);
+        room.trialNodeEntities = [];
+        room.pendingTrialNodeIds = [];
+        room.trialNodesSpawned = false;
+        room.trialCharge = 0;
+        room.trialHazardTaken = 0;
     }
 
     revealTreasureRoomCaches(room) {
@@ -3648,6 +3878,9 @@ class GameController {
             room.pendingEventNodeIds.push(node.id);
             cell.entity = 'hidden-event-node';
             cell.hiddenRoomId = room.id;
+        }
+        if (room.entity?.mesh) {
+            this.engine.addFloatingText(room.eventSeed?.label || room.displayName, room.entity.mesh.position, '#e879f9', true);
         }
     }
 
@@ -3680,6 +3913,24 @@ class GameController {
         }
     }
 
+    revealTrialRoomNodes(room) {
+        if (!room || room.typeKey !== 'trial' || room.trialNodesSpawned) return;
+        room.trialNodesSpawned = true;
+        for (const [index, slot] of (room.trialNodeSlots || []).entries()) {
+            const cell = this.grid?.[slot.r]?.[slot.c];
+            if (!cell || cell.entity) continue;
+            const node = this.createTrialNodeEntity(room, slot, index);
+            this.engine.entities.push(node);
+            room.trialNodeEntities.push(node);
+            room.pendingTrialNodeIds.push(node.id);
+            cell.entity = 'hidden-trial-node';
+            cell.hiddenRoomId = room.id;
+        }
+        if (room.entity?.mesh) {
+            this.engine.addFloatingText(room.trialSeed?.label || room.displayName, room.entity.mesh.position, '#fda4af', true);
+        }
+    }
+
     getPendingHiddenRoomCaches(room) {
         if (!room?.pendingCacheIds?.length) return [];
         return room.pendingCacheIds
@@ -3701,11 +3952,19 @@ class GameController {
             .filter(Boolean);
     }
 
+    getPendingHiddenTrialNodes(room) {
+        if (!room?.pendingTrialNodeIds?.length) return [];
+        return room.pendingTrialNodeIds
+            .map((nodeId) => room.trialNodeEntities?.find((entity) => entity.id === nodeId))
+            .filter(Boolean);
+    }
+
     getPendingHiddenRoomSweepEntities(room) {
         return [
             ...this.getPendingHiddenRoomCaches(room),
             ...this.getPendingHiddenEventNodes(room),
-            ...this.getPendingHiddenEliteNodes(room)
+            ...this.getPendingHiddenEliteNodes(room),
+            ...this.getPendingHiddenTrialNodes(room)
         ];
     }
 
@@ -3748,8 +4007,23 @@ class GameController {
         for (const room of rooms) {
             const cell = this.grid[room.anchor.r]?.[room.anchor.c];
             if (!cell || cell.entity) continue;
+            room.displayName = ({
+                treasure: '藏宝密室',
+                event: '异象密室',
+                elite: '精英密室',
+                rest: '休整密室',
+                merchant: '商贩密室',
+                trial: '试炼密室'
+            })[room.typeKey] || room.displayName;
             if (room.typeKey === 'elite') {
                 room.eliteVariant = buildEliteRoomVariant(GameState.level, room.rewardTier, room.placementKey);
+                if (room.eliteVariant?.key === 'bulwark') {
+                    room.eliteVariant = { ...room.eliteVariant, label: '壁垒密室', introHint: '前场满是装置区，深处藏着精英。' };
+                } else if (room.eliteVariant?.key === 'gauntlet') {
+                    room.eliteVariant = { ...room.eliteVariant, label: '长廊密室', introHint: '需要穿过一段狭长通道。' };
+                } else if (room.eliteVariant?.key === 'pincer') {
+                    room.eliteVariant = { ...room.eliteVariant, label: '夹击密室', introHint: '左右两翼会摆出支援装置。' };
+                }
             }
             const chamberCells = this.carveHiddenRoomChamber(room);
             if (chamberCells.length === 0) continue;
@@ -3764,6 +4038,7 @@ class GameController {
             this.prepareTreasureRoomCaches(room);
             this.prepareEventRoomNodes(room);
             this.prepareEliteRoomEncounter(room);
+            this.prepareTrialRoomNodes(room);
             this.hiddenRooms.push(room);
             this.hiddenRoomLookup.set(room.id, room);
         }
@@ -3798,7 +4073,7 @@ class GameController {
     }
 
     chooseHiddenRoomTarget(directExitPath) {
-        const threshold = getHiddenRoomDiversionThreshold();
+        const threshold = GameState.getDiversionThreshold();
         let best = null;
 
         for (const room of this.hiddenRooms) {
@@ -3822,7 +4097,25 @@ class GameController {
             let score = room.accessScore - Math.min(0.34, detourExtra * 0.032);
             if (room.typeKey === 'treasure') score += 0.04;
             if (room.typeKey === 'elite' && GameState.player.currentHp < GameState.player.baseHp * 0.45) score -= 0.12;
-            if (room.typeKey === 'event' && room.eventSeed?.effect === 'heal_or_shield' && GameState.player.currentHp < GameState.player.baseHp * 0.7) score += 0.08;
+            if (room.typeKey === 'event') {
+                const eventSeed = room.eventSeed || {};
+                if (eventSeed.effect === 'heal_or_shield' && GameState.player.currentHp < GameState.player.baseHp * 0.7) score += 0.08;
+                if (eventSeed.effect === 'next_floor_hidden_room_bonus') score += 0.05;
+                if (eventSeed.effect === 'chest_density_boost') score += 0.04;
+                if (eventSeed.effect === 'monster_density_boost' && GameState.floorBuff?.supplyKey === 'assault') score += 0.04;
+                if (eventSeed.effect === 'power_up_with_penalty' && GameState.player.currentHp < GameState.player.baseHp * 0.58) score -= 0.08;
+                if (eventSeed.effect === 'score_now_risk_next_floor' && GameState.autoStrategy.risk === 'cautious') score -= 0.06;
+                score += eventSeed.diversionBias || 0;
+            }
+            if (GameState.autoStrategy.risk === 'cautious') {
+                if (room.typeKey === 'elite') score -= 0.1;
+                if (room.typeKey === 'trial') score -= 0.14;
+                if (room.typeKey === 'treasure') score -= 0.02;
+            } else if (GameState.autoStrategy.risk === 'greedy') {
+                if (room.typeKey === 'treasure') score += 0.06;
+                if (room.typeKey === 'elite') score += 0.08;
+                if (room.typeKey === 'trial') score += 0.1;
+            }
             if (room.typeKey === 'rest') {
                 const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
                 const totalSupply = GameState.getTotalSupplyCount();
@@ -3830,6 +4123,13 @@ class GameController {
                 if (hpRatio < 0.45) score += 0.24 + supplyNeed;
                 else if (hpRatio < 0.72) score += 0.12 + supplyNeed;
                 else score += supplyNeed - 0.05;
+                if (GameState.autoStrategy.rest === 'emergency') {
+                    if (hpRatio > 0.72) score -= 0.18;
+                    else if (hpRatio > 0.55) score -= 0.08;
+                } else if (GameState.autoStrategy.rest === 'prefer') {
+                    if (hpRatio > 0.72) score += 0.08;
+                    else score += 0.04;
+                }
             }
             if (room.typeKey === 'merchant') {
                 const cheapest = Math.min(
@@ -3843,11 +4143,26 @@ class GameController {
                 const neededSupplyType = GameState.getMostNeededSupplyType();
                 if (GameState.score >= cheapest * 0.8 || GameState.score >= GameState.getSupplyCost(neededSupplyType) * 0.72) score += 0.08 + supplyNeed;
                 else score += supplyNeed - 0.08;
+                if (GameState.autoStrategy.merchant === 'supplies') score += 0.08 + supplyNeed * 0.5;
+                if (GameState.autoStrategy.merchant === 'save') score -= 0.1;
+            }
+            if (room.typeKey === 'trial') {
+                const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
+                const trialSeed = room.trialSeed || {};
+                if (hpRatio >= 0.82) score += 0.22 + room.rewardTier * 0.02;
+                else if (hpRatio >= 0.66) score += 0.1;
+                else if (hpRatio < 0.52) score -= 0.18;
+                if (GameState.floorBuff?.supplyKey === 'assault') score += 0.05;
+                if (GameState.floorBuff?.supplyKey === 'scout') score += 0.04;
+                score += trialSeed.diversionBias || 0;
+                if (trialSeed.effect === 'repair_loop' && hpRatio < 0.62) score += 0.06;
+                if (trialSeed.effect === 'assault_cache' && GameState.autoStrategy.risk === 'greedy') score += 0.04;
             }
             if (room.typeKey === 'treasure' && room.entered && room.pendingCacheIds?.length) score += 0.22;
             if (room.typeKey === 'event' && room.entered && room.pendingEventNodeIds?.length) score += 0.2;
             if (room.typeKey === 'elite' && room.entered && room.pendingEliteNodeIds?.length) score += 0.24;
             if (room.typeKey === 'elite' && room.entered && room.eliteEntity && !(room.pendingEliteNodeIds?.length > 0)) score += 0.14;
+            if (room.typeKey === 'trial' && room.entered && room.pendingTrialNodeIds?.length) score += 0.22;
             score += GameState.floorBuff?.diversionBonus || 0;
 
             if (score >= threshold && (!best || score > best.score)) {
@@ -3920,6 +4235,66 @@ class GameController {
         return message;
     }
 
+    resolveEventRoomV2(room) {
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const seed = room.eventSeed || {};
+        const chargeCount = Math.max(1, room.eventCharge || 0);
+        const chargeBonus = chargeCount * 0.16;
+        const baseReward = Math.floor((70 + rewardProfile.chestBonus * 18) * GameState.level * (rewardProfile.scoreMult + chargeBonus) * (seed.rewardMult || 1));
+        const label = seed.label || room.displayName;
+        let message = `${label}完成了共振。`;
+
+        if (seed.effect === 'heal_or_shield') {
+            const heal = Math.max(10, Math.floor(GameState.player.baseHp * (0.14 + rewardProfile.repairValue + chargeBonus * 0.35)));
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
+            GameState.addScore(Math.floor(baseReward * 0.94));
+            if (GameState.player.currentHp >= GameState.player.baseHp * 0.92) {
+                GameState.grantFloorSupply('salvage', 1);
+                message = `${label}修复了机体，回复 ${heal} 点生命，并顺手补进 1 份${GameState.supplyDefs.salvage?.label || '层补给'}。`;
+            } else {
+                message = `${label}稳住了机体，回复 ${heal} 点生命，并结算 ${Math.floor(baseReward * 0.94)} 魂能。`;
+            }
+        } else if (seed.effect === 'next_floor_hidden_room_bonus') {
+            const bonus = 0.05 + room.rewardTier * 0.015 + chargeBonus * 0.05;
+            GameState.meta.nextHiddenRoomBonus = Math.min(0.3, GameState.meta.nextHiddenRoomBonus + bonus);
+            GameState.addScore(Math.floor(baseReward * 0.88));
+            message = `${label}发出侦测脉冲，下一层更容易刷出密室，并结算 ${Math.floor(baseReward * 0.88)} 魂能。`;
+        } else if (seed.effect === 'power_up_with_penalty') {
+            const atkBoost = 2 + room.rewardTier + Math.round(chargeCount * 0.8);
+            const hpLoss = Math.max(1, Math.floor(GameState.player.baseHp * 0.08));
+            GameState.player.baseAtk += atkBoost;
+            GameState.player.currentHp = Math.max(1, GameState.player.currentHp - hpLoss);
+            GameState.addScore(Math.floor(baseReward * 1.12));
+            message = `${label}把火力推到更高，攻击 +${atkBoost}，但也烧掉了 ${hpLoss} 点生命。`;
+        } else if (seed.effect === 'chest_density_boost') {
+            const chestBoost = 0.012 + room.rewardTier * 0.004 + chargeBonus * 0.01;
+            GameState.maze.baseChestRate += chestBoost;
+            GameState.addScore(Math.floor(baseReward * 0.96));
+            if (chargeCount >= 2) {
+                GameState.grantFloorSupply('salvage', 1);
+                message = `${label}展开回收矩阵，后续更容易刷出宝箱，还额外拿到 1 份${GameState.supplyDefs.salvage?.label || '层补给'}。`;
+            } else {
+                message = `${label}展开回收矩阵，后续更容易刷出宝箱，并结算 ${Math.floor(baseReward * 0.96)} 魂能。`;
+            }
+        } else if (seed.effect === 'monster_density_boost') {
+            const monsterBoost = 0.009 + room.rewardTier * 0.003 + chargeBonus * 0.008;
+            const atkBoost = 1 + room.rewardTier + Math.round(chargeCount * 0.6);
+            GameState.maze.baseMonsterRate += monsterBoost;
+            GameState.player.baseAtk += atkBoost;
+            GameState.addScore(Math.floor(baseReward * 1.04));
+            message = `${label}放大了狩猎信号，后面怪会更多，但攻击也跟着涨了 ${atkBoost}。`;
+        } else {
+            const unstableReward = Math.floor(baseReward * 1.18);
+            const monsterBoost = 0.006 + room.rewardTier * 0.002 + chargeBonus * 0.006;
+            GameState.maze.baseMonsterRate += monsterBoost;
+            GameState.addScore(unstableReward);
+            message = `${label}抖出一笔暴利缓存，立刻拿到 ${unstableReward} 魂能，但后面楼层也会更躁一点。`;
+        }
+
+        GameState.updateUI();
+        return message;
+    }
+
     resolveRestRoom(room) {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
@@ -3958,7 +4333,11 @@ class GameController {
         const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
         const neededSupply = GameState.getMostNeededSupplyType();
         const supplyPrice = Math.max(18, Math.floor(GameState.getSupplyCost(neededSupply) * Math.max(0.68, discount - 0.08)));
-        if ((GameState.getTotalSupplyCount() <= 1 || GameState.getSupplyCount(neededSupply) <= 0) && GameState.score >= supplyPrice) {
+        const merchantMode = GameState.autoStrategy.merchant;
+        const shouldPrioritizeSupply = merchantMode === 'supplies'
+            ? (GameState.getTotalSupplyCount() <= 2 || GameState.getSupplyCount(neededSupply) <= 0)
+            : (GameState.getTotalSupplyCount() <= 1 || GameState.getSupplyCount(neededSupply) <= 0);
+        if (shouldPrioritizeSupply && GameState.score >= supplyPrice) {
             GameState.score -= supplyPrice;
             GameState.grantFloorSupply(neededSupply, 1);
             GameState.updateUI();
@@ -3971,10 +4350,12 @@ class GameController {
         }
 
         const pickWeight = (type) => {
-            if (type === 'hp') return hpRatio < 0.55 ? 100 : hpRatio < 0.82 ? 60 : 18;
-            if (type === 'atk') return 74 + room.rewardTier * 6;
-            if (type === 'chest') return 52 + GameState.maze.lvChest * 4;
-            if (type === 'size') return GameState.maze.lvSize < 3 ? 78 : 42;
+            if (type === 'hp') return hpRatio < 0.55 ? 100 : hpRatio < 0.82 ? 60 : merchantMode === 'power' ? 20 : 18;
+            if (type === 'atk') return merchantMode === 'power' ? 94 + room.rewardTier * 8 : 74 + room.rewardTier * 6;
+            if (type === 'chest') return merchantMode === 'save' ? 42 + GameState.maze.lvChest * 2 : 52 + GameState.maze.lvChest * 4;
+            if (type === 'size') return merchantMode === 'power'
+                ? (GameState.maze.lvSize < 3 ? 92 : 48)
+                : GameState.maze.lvSize < 3 ? 78 : 42;
             return 30;
         };
 
@@ -3987,7 +4368,14 @@ class GameController {
             }))
             .sort((a, b) => b.weight - a.weight);
 
-        const purchase = sortedCandidates.find((candidate) => GameState.score >= candidate.discountedCost);
+        const purchase = sortedCandidates.find((candidate) => {
+            if (GameState.score < candidate.discountedCost) return false;
+            if (merchantMode === 'save') {
+                const reserve = Math.max(0, Math.floor(Math.min(GameState.costs.atk(), GameState.costs.hp()) * 0.35));
+                return (GameState.score - candidate.discountedCost) >= reserve || candidate.type === 'hp';
+            }
+            return true;
+        });
         if (!purchase) {
             const consolation = Math.floor((22 + rewardProfile.chestBonus * 8) * GameState.level * 0.85);
             GameState.addScore(consolation);
@@ -4018,6 +4406,69 @@ class GameController {
         return `${room.displayName}自动代购了${typeLabels[purchase.type] || '补给'}，折后花费 ${purchase.discountedCost} 魂能。`;
     }
 
+    resolveTrialRoom(room) {
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const chargeCount = Math.max(1, room.trialCharge || 0);
+        const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
+        const bonusReward = Math.floor((90 + rewardProfile.chestBonus * 24) * GameState.level * (rewardProfile.scoreMult + chargeCount * 0.22 + hpRatio * 0.18));
+        GameState.addScore(bonusReward);
+
+        let bonusText = '';
+        if (chargeCount >= Math.max(2, room.rewardTier - 1)) {
+            const supplyType = room.rewardTier >= 4 ? 'assault' : GameState.getMostNeededSupplyType();
+            GameState.grantFloorSupply(supplyType, 1);
+            room.trialBonusSupply = supplyType;
+            bonusText = ` 并额外拿到 1 份${GameState.supplyDefs[supplyType]?.label || '层补给'}。`;
+        } else {
+            const scoutBonus = 0.03 + room.rewardTier * 0.01;
+            GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + scoutBonus);
+            room.trialBonusSupply = null;
+            bonusText = ' 并为下一层追加了一点密室侦测。';
+        }
+
+        GameState.updateUI();
+        return `${room.displayName}完成试炼，结算 ${bonusReward} 魂能。${bonusText}`;
+    }
+
+    resolveTrialRoomV2(room) {
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const trialSeed = room.trialSeed || {};
+        const chargeCount = Math.max(1, room.trialCharge || 0);
+        const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
+        const bonusReward = Math.floor((90 + rewardProfile.chestBonus * 24) * GameState.level * (rewardProfile.scoreMult + chargeCount * 0.22 + hpRatio * 0.18) * (trialSeed.rewardMult || 1));
+        GameState.addScore(bonusReward);
+
+        let bonusText = '';
+        if (trialSeed.effect === 'repair_loop') {
+            const heal = Math.max(12, Math.floor(GameState.player.baseHp * (0.12 + rewardProfile.repairValue * 0.5)));
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
+            room.trialBonusSupply = null;
+            bonusText = ` 并回修了 ${heal} 点生命。`;
+        } else if (trialSeed.effect === 'survey') {
+            const scoutBonus = 0.05 + room.rewardTier * 0.012 + chargeCount * 0.01;
+            GameState.meta.nextHiddenRoomBonus = Math.min(0.28, GameState.meta.nextHiddenRoomBonus + scoutBonus);
+            room.trialBonusSupply = null;
+            bonusText = ' 并把下一层的密室侦测再往上推了一截。';
+        } else if (chargeCount >= Math.max(2, room.rewardTier - 1)) {
+            const supplyType = trialSeed.effect === 'salvage_cache'
+                ? 'salvage'
+                : trialSeed.effect === 'assault_cache'
+                    ? 'assault'
+                    : room.rewardTier >= 4 ? 'assault' : GameState.getMostNeededSupplyType();
+            GameState.grantFloorSupply(supplyType, 1);
+            room.trialBonusSupply = supplyType;
+            bonusText = ` 并额外拿到 1 份${GameState.supplyDefs[supplyType]?.label || '层补给'}。`;
+        } else {
+            const scoutBonus = 0.03 + room.rewardTier * 0.01;
+            GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + scoutBonus);
+            room.trialBonusSupply = null;
+            bonusText = ' 并为下一层追加了一点密室侦测。';
+        }
+
+        GameState.updateUI();
+        return `${trialSeed.label || room.displayName}完成试炼，结算 ${bonusReward} 魂能。${bonusText}`;
+    }
+
     clearHiddenRoom(room) {
         if (!room || room.cleared) return;
         room.cleared = true;
@@ -4032,6 +4483,45 @@ class GameController {
                 if (child.material && 'opacity' in child.material) child.material.opacity *= 0.38;
             });
         }
+    }
+
+    async resolveHiddenTrialNodePickup(room, entityObj) {
+        if (!room || room.cleared || !entityObj) return;
+        const reward = entityObj.reward || Math.max(16, 18 * GameState.level);
+        const hazardDamage = Math.max(1, Math.floor(GameState.player.baseHp * Math.max(0.04, entityObj.hazardRatio || 0.06)));
+        room.trialCharge = (room.trialCharge || 0) + 1;
+        room.trialHazardTaken = (room.trialHazardTaken || 0) + hazardDamage;
+        GameState.addScore(reward);
+        GameState.player.currentHp = Math.max(1, GameState.player.currentHp - hazardDamage);
+        GameState.updateUI();
+        window.soundEngine?.playerHit(false);
+        window.soundEngine?.upgrade();
+        if (entityObj.mesh) {
+            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.55, y: 1.55, z: 1.55 }, 0.14, Easing.easeOutQuad, () => {
+                this.engine.scene.remove(entityObj.mesh);
+            });
+            this.engine.spawnBurst(entityObj.mesh.position, 0xfb7185, 18, 1.25);
+            this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#fda4af');
+            this.engine.addFloatingText(`-${hazardDamage}`, entityObj.mesh.position.clone().add(new THREE.Vector3(0.18, 0.12, 0)), '#fecdd3');
+        }
+        room.pendingTrialNodeIds = (room.pendingTrialNodeIds || []).filter((nodeId) => nodeId !== entityObj.id);
+        room.trialNodeEntities = (room.trialNodeEntities || []).filter((node) => node !== entityObj);
+        if (room.pendingTrialNodeIds.length === 0) {
+            const message = this.resolveTrialRoomV2(room);
+            if (room.entity?.mesh) {
+                this.engine.spawnBurst(room.entity.mesh.position, 0xfb7185, 24, 1.95);
+                this.engine.addFloatingText(`${room.displayName}完成`, room.entity.mesh.position, '#fda4af', true);
+                this.engine.scene.remove(room.entity.mesh);
+            }
+            if (room.trialBonusSupply) {
+                this.showSupplyPickupEffect(room.trialBonusSupply, this.engine.playerObj.position.clone());
+            }
+            const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
+            if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
+            this.clearHiddenRoom(room);
+            this.engine.addFloatingText(message, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.3, 0)), '#e2e8f0');
+        }
+        await this.sleep(90);
     }
 
     async resolveHiddenRoomInteraction(room, entityObj) {
@@ -4059,7 +4549,7 @@ class GameController {
             window.soundEngine?.upgrade();
             message = room.pendingEventNodeIds?.length
                 ? `${room.displayName}开始共振，先扫清室内回响节点。`
-                : this.resolveEventRoom(room);
+                : this.resolveEventRoomV2(room);
         }
 
         if (entityObj?.mesh && room.typeKey !== 'treasure' && room.typeKey !== 'event') {
@@ -4154,7 +4644,7 @@ class GameController {
         room.pendingEventNodeIds = (room.pendingEventNodeIds || []).filter((nodeId) => nodeId !== entityObj.id);
         room.eventNodeEntities = (room.eventNodeEntities || []).filter((node) => node !== entityObj);
         if (room.pendingEventNodeIds.length === 0) {
-            const message = this.resolveEventRoom(room);
+            const message = this.resolveEventRoomV2(room);
             if (room.entity?.mesh) {
                 this.engine.spawnBurst(room.entity.mesh.position, 0xc084fc, 24, 1.9);
                 this.engine.addFloatingText(`${room.displayName}稳定完成`, room.entity.mesh.position, '#e879f9', true);
@@ -4223,7 +4713,7 @@ class GameController {
             window.soundEngine?.upgrade();
             message = room.pendingEventNodeIds?.length
                 ? `${room.displayName}开始共振，先扫清里面的异象节点。`
-                : this.resolveEventRoom(room);
+                : this.resolveEventRoomV2(room);
         } else if (room.typeKey === 'elite') {
             room.entered = true;
             this.revealEliteRoomEncounter(room);
@@ -4320,6 +4810,8 @@ class GameController {
                     ? 0x34d399
                     : room.typeKey === 'merchant'
                         ? 0xf59e0b
+                        : room.typeKey === 'trial'
+                            ? 0xfb7185
                         : 0xfacc15;
         const accentTextColor = room.typeKey === 'event'
             ? '#c084fc'
@@ -4329,6 +4821,8 @@ class GameController {
                     ? '#34d399'
                     : room.typeKey === 'merchant'
                         ? '#f59e0b'
+                        : room.typeKey === 'trial'
+                            ? '#fb7185'
                         : '#facc15';
 
         if (room.typeKey === 'treasure') {
@@ -4350,7 +4844,7 @@ class GameController {
             window.soundEngine?.upgrade();
             message = room.pendingEventNodeIds?.length
                 ? `${room.displayName}开始共振，先扫清里面的异象节点。`
-                : this.resolveEventRoom(room);
+                : this.resolveEventRoomV2(room);
         } else if (room.typeKey === 'elite') {
             room.entered = true;
             this.revealEliteRoomEncounter(room);
@@ -4370,15 +4864,25 @@ class GameController {
             room.entered = true;
             window.soundEngine?.upgrade();
             message = this.resolveMerchantRoom(room);
+        } else if (room.typeKey === 'trial') {
+            room.entered = true;
+            this.revealTrialRoomNodes(room);
+            if (entityObj && !this.engine.entities.includes(entityObj)) {
+                this.engine.entities.push(entityObj);
+            }
+            window.soundEngine?.upgrade();
+            message = room.pendingTrialNodeIds?.length
+                ? `${room.displayName}启动了试炼，先把里面的试炼节点全吃完。`
+                : this.resolveTrialRoomV2(room);
         }
 
-        if (entityObj?.mesh && room.typeKey !== 'treasure' && room.typeKey !== 'event' && room.typeKey !== 'elite') {
+        if (entityObj?.mesh && room.typeKey !== 'treasure' && room.typeKey !== 'event' && room.typeKey !== 'elite' && room.typeKey !== 'trial') {
             this.engine.tweens.add(entityObj.mesh.scale, { x: 1.8, y: 1.8, z: 1.8 }, 0.2, Easing.easeOutQuad, () => {
                 this.engine.scene.remove(entityObj.mesh);
             });
-        } else if (entityObj?.mesh && (room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'elite')) {
+        } else if (entityObj?.mesh && (room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'elite' || room.typeKey === 'trial')) {
             this.engine.tweens.add(entityObj.mesh.scale, { x: 1.15, y: 1.15, z: 1.15 }, 0.18, Easing.easeOutQuad, () => {
-                const targetScale = room.typeKey === 'elite' ? 0.62 : 0.7;
+                const targetScale = room.typeKey === 'elite' ? 0.62 : room.typeKey === 'trial' ? 0.74 : 0.7;
                 this.engine.tweens.add(entityObj.mesh.scale, { x: targetScale, y: targetScale, z: targetScale }, 0.28, Easing.easeOutBack);
             });
         }
@@ -4387,10 +4891,11 @@ class GameController {
         this.engine.addFloatingText(room.displayName, worldPos, accentTextColor, true);
         const shouldClearAfterInteraction = (room.typeKey === 'treasure' && !(room.pendingCacheIds?.length > 0))
             || (room.typeKey === 'event' && !(room.pendingEventNodeIds?.length > 0))
+            || (room.typeKey === 'trial' && !(room.pendingTrialNodeIds?.length > 0))
             || room.typeKey === 'rest'
             || room.typeKey === 'merchant';
         if (shouldClearAfterInteraction) {
-            if ((room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'rest' || room.typeKey === 'merchant') && entityObj?.mesh) {
+            if ((room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'trial' || room.typeKey === 'rest' || room.typeKey === 'merchant') && entityObj?.mesh) {
                 this.engine.scene.remove(entityObj.mesh);
             }
             const markerIdx = this.engine.entities.findIndex((entity) => entity === entityObj);
@@ -4576,10 +5081,11 @@ class GameController {
 
     pickEnemyArchetype() {
         const pool = ENEMY_ARCHETYPES.filter((enemy) => !enemy.boss && GameState.level >= enemy.minLevel);
-        const totalWeight = pool.reduce((sum, enemy) => sum + enemy.weight, 0);
+        const themeKey = GameState.floorContent?.themeKey || null;
+        const totalWeight = pool.reduce((sum, enemy) => sum + Math.max(0, enemy.weight + (themeKey ? (enemy.themeBias?.[themeKey] || 0) : 0)), 0);
         let roll = Math.random() * totalWeight;
         for (const enemy of pool) {
-            roll -= enemy.weight;
+            roll -= Math.max(0, enemy.weight + (themeKey ? (enemy.themeBias?.[themeKey] || 0) : 0));
             if (roll <= 0) return enemy;
         }
         return pool[pool.length - 1];
@@ -4734,7 +5240,8 @@ class GameController {
             cell.entity = 'chest';
         }
 
-        if (GameState.level >= 4 && GameState.isBossUnlocked() && Math.random() < GameState.getBossFloorChance()) {
+        const finaleBossChanceBonus = this.floorPlan?.finale?.bossChanceBonus || 0;
+        if (GameState.level >= 4 && GameState.isBossUnlocked() && Math.random() < Math.min(0.9, GameState.getBossFloorChance() + finaleBossChanceBonus)) {
             const bossCandidates = openCells.filter((cell) => cell.entity === null && !cell.hiddenRoomId);
             if (bossCandidates.length > 0) {
                 const bossCell = bossCandidates[Math.floor(Math.random() * bossCandidates.length)];
@@ -4759,6 +5266,9 @@ class GameController {
             if (this.selfTestActive) return;
             GameState.phase = 'EXPLORING';
             GameState.updateUI();
+            if (this.floorPlan?.isFinaleFloor && this.floorPlan?.finale?.label) {
+                this.engine.addFloatingText(this.floorPlan.finale.label, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.32, 0)), this.floorPlan.theme?.accentColor || '#f8fafc', true);
+            }
             this.refreshExplorationPath();
             this.exploreNext();
         });
@@ -4826,6 +5336,8 @@ class GameController {
                 await this.resolveHiddenEventNodePickup(room, entityObj);
             } else if (type === 'hidden-elite-node') {
                 await this.resolveHiddenEliteNodePickup(room, entityObj);
+            } else if (type === 'hidden-trial-node') {
+                await this.resolveHiddenTrialNodePickup(room, entityObj);
             } else if (type === 'hidden-room') {
                 await this.resolveHiddenRoomInteraction(room, entityObj);
             } else if (type === 'end') {
@@ -6185,11 +6697,56 @@ window.onload = () => {
     const settingsPanel = document.getElementById('settings-panel');
     const volumeSlider = document.getElementById('slider-volume');
     const volumeValue = document.getElementById('val-volume');
+    const riskSelect = document.getElementById('select-strategy-risk');
+    const restSelect = document.getElementById('select-strategy-rest');
+    const merchantSelect = document.getElementById('select-strategy-merchant');
+    const supplySelect = document.getElementById('select-strategy-supply');
+    const strategyHint = document.getElementById('settings-strategy-hint');
 
     const syncVolumeUI = () => {
         const percent = Math.round(window.soundEngine.volume * 100);
         volumeSlider.value = String(percent);
         volumeValue.innerText = `${percent}%`;
+    };
+
+    const buildStrategyHint = () => {
+        const riskLabel = ({
+            cautious: '会更少绕高风险密室',
+            balanced: '会按正常收益判断绕路',
+            greedy: '会更愿意为了高收益绕路'
+        })[GameState.autoStrategy.risk] || '会按正常收益判断绕路';
+        const restLabel = ({
+            emergency: '休整密室只在危险时优先',
+            balanced: '休整密室保持正常优先级',
+            prefer: '休整密室会更积极去补状态'
+        })[GameState.autoStrategy.rest] || '休整密室保持正常优先级';
+        const merchantLabel = ({
+            power: '商贩更偏向买升级',
+            supplies: '商贩更偏向补层补给',
+            save: '商贩会更克制地花钱'
+        })[GameState.autoStrategy.merchant] || '商贩更偏向买升级';
+        const supplyLabel = ({
+            balanced: '层补给按楼层自动挑',
+            combat: '层补给会优先战备补给',
+            loot: '层补给会优先探宝补给',
+            explore: '层补给会优先侦测补给'
+        })[GameState.autoStrategy.supply] || '层补给按楼层自动挑';
+        strategyHint.innerText = `${riskLabel}；${restLabel}；${merchantLabel}；${supplyLabel}。`;
+    };
+
+    const syncStrategyUI = () => {
+        riskSelect.value = GameState.autoStrategy.risk;
+        restSelect.value = GameState.autoStrategy.rest;
+        merchantSelect.value = GameState.autoStrategy.merchant;
+        supplySelect.value = GameState.autoStrategy.supply;
+        buildStrategyHint();
+    };
+
+    const updateStrategy = async (patch) => {
+        await window.soundEngine.unlock();
+        GameState.setAutoStrategy(patch);
+        syncStrategyUI();
+        window.soundEngine.beep({ freq: 420, slideTo: 560, duration: 0.07, volume: 0.03, type: 'triangle' });
     };
 
     settingsButton.addEventListener('click', async (event) => {
@@ -6213,7 +6770,14 @@ window.onload = () => {
         window.soundEngine.beep({ freq: 520, slideTo: 700, duration: 0.08, volume: 0.035, type: 'triangle' });
     });
 
+    riskSelect.addEventListener('change', async () => updateStrategy({ risk: riskSelect.value }));
+    restSelect.addEventListener('change', async () => updateStrategy({ rest: restSelect.value }));
+    merchantSelect.addEventListener('change', async () => updateStrategy({ merchant: merchantSelect.value }));
+    supplySelect.addEventListener('change', async () => updateStrategy({ supply: supplySelect.value }));
+
+    GameState.loadAutoStrategy();
     syncVolumeUI();
+    syncStrategyUI();
     window.engine = new VisualEngine();
     window.modelEditor = new ModelEditor(window.engine);
     window.soundEditor = new SoundEditor(window.soundEngine);

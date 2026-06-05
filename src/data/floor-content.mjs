@@ -64,6 +64,124 @@ export const FLOOR_ARCHETYPE_DEFS = Object.freeze({
     })
 });
 
+export const FLOOR_THEME_ROTATION = Object.freeze([
+    'ember_forge',
+    'salvage_reaches',
+    'signal_warrens',
+    'quarantine_vault'
+]);
+
+export const FLOOR_THEME_DEFS = Object.freeze({
+    ember_forge: Object.freeze({
+        label: '余烬铸区',
+        accentColor: '#fb923c',
+        monsterRateMult: 1.08,
+        chestRateMult: 0.9,
+        hiddenRoomBonus: 0.02,
+        hiddenRoomWeightBias: Object.freeze({ event: -2, elite: 6, merchant: -2, rest: -2, trial: 4, treasure: -3 }),
+        finale: Object.freeze({
+            label: '熔压收束',
+            monsterRateMult: 1.18,
+            chestRateMult: 0.82,
+            hiddenRoomBonus: 0.05,
+            bossChanceBonus: 0.08,
+            hiddenRoomWeightBias: Object.freeze({ elite: 8, trial: 8, event: -2, treasure: -4, rest: -2, merchant: -2 }),
+            bossMod: Object.freeze({
+                name: '熔压主脑',
+                intro: '警报：余烬铸区核心开始过热，熔压主脑已接管全层火力。',
+                attackVerb: '熔压脉冲倾泻',
+                hpMult: 1.18,
+                atkMult: 1.14,
+                rewardMult: 1.18,
+                clearBonusMult: 0.18,
+                color: 0xf97316,
+                accent: 0xfdba74
+            })
+        })
+    }),
+    salvage_reaches: Object.freeze({
+        label: '回收水道',
+        accentColor: '#fbbf24',
+        monsterRateMult: 0.94,
+        chestRateMult: 1.18,
+        hiddenRoomBonus: 0.05,
+        hiddenRoomWeightBias: Object.freeze({ event: 2, elite: -3, merchant: 4, rest: 3, trial: -2, treasure: 8 }),
+        finale: Object.freeze({
+            label: '清算回收',
+            monsterRateMult: 0.95,
+            chestRateMult: 1.22,
+            hiddenRoomBonus: 0.08,
+            bossChanceBonus: 0.02,
+            hiddenRoomWeightBias: Object.freeze({ treasure: 10, merchant: 8, event: 2, elite: -2, trial: -2, rest: 2 }),
+            bossMod: Object.freeze({
+                name: '回收主脑',
+                intro: '警报：回收水道完成清算封锁，回收主脑正在抽走整层资源。',
+                attackVerb: '回收洪流压榨',
+                hpMult: 1.05,
+                atkMult: 1.02,
+                rewardMult: 1.22,
+                clearBonusMult: 0.24,
+                color: 0xfbbf24,
+                accent: 0xfef08a
+            })
+        })
+    }),
+    signal_warrens: Object.freeze({
+        label: '信号巢道',
+        accentColor: '#67e8f9',
+        monsterRateMult: 1,
+        chestRateMult: 0.96,
+        hiddenRoomBonus: 0.07,
+        hiddenRoomWeightBias: Object.freeze({ event: 10, elite: -2, merchant: 2, rest: 2, trial: 3, treasure: -2 }),
+        finale: Object.freeze({
+            label: '满频脉冲',
+            monsterRateMult: 1.04,
+            chestRateMult: 0.98,
+            hiddenRoomBonus: 0.1,
+            bossChanceBonus: 0.04,
+            hiddenRoomWeightBias: Object.freeze({ event: 12, trial: 6, elite: 2, treasure: -2, merchant: 1, rest: 0 }),
+            bossMod: Object.freeze({
+                name: '脉冲主脑',
+                intro: '警报：信号巢道全频段同步，脉冲主脑开始持续锁定飞船。',
+                attackVerb: '满频脉冲轰扫',
+                hpMult: 1.1,
+                atkMult: 1.08,
+                rewardMult: 1.16,
+                clearBonusMult: 0.2,
+                color: 0x22d3ee,
+                accent: 0xa5f3fc
+            })
+        })
+    }),
+    quarantine_vault: Object.freeze({
+        label: '封锁库层',
+        accentColor: '#c4b5fd',
+        monsterRateMult: 1.14,
+        chestRateMult: 0.88,
+        hiddenRoomBonus: 0.01,
+        hiddenRoomWeightBias: Object.freeze({ event: 2, elite: 8, merchant: -2, rest: 4, trial: 5, treasure: -4 }),
+        finale: Object.freeze({
+            label: '封锁清剿',
+            monsterRateMult: 1.2,
+            chestRateMult: 0.78,
+            hiddenRoomBonus: 0.04,
+            bossChanceBonus: 0.1,
+            hiddenRoomWeightBias: Object.freeze({ elite: 10, rest: 6, trial: 4, event: 0, merchant: -3, treasure: -5 }),
+            bossMod: Object.freeze({
+                name: '封锁主脑',
+                intro: '警报：封锁库层进入清剿协议，封锁主脑展开最终拦截。',
+                attackVerb: '封锁湮灭扫射',
+                hpMult: 1.22,
+                atkMult: 1.18,
+                rewardMult: 1.2,
+                clearBonusMult: 0.22,
+                color: 0xa78bfa,
+                accent: 0xe9d5ff
+            })
+        })
+    })
+});
+
 export const HIDDEN_ROOM_TYPES = Object.freeze({
     treasure: Object.freeze({
         label: 'Treasure Room',
@@ -243,45 +361,120 @@ export const HIDDEN_ROOM_ACCESS_PARAMS = Object.freeze({
 export const EVENT_ROOM_SEEDS = Object.freeze([
     Object.freeze({
         id: 'repair_shrine',
-        label: 'Repair Shrine',
+        label: '修复异象',
         effect: 'heal_or_shield',
+        rewardMult: 0.94,
+        nodeCountBias: 0,
+        diversionBias: 0.08,
+        themeBias: Object.freeze({ quarantine_vault: 6, ember_forge: 1 }),
         weight: 24,
         minLevel: 1
     }),
     Object.freeze({
         id: 'unstable_cache',
-        label: 'Unstable Cache',
+        label: '失稳缓存',
         effect: 'score_now_risk_next_floor',
+        rewardMult: 1.16,
+        nodeCountBias: -1,
+        diversionBias: -0.04,
+        themeBias: Object.freeze({ ember_forge: 5, salvage_reaches: -2 }),
         weight: 18,
         minLevel: 1
     }),
     Object.freeze({
         id: 'scout_beacon',
-        label: 'Scout Beacon',
+        label: '侦测异象',
         effect: 'next_floor_hidden_room_bonus',
+        rewardMult: 0.92,
+        nodeCountBias: 0,
+        diversionBias: 0.1,
+        themeBias: Object.freeze({ signal_warrens: 8, salvage_reaches: 1 }),
         weight: 16,
         minLevel: 2
     }),
     Object.freeze({
         id: 'cursed_core',
-        label: 'Cursed Core',
+        label: '诅咒核心',
         effect: 'power_up_with_penalty',
+        rewardMult: 1.18,
+        nodeCountBias: -1,
+        diversionBias: -0.06,
+        themeBias: Object.freeze({ quarantine_vault: 6, ember_forge: 2 }),
         weight: 12,
         minLevel: 3
     }),
     Object.freeze({
         id: 'salvage_matrix',
-        label: 'Salvage Matrix',
+        label: '回收矩阵',
         effect: 'chest_density_boost',
+        rewardMult: 1.04,
+        nodeCountBias: 1,
+        diversionBias: 0.05,
+        themeBias: Object.freeze({ salvage_reaches: 8, signal_warrens: 1 }),
         weight: 14,
         minLevel: 2
     }),
     Object.freeze({
         id: 'raid_signal',
-        label: 'Raid Signal',
+        label: '狩猎信号',
         effect: 'monster_density_boost',
+        rewardMult: 1.08,
+        nodeCountBias: 1,
+        diversionBias: -0.02,
+        themeBias: Object.freeze({ ember_forge: 4, signal_warrens: 4, quarantine_vault: 2 }),
         weight: 12,
         minLevel: 2
+    })
+]);
+
+export const TRIAL_ROOM_SEEDS = Object.freeze([
+    Object.freeze({
+        id: 'overclock_array',
+        label: '过载试炼',
+        effect: 'assault_cache',
+        rewardMult: 1.22,
+        hazardMult: 1.35,
+        nodeCountBias: -1,
+        diversionBias: -0.02,
+        themeBias: Object.freeze({ ember_forge: 8, quarantine_vault: 3 }),
+        weight: 20,
+        minLevel: 4
+    }),
+    Object.freeze({
+        id: 'salvage_run',
+        label: '回收试炼',
+        effect: 'salvage_cache',
+        rewardMult: 1.06,
+        hazardMult: 0.82,
+        nodeCountBias: 1,
+        diversionBias: 0.05,
+        themeBias: Object.freeze({ salvage_reaches: 9, signal_warrens: 1 }),
+        weight: 18,
+        minLevel: 4
+    }),
+    Object.freeze({
+        id: 'pulse_survey',
+        label: '脉冲试炼',
+        effect: 'survey',
+        rewardMult: 0.98,
+        hazardMult: 0.9,
+        nodeCountBias: 0,
+        diversionBias: 0.08,
+        themeBias: Object.freeze({ signal_warrens: 9, salvage_reaches: 2 }),
+        weight: 18,
+        minLevel: 4
+    }),
+    Object.freeze({
+        id: 'endurance_loop',
+        label: '续航试炼',
+        effect: 'repair_loop',
+        rewardMult: 1.08,
+        hazardMult: 1.02,
+        nodeCountBias: 0,
+        diversionBias: 0.03,
+        themeBias: Object.freeze({ quarantine_vault: 7, ember_forge: 1 }),
+        weight: 14,
+        minLevel: 5
     })
 ]);
 
@@ -315,6 +508,6 @@ export const ELITE_ROOM_SUPPORT_SEEDS = Object.freeze([
     })
 ]);
 
-export const V1_HIDDEN_ROOM_ENABLED_TYPES = Object.freeze(['treasure', 'event', 'elite', 'rest', 'merchant']);
-export const V1_HIDDEN_ROOM_ENABLED_GATES = Object.freeze(['none', 'kill_small', 'kill_medium']);
+export const V1_HIDDEN_ROOM_ENABLED_TYPES = Object.freeze(['treasure', 'event', 'elite', 'rest', 'merchant', 'trial']);
+export const V1_HIDDEN_ROOM_ENABLED_GATES = Object.freeze(['none', 'kill_small', 'kill_medium', 'kill_large']);
 export const V1_HIDDEN_ROOM_ENABLED_PLACEMENTS = Object.freeze(['branch_pocket', 'sealed_chamber', 'deep_route_reward']);

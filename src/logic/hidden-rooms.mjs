@@ -7,6 +7,7 @@ import {
     HIDDEN_ROOM_PLACEMENT_ARCHETYPES,
     HIDDEN_ROOM_REWARD_TIERS,
     HIDDEN_ROOM_TYPES,
+    TRIAL_ROOM_SEEDS,
     V1_HIDDEN_ROOM_ENABLED_GATES,
     V1_HIDDEN_ROOM_ENABLED_PLACEMENTS,
     V1_HIDDEN_ROOM_ENABLED_TYPES
@@ -34,6 +35,10 @@ function weightedPick(entries, random = Math.random) {
         if (roll <= 0) return entry.value;
     }
     return entries[entries.length - 1]?.value ?? null;
+}
+
+function getThemeAdjustedWeight(baseWeight, themeBias, themeKey) {
+    return Math.max(0, (baseWeight || 0) + (themeKey && themeBias ? (themeBias[themeKey] || 0) : 0));
 }
 
 function randomInt(min, max, random = Math.random) {
@@ -72,7 +77,13 @@ function estimateAccessScore({
     scannerBonus = 0
 }) {
     const rewardTierNorm = clamp((rewardTier - 1) / 3, 0, 1);
-    const dangerNorm = roomTypeKey === 'elite' ? 0.78 : roomTypeKey === 'event' ? 0.22 : 0.12;
+    const dangerNorm = roomTypeKey === 'elite'
+        ? 0.78
+        : roomTypeKey === 'trial'
+            ? 0.56
+            : roomTypeKey === 'event'
+                ? 0.22
+                : 0.12;
     const roomDef = HIDDEN_ROOM_TYPES[roomTypeKey] || HIDDEN_ROOM_TYPES.treasure;
     const score = rewardTierNorm * HIDDEN_ROOM_ACCESS_PARAMS.rewardWeightScale
         + clamp(scannerBonus, 0, 1) * HIDDEN_ROOM_ACCESS_PARAMS.scannerBonusScale
@@ -84,10 +95,17 @@ function estimateAccessScore({
     return score;
 }
 
-function pickEventSeed(level, random = Math.random) {
+function pickEventSeed(level, themeKey = null, random = Math.random) {
     const entries = EVENT_ROOM_SEEDS
         .filter((seed) => level >= seed.minLevel)
-        .map((seed) => ({ value: seed, weight: seed.weight }));
+        .map((seed) => ({ value: seed, weight: getThemeAdjustedWeight(seed.weight, seed.themeBias, themeKey) }));
+    return weightedPick(entries, random);
+}
+
+function pickTrialSeed(level, themeKey = null, random = Math.random) {
+    const entries = TRIAL_ROOM_SEEDS
+        .filter((seed) => level >= seed.minLevel)
+        .map((seed) => ({ value: seed, weight: getThemeAdjustedWeight(seed.weight, seed.themeBias, themeKey) }));
     return weightedPick(entries, random);
 }
 
@@ -163,6 +181,7 @@ export function getHiddenRoomAccentColor(typeKey) {
     if (typeKey === 'elite') return 0x38bdf8;
     if (typeKey === 'rest') return 0x34d399;
     if (typeKey === 'merchant') return 0xf59e0b;
+    if (typeKey === 'trial') return 0xfb7185;
     return 0x94a3b8;
 }
 
@@ -177,7 +196,15 @@ export function buildHiddenRoomPlan({
         return [];
     }
 
-    const floorWeights = FLOOR_ARCHETYPE_ROOM_WEIGHTS[floorPlan.archetypeKey] || FLOOR_ARCHETYPE_ROOM_WEIGHTS.combat;
+    const baseFloorWeights = FLOOR_ARCHETYPE_ROOM_WEIGHTS[floorPlan.archetypeKey] || FLOOR_ARCHETYPE_ROOM_WEIGHTS.combat;
+    const themeWeightBias = floorPlan.theme?.hiddenRoomWeightBias || {};
+    const finaleWeightBias = floorPlan.finale?.hiddenRoomWeightBias || {};
+    const floorWeights = Object.fromEntries(
+        Object.keys(HIDDEN_ROOM_TYPES).map((typeKey) => [
+            typeKey,
+            Math.max(0, (baseFloorWeights[typeKey] || 0) + (themeWeightBias[typeKey] || 0) + (finaleWeightBias[typeKey] || 0))
+        ])
+    );
     const eligibleTypes = V1_HIDDEN_ROOM_ENABLED_TYPES
         .map((typeKey) => ({ typeKey, def: HIDDEN_ROOM_TYPES[typeKey] }))
         .filter((entry) => entry.def && level >= entry.def.minFloorLevel);
@@ -254,7 +281,8 @@ export function buildHiddenRoomPlan({
             entered: false,
             announced: false,
             unlocked: gateKey === 'none',
-            eventSeed: typeKey === 'event' ? pickEventSeed(level, random) : null
+            eventSeed: typeKey === 'event' ? pickEventSeed(level, floorPlan.themeKey, random) : null,
+            trialSeed: typeKey === 'trial' ? pickTrialSeed(level, floorPlan.themeKey, random) : null
         });
     }
 

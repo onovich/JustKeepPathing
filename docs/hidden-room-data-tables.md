@@ -544,8 +544,8 @@ const TREASURE_ROOM_REWARD_SEEDS = [
 If we want a manageable first code pass, use only this subset:
 
 ```js
-const V1_HIDDEN_ROOM_ENABLED_TYPES = ['treasure', 'event', 'elite', 'rest', 'merchant'];
-const V1_HIDDEN_ROOM_ENABLED_GATES = ['none', 'kill_small', 'kill_medium'];
+const V1_HIDDEN_ROOM_ENABLED_TYPES = ['treasure', 'event', 'elite', 'rest', 'merchant', 'trial'];
+const V1_HIDDEN_ROOM_ENABLED_GATES = ['none', 'kill_small', 'kill_medium', 'kill_large'];
 const V1_HIDDEN_ROOM_ENABLED_PLACEMENTS = ['branch_pocket', 'sealed_chamber', 'deep_route_reward'];
 ```
 
@@ -553,7 +553,7 @@ And these rules:
 
 - max 1 hidden room on small floors
 - merchant and rest rooms can be enabled because they resolve automatically
-- no trial room yet
+- trial room enabled as a late-floor high-risk payout room
 - no volatile opening yet
 - no second room unless maze size level >= 3
 
@@ -580,6 +580,79 @@ Suggested auto-use rule:
 - `combat`, `elite`, `boss` floors prefer `assault`
 - `treasure`, `rest`, `merchant` floors prefer `salvage`
 - `event` floors prefer `scout`
+
+Suggested trial variants:
+
+```js
+const TRIAL_ROOM_SEEDS = [
+  { id: 'overclock_array', label: 'Overclock Trial', effect: 'assault_cache', rewardMult: 1.22, hazardMult: 1.35, nodeCountBias: -1 },
+  { id: 'salvage_run', label: 'Salvage Trial', effect: 'salvage_cache', rewardMult: 1.06, hazardMult: 0.82, nodeCountBias: 1 },
+  { id: 'pulse_survey', label: 'Pulse Survey', effect: 'survey', rewardMult: 0.98, hazardMult: 0.9, nodeCountBias: 0 },
+  { id: 'endurance_loop', label: 'Endurance Loop', effect: 'repair_loop', rewardMult: 1.08, hazardMult: 1.02, nodeCountBias: 0 }
+];
+```
+
+Each trial variant should change at least one of:
+
+- node count
+- per-node hazard
+- total payout
+- completion bonus type
+
+Suggested event variants:
+
+```js
+const EVENT_ROOM_SEEDS = [
+  { id: 'repair_shrine', label: 'Repair Anomaly', effect: 'heal_or_shield', rewardMult: 0.94, nodeCountBias: 0, diversionBias: 0.08 },
+  { id: 'unstable_cache', label: 'Unstable Cache', effect: 'score_now_risk_next_floor', rewardMult: 1.16, nodeCountBias: -1, diversionBias: -0.04 },
+  { id: 'scout_beacon', label: 'Scout Anomaly', effect: 'next_floor_hidden_room_bonus', rewardMult: 0.92, nodeCountBias: 0, diversionBias: 0.10 },
+  { id: 'cursed_core', label: 'Cursed Core', effect: 'power_up_with_penalty', rewardMult: 1.18, nodeCountBias: -1, diversionBias: -0.06 },
+  { id: 'salvage_matrix', label: 'Salvage Matrix', effect: 'chest_density_boost', rewardMult: 1.04, nodeCountBias: 1, diversionBias: 0.05 },
+  { id: 'raid_signal', label: 'Raid Signal', effect: 'monster_density_boost', rewardMult: 1.08, nodeCountBias: 1, diversionBias: -0.02 }
+];
+```
+
+Each event variant should now influence at least one of:
+
+- node count
+- event-room reward multiplier
+- auto-diversion appetite
+- persistent follow-up bonus
+
+Suggested biome rotation:
+
+```js
+const FLOOR_THEME_ROTATION = [
+  'ember_forge',
+  'salvage_reaches',
+  'signal_warrens',
+  'quarantine_vault'
+];
+
+const FLOOR_THEME_DEFS = {
+  ember_forge: { label: 'Ember Forge', monsterRateMult: 1.08, chestRateMult: 0.9, hiddenRoomBonus: 0.02 },
+  salvage_reaches: { label: 'Salvage Reaches', monsterRateMult: 0.94, chestRateMult: 1.18, hiddenRoomBonus: 0.05 },
+  signal_warrens: { label: 'Signal Warrens', monsterRateMult: 1.0, chestRateMult: 0.96, hiddenRoomBonus: 0.07 },
+  quarantine_vault: { label: 'Quarantine Vault', monsterRateMult: 1.14, chestRateMult: 0.88, hiddenRoomBonus: 0.01 }
+};
+```
+
+Biome themes should be allowed to bias:
+
+- monster density
+- chest density
+- hidden-room total chance
+- hidden-room type weights
+- event seed pool
+- trial seed pool
+- ambient enemy family weights
+
+Each biome can also define a light finale package for floor `6/6`:
+
+- a finale label shown in UI
+- extra hidden-room bias
+- extra density bias
+- optional boss chance bonus
 
 ## 15. Direct Mapping To Current Systems
 
