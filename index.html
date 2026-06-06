@@ -243,6 +243,9 @@
                     收藏图鉴
                     <span id="collection-count-badge" class="ml-1 rounded-md border border-cyan-700/70 bg-cyan-500/15 px-1.5 py-0.5 text-[10px] font-black text-cyan-200">0/0</span>
                 </button>
+                <button id="btn-path-debug" class="h-11 whitespace-nowrap rounded-xl border-2 border-slate-700 bg-slate-900/95 px-2.5 text-xs font-bold tracking-wide text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.45)] transition-colors hover:bg-slate-800 sm:px-3">
+                    Path Debug
+                </button>
                 <button id="btn-settings" class="h-11 w-11 rounded-xl border-2 border-slate-700 bg-slate-900/95 text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.45)] flex items-center justify-center hover:bg-slate-800 transition-colors" aria-label="打开设置">
                     <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="3.2"></circle>
@@ -633,6 +636,37 @@
                                 <div id="collection-boss-list" class="space-y-2"></div>
                             </div>
                         </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="path-debug-modal" class="hidden fixed inset-0 z-[79] editor-surface backdrop-blur-sm">
+        <div class="absolute inset-0 bg-black/55"></div>
+        <div class="relative z-10 h-full w-full p-3 md:p-6">
+            <div class="flex h-full w-full flex-col overflow-hidden rounded-2xl border-2 border-slate-700 bg-slate-950/95 shadow-[0_18px_60px_rgba(0,0,0,0.65)]">
+                <div class="flex items-center justify-between border-b border-slate-800 px-4 py-3 md:px-5">
+                    <div>
+                        <h2 class="text-base md:text-lg font-black tracking-wide text-slate-50">Path Debug</h2>
+                        <p class="text-[11px] md:text-xs font-bold text-slate-400">Inspect why the autopather selected, skipped, or could not reach each hidden room on this floor.</p>
+                    </div>
+                    <button id="btn-path-debug-close" class="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800" title="Close" aria-label="Close">
+                        <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18"></path><path d="M18 6 6 18"></path></svg>
+                    </button>
+                </div>
+                <div class="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
+                    <div id="path-debug-summary" class="grid grid-cols-2 gap-3 xl:grid-cols-4"></div>
+                    <div id="path-debug-context" class="mt-4 rounded-2xl border border-slate-800 bg-slate-900/80 p-4"></div>
+                    <div class="mt-5 rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-black text-violet-200">Hidden Rooms</h3>
+                                <p class="mt-1 text-[11px] font-bold text-slate-500">Per-room routing state, detour cost, reachability, and selection result.</p>
+                            </div>
+                            <span id="path-debug-room-count" class="rounded-md border border-slate-700 bg-slate-950 px-2 py-1 text-[10px] font-black text-slate-300">0 rooms</span>
+                        </div>
+                        <div id="path-debug-room-list" class="mt-4 space-y-3"></div>
                     </div>
                 </div>
             </div>
@@ -1751,6 +1785,8 @@ const GameState = {
         })[0];
     },
     getSupportRoomNeedState(archetypeKey = this.floorContent?.archetypeKey || 'combat') {
+        const preferredType = this.getPreferredSupplyType(archetypeKey);
+        const preferredCount = this.getSupplyCount(preferredType);
         const neededType = this.getMostNeededSupplyType(archetypeKey);
         const neededCount = this.getSupplyCount(neededType);
         const totalSupply = this.getTotalSupplyCount();
@@ -1776,15 +1812,63 @@ const GameState = {
             1,
             shortfallSeverity + (supplyActive ? 0.16 : 0) + (neededCount <= 0 ? 0.12 : 0)
         );
+        const reservePressure = Math.min(
+            1,
+            shortfallSeverity * 0.72
+                + (supplyActive ? 0.18 : 0)
+                + (preferredCount <= 0 ? 0.14 : 0)
+                + (totalSupply <= 1 ? 0.12 : totalSupply === 2 ? 0.05 : 0)
+        );
         return {
             archetypeKey,
+            preferredType,
+            preferredCount,
             neededType,
             neededCount,
             totalSupply,
             supplyActive,
+            usedSupplyThisFloor: supplyActive,
+            preferredMissing: preferredCount <= 0,
             missingPreferred: neededCount <= 0,
             shortfallSeverity,
-            restockUrgency
+            restockUrgency,
+            reservePressure
+        };
+    },
+    getMerchantBudgetState(discount = 0.8, supplyType = this.getMostNeededSupplyType('merchant')) {
+        const candidateTypes = ['atk', 'hp', 'chest', 'size'].filter((type) => type !== 'size' || !this.isMazeSizeMaxed());
+        const upgradeQuotes = candidateTypes.map((type) => {
+            const baseCost = this.costs[type]();
+            return {
+                type,
+                baseCost,
+                discountedCost: Math.max(1, Math.floor(baseCost * discount))
+            };
+        });
+        const cheapestUpgrade = upgradeQuotes.reduce((best, quote) => {
+            if (!best || quote.discountedCost < best.discountedCost) return quote;
+            return best;
+        }, null);
+        const supplyBaseCost = this.getSupplyCost(supplyType);
+        const supplyDiscount = Math.max(0.68, discount - 0.08);
+        const discountedSupplyCost = Math.max(18, Math.floor(supplyBaseCost * supplyDiscount));
+        const cheapestUpgradeCost = cheapestUpgrade?.discountedCost || Infinity;
+        const upgradeBudgetRatio = Number.isFinite(cheapestUpgradeCost)
+            ? this.score / Math.max(1, cheapestUpgradeCost)
+            : 0;
+        const supplyBudgetRatio = this.score / Math.max(1, discountedSupplyCost);
+        return {
+            supplyType,
+            discountedSupplyCost,
+            supplyBudgetRatio,
+            canAffordSupply: this.score >= discountedSupplyCost,
+            nearAffordSupply: this.score >= discountedSupplyCost * 0.82,
+            cheapestUpgrade,
+            cheapestUpgradeCost,
+            upgradeBudgetRatio,
+            canAffordUpgrade: Number.isFinite(cheapestUpgradeCost) ? this.score >= cheapestUpgradeCost : false,
+            nearAffordUpgrade: Number.isFinite(cheapestUpgradeCost) ? this.score >= cheapestUpgradeCost * 0.84 : false,
+            upgradeQuotes
         };
     },
     resetFloorStats() {
@@ -2085,6 +2169,7 @@ const GameState = {
             const decoratedMonsterText = `${themedMonsterText}${directiveLabel ? ` 路 ${directiveLabel}` : ''}${directiveSummary ? ` 路 ${directiveSummary}` : ''}`;
             monsterDesc.innerText = decoratedMonsterText;
         }
+        window.pathDebugPanel?.render();
     }
 };
 
@@ -2122,6 +2207,73 @@ function initializeSupplyCardUi() {
             </button>
         </div>
     `;
+}
+
+function initializeUpgradeStripUi() {
+    let strip = document.getElementById('upgrade-strip');
+    if (!strip) {
+        const dock = document.getElementById('ui-mobile-dock');
+        if (!dock) return;
+        strip = document.createElement('div');
+        strip.id = 'upgrade-strip';
+        strip.className = 'space-y-3';
+        const supplyCard = document.getElementById('ui-supply-card');
+        if (supplyCard?.parentElement === dock && supplyCard.nextSibling) {
+            dock.insertBefore(strip, supplyCard.nextSibling);
+        } else {
+            dock.appendChild(strip);
+        }
+    }
+    strip.innerHTML = `
+        <button id="btn-up-speed" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+            <div>
+                <div class="font-bold text-blue-300 flex items-center gap-2">走得更快 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span></div>
+                <div class="text-[10px] text-slate-500 mt-0.5">自动走路会更快</div>
+            </div>
+            <div class="text-right"><div id="cost-speed" class="text-yellow-400 font-bold text-sm">10</div></div>
+        </button>
+        <button id="btn-up-atk" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+            <div>
+                <div class="font-bold text-red-400 flex items-center gap-2">打得更疼 <span id="val-atk" class="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">Lv.1</span></div>
+                <div class="text-[10px] text-slate-500 mt-0.5">每次攻击伤害更高</div>
+            </div>
+            <div class="text-right"><div id="cost-atk" class="text-yellow-400 font-bold text-sm">20</div></div>
+        </button>
+        <button id="btn-up-hp" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+            <div>
+                <div class="font-bold text-green-400 flex items-center gap-2">更抗揍 <span id="val-hp" class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800/50">Lv.1</span></div>
+                <div class="text-[10px] text-slate-500 mt-0.5">血量上限更高</div>
+            </div>
+            <div class="text-right"><div id="cost-hp" class="text-yellow-400 font-bold text-sm">20</div></div>
+        </button>
+        <button id="btn-up-chest" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+            <div>
+                <div class="font-bold text-yellow-300 flex items-center gap-2">更多宝箱 <span id="val-chest" class="text-[10px] bg-yellow-950 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-800/50">Lv.1</span></div>
+                <div class="text-[10px] text-slate-500 mt-0.5">地图里更容易刷宝箱</div>
+            </div>
+            <div class="text-right"><div id="cost-chest" class="text-yellow-400 font-bold text-sm">50</div></div>
+        </button>
+        <button id="btn-up-size" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+            <div>
+                <div class="font-bold text-cyan-300 flex items-center gap-2">迷宫更大 <span id="val-size" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">11x11</span></div>
+                <div id="desc-size" class="text-[10px] text-slate-500 mt-0.5">地图会变大，怪和宝箱也会更多</div>
+            </div>
+            <div class="text-right"><div id="cost-size" class="text-yellow-400 font-bold text-sm">40</div></div>
+        </button>
+        <button id="btn-up-monster" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
+            <div>
+                <div class="font-bold text-purple-400 flex items-center gap-2">更多怪和 Boss <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
+                <div id="desc-monster" class="text-[10px] text-slate-500 mt-0.5">怪物更容易出现，升到 Lv.4 解锁 Boss</div>
+            </div>
+            <div class="text-right"><div id="cost-monster" class="text-yellow-400 font-bold text-sm">100</div></div>
+        </button>
+    `;
+    if (!document.getElementById('ui-mobile-dock-spacer')) {
+        const spacer = document.createElement('div');
+        spacer.id = 'ui-mobile-dock-spacer';
+        spacer.className = 'h-4';
+        strip.insertAdjacentElement('afterend', spacer);
+    }
 }
 
 function initializeRelicCardUi() {
@@ -2162,6 +2314,7 @@ function initializeThemeStatusPill() {
 }
 
 initializeSupplyCardUi();
+initializeUpgradeStripUi();
 initializeRelicCardUi();
 initializeThemeStatusPill();
 initializeSupplyStatusPill();
@@ -3408,15 +3561,32 @@ class GameController {
         this.hiddenRooms = [];
         this.hiddenRoomLookup = new Map();
         this.currentPathTarget = 'end';
+        this.lastDirectExitPathLength = 0;
+
+        initializeSupplyCardUi();
+        initializeUpgradeStripUi();
+        initializeRelicCardUi();
+        initializeThemeStatusPill();
+        initializeSupplyStatusPill();
 
         ['speed', 'atk', 'hp', 'chest', 'size', 'monster'].forEach((type) => {
-            document.getElementById(`btn-up-${type}`).addEventListener('click', async () => {
+            const button = document.getElementById(`btn-up-${type}`);
+            if (!button) {
+                console.warn('Missing upgrade button:', `btn-up-${type}`);
+                return;
+            }
+            button.addEventListener('click', async () => {
                 await window.soundEngine?.unlock();
                 GameState.tryBuy(type);
             });
         });
         ['assault', 'salvage', 'scout'].forEach((type) => {
-            document.getElementById(`btn-up-supply-${type}`).addEventListener('click', async () => {
+            const button = document.getElementById(`btn-up-supply-${type}`);
+            if (!button) {
+                console.warn('Missing supply button:', `btn-up-supply-${type}`);
+                return;
+            }
+            button.addEventListener('click', async () => {
                 await window.soundEngine?.unlock();
                 const cost = GameState.getSupplyCost(type);
                 if (GameState.score < cost) return;
@@ -4419,6 +4589,7 @@ class GameController {
         if (unlockedAny && GameState.phase === 'EXPLORING') {
             this.refreshExplorationPath();
         }
+        window.pathDebugPanel?.render();
     }
 
     chooseHiddenRoomTarget(directExitPath) {
@@ -4502,37 +4673,49 @@ class GameController {
             }
             if (room.typeKey === 'rest') {
                 const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
-                if (hpRatio < 0.4) score += 0.26 + restNeedState.restockUrgency * 0.14;
-                else if (hpRatio < 0.58) score += 0.17 + restNeedState.restockUrgency * 0.12;
-                else if (hpRatio < 0.76) score += 0.08 + restNeedState.restockUrgency * 0.09;
-                else score += restNeedState.restockUrgency * 0.08 - 0.06;
+                if (hpRatio < 0.34) score += 0.38 + restNeedState.restockUrgency * 0.18;
+                else if (hpRatio < 0.5) score += 0.26 + restNeedState.restockUrgency * 0.16;
+                else if (hpRatio < 0.66) score += 0.16 + restNeedState.restockUrgency * 0.12;
+                else if (hpRatio < 0.82) score += 0.05 + restNeedState.restockUrgency * 0.08;
+                else score += restNeedState.restockUrgency * 0.05 - 0.08;
+                if (restNeedState.usedSupplyThisFloor) score += 0.08 + restNeedState.reservePressure * 0.06;
+                if (restNeedState.preferredMissing) score += 0.06;
                 if (restNeedState.missingPreferred) score += 0.08;
-                if (restNeedState.supplyActive) score += 0.05;
-                else if (restNeedState.shortfallSeverity < 0.28 && hpRatio > 0.82) score -= 0.03;
+                if (!restNeedState.usedSupplyThisFloor && restNeedState.totalSupply >= 3 && hpRatio > 0.84) score -= 0.05;
+                if (restNeedState.shortfallSeverity < 0.24 && hpRatio > 0.88) score -= 0.04;
                 if (GameState.autoStrategy.rest === 'emergency') {
-                    if (hpRatio > 0.72) score -= 0.18;
-                    else if (hpRatio > 0.55) score -= 0.08;
+                    if (hpRatio > 0.74) score -= 0.22;
+                    else if (hpRatio > 0.58) score -= 0.1;
+                    else score += 0.05;
                 } else if (GameState.autoStrategy.rest === 'prefer') {
-                    if (hpRatio > 0.72) score += 0.08;
-                    else score += 0.04;
+                    if (hpRatio > 0.72) score += 0.09;
+                    else score += 0.06;
                 }
             }
             if (room.typeKey === 'merchant') {
-                const cheapest = Math.min(
-                    GameState.costs.atk(),
-                    GameState.costs.hp(),
-                    GameState.costs.chest(),
-                    GameState.isMazeSizeMaxed() ? Infinity : GameState.costs.size()
-                );
-                const canAffordUpgrade = GameState.score >= cheapest * 0.8;
-                const canAffordSupply = GameState.score >= GameState.getSupplyCost(merchantNeedState.neededType) * 0.72;
-                if (canAffordUpgrade || canAffordSupply) score += 0.06 + merchantNeedState.shortfallSeverity * 0.16;
-                else score += merchantNeedState.shortfallSeverity * 0.08 - 0.1;
-                if (merchantNeedState.missingPreferred) score += 0.07;
-                if (!merchantNeedState.supplyActive) score += 0.06;
-                if (GameState.autoStrategy.merchant === 'supplies') score += 0.08 + merchantNeedState.restockUrgency * 0.08;
-                if (GameState.autoStrategy.merchant === 'save') score -= merchantNeedState.shortfallSeverity < 0.45 ? 0.12 : 0.05;
-                if (GameState.autoStrategy.merchant === 'power' && canAffordUpgrade) score += 0.05;
+                const merchantDiscount = Math.max(0.68, 0.86 - room.rewardTier * 0.05);
+                const budgetState = GameState.getMerchantBudgetState(merchantDiscount, merchantNeedState.neededType);
+                if (budgetState.canAffordUpgrade) score += 0.14 + Math.min(0.08, budgetState.upgradeBudgetRatio * 0.04);
+                else if (budgetState.nearAffordUpgrade) score += 0.07;
+                else score -= 0.08;
+                if (budgetState.canAffordSupply) score += 0.06 + merchantNeedState.shortfallSeverity * 0.12;
+                else if (budgetState.nearAffordSupply) score += merchantNeedState.shortfallSeverity * 0.04;
+                else score -= merchantNeedState.shortfallSeverity > 0.62 ? 0.02 : 0.08;
+                if (merchantNeedState.preferredMissing) score += 0.06;
+                if (merchantNeedState.missingPreferred) score += 0.08;
+                if (merchantNeedState.usedSupplyThisFloor && merchantNeedState.totalSupply <= 1) score += 0.08;
+                if (GameState.autoStrategy.merchant === 'supplies') {
+                    score += 0.1 + merchantNeedState.reservePressure * 0.1;
+                    if (!budgetState.canAffordSupply && merchantNeedState.restockUrgency > 0.68) score -= 0.06;
+                }
+                if (GameState.autoStrategy.merchant === 'save') {
+                    if (merchantNeedState.shortfallSeverity < 0.45 && budgetState.upgradeBudgetRatio < 0.95) score -= 0.18;
+                    else score += 0.03;
+                }
+                if (GameState.autoStrategy.merchant === 'power') {
+                    if (budgetState.canAffordUpgrade) score += 0.09;
+                    else if (budgetState.nearAffordUpgrade) score += 0.04;
+                }
             }
             if (room.typeKey === 'trial') {
                 const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
@@ -4581,6 +4764,7 @@ class GameController {
         const directExitPath = this.computePathBetween(this.playerPos, this.endPos, {
             avoidUnclearedHiddenRooms: true
         });
+        this.lastDirectExitPathLength = Array.isArray(directExitPath) ? directExitPath.length : 0;
         const diversion = this.chooseHiddenRoomTarget(directExitPath);
         if (diversion) {
             this.path = diversion.path;
@@ -4590,10 +4774,12 @@ class GameController {
                 const markerPos = diversion.room.entity?.mesh?.position || this.engine.playerObj.position;
                 this.engine.addFloatingText(diversion.room.displayName, markerPos, '#a78bfa', true);
             }
+            window.pathDebugPanel?.render();
             return;
         }
         this.path = directExitPath;
         this.currentPathTarget = 'end';
+        window.pathDebugPanel?.render();
     }
 
     resolveEventRoomV2(room) {
@@ -4705,14 +4891,26 @@ class GameController {
         const neededSupply = supplyNeedState.neededType;
         const shouldRestockSupply = supplyNeedState.restockUrgency >= 0.44
             || supplyNeedState.missingPreferred
+            || supplyNeedState.preferredMissing
+            || supplyNeedState.usedSupplyThisFloor
             || !supplyNeedState.supplyActive;
+        const shouldFortify = hpRatio < 0.68
+            || (supplyNeedState.usedSupplyThisFloor && supplyNeedState.reservePressure >= 0.48)
+            || (supplyNeedState.totalSupply <= 1 && supplyNeedState.shortfallSeverity >= 0.54);
         let message = room.displayName + ' stabilized the run.';
 
-        if (hpRatio < 0.88) {
-            const heal = Math.max(12, Math.floor(GameState.player.baseHp * (0.16 + rewardProfile.repairValue * 0.85)));
+        if (hpRatio < 0.9 || shouldFortify) {
+            const heal = Math.max(12, Math.floor(GameState.player.baseHp * (0.16 + rewardProfile.repairValue * 0.85 + (shouldFortify ? 0.04 : 0))));
             GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
             GameState.addScore(scoreReward);
+            if (shouldFortify) {
+                const guardReduction = 0.08 + room.rewardTier * 0.015 + supplyNeedState.reservePressure * 0.08;
+                GameState.floorBuff.incomingDamageMult *= Math.max(0.56, 1 - guardReduction);
+            }
             message = room.displayName + ' restored ' + heal + ' HP and granted ' + scoreReward + ' score.';
+            if (shouldFortify) {
+                message += ' Incoming damage was reduced for the rest of the floor.';
+            }
         } else {
             const atkBoost = 1 + Math.max(0, room.rewardTier - 1);
             const chestBoost = 0.004 + room.rewardTier * 0.002;
@@ -4742,12 +4940,15 @@ class GameController {
         const supplyNeedState = GameState.getSupportRoomNeedState('merchant');
         const neededSupply = supplyNeedState.neededType;
         const neededSupplyLabel = GameState.supplyDefs[neededSupply]?.label || 'supply';
-        const supplyPrice = Math.max(18, Math.floor(GameState.getSupplyCost(neededSupply) * Math.max(0.68, discount - 0.08)));
+        const budgetState = GameState.getMerchantBudgetState(discount, neededSupply);
+        const supplyPrice = budgetState.discountedSupplyCost;
         const merchantMode = GameState.autoStrategy.merchant;
         const shouldPrioritizeSupply = merchantMode === 'supplies'
-            ? (supplyNeedState.restockUrgency >= 0.38 || supplyNeedState.totalSupply <= 2)
-            : (supplyNeedState.restockUrgency >= 0.58 || supplyNeedState.missingPreferred);
-        if (shouldPrioritizeSupply && GameState.score >= supplyPrice) {
+            ? (supplyNeedState.restockUrgency >= 0.36 || supplyNeedState.totalSupply <= 2 || supplyNeedState.usedSupplyThisFloor)
+            : merchantMode === 'save'
+                ? ((supplyNeedState.missingPreferred || supplyNeedState.totalSupply <= 1) && budgetState.canAffordSupply)
+                : (supplyNeedState.restockUrgency >= 0.56 || supplyNeedState.missingPreferred || supplyNeedState.preferredMissing);
+        if (shouldPrioritizeSupply && budgetState.canAffordSupply) {
             GameState.score -= supplyPrice;
             GameState.grantFloorSupply(neededSupply, 1);
             const themeChainMessage = this.applyThemeChainBonus('merchant', room);
@@ -4776,6 +4977,9 @@ class GameController {
                 baseCost: GameState.costs[type](),
                 discountedCost: Math.max(1, Math.floor(GameState.costs[type]() * discount)),
                 weight: pickWeight(type)
+                    + (type === budgetState.cheapestUpgrade?.type ? 10 : 0)
+                    + (merchantMode === 'supplies' && type === 'chest' ? 4 : 0)
+                    + (merchantMode === 'save' && type === 'hp' ? (hpRatio < 0.72 ? 8 : 3) : 0)
             }))
             .sort((a, b) => b.weight - a.weight);
 
@@ -4790,7 +4994,10 @@ class GameController {
         if (!purchase) {
             const consolation = Math.floor((22 + rewardProfile.chestBonus * 8) * GameState.level * 0.85);
             GameState.addScore(consolation);
-            GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + 0.02 + room.rewardTier * 0.01);
+            GameState.meta.nextHiddenRoomBonus = Math.min(
+                0.24,
+                GameState.meta.nextHiddenRoomBonus + 0.02 + room.rewardTier * 0.01 + supplyNeedState.shortfallSeverity * 0.02
+            );
             const themeChainMessage = this.applyThemeChainBonus('merchant', room);
             GameState.updateUI();
             return room.displayName + ' found no good deal, took intel instead, and improved next-floor hidden room odds.' + (themeChainMessage ? ' ' + themeChainMessage : '');
@@ -4907,6 +5114,7 @@ class GameController {
                 if (child.material && 'opacity' in child.material) child.material.opacity *= 0.38;
             });
         }
+        window.pathDebugPanel?.render();
     }
 
     async resolveHiddenTrialNodePickup(room, entityObj) {
@@ -5636,6 +5844,8 @@ class GameController {
         this.hiddenRooms = [];
         this.hiddenRoomLookup = new Map();
         this.currentPathTarget = 'end';
+        this.lastDirectExitPathLength = 0;
+        window.pathDebugPanel?.render();
 
         const floorGeo = new THREE.PlaneGeometry(this.cols + 2, this.rows + 2);
         const floorMesh = new THREE.Mesh(floorGeo, this.engine.materials.floor);
@@ -7590,6 +7800,243 @@ class CollectionPanel {
     }
 }
 
+class PathDebugPanel {
+    constructor() {
+        this.modal = document.getElementById('path-debug-modal');
+        this.summaryEl = document.getElementById('path-debug-summary');
+        this.contextEl = document.getElementById('path-debug-context');
+        this.roomCountEl = document.getElementById('path-debug-room-count');
+        this.roomListEl = document.getElementById('path-debug-room-list');
+        this.openButton = document.getElementById('btn-path-debug');
+        this.closeButton = document.getElementById('btn-path-debug-close');
+        this.isOpen = false;
+        this.bindUi();
+    }
+
+    bindUi() {
+        this.openButton?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.open();
+        });
+        this.closeButton?.addEventListener('click', () => this.close());
+        this.modal?.addEventListener('click', (event) => {
+            if (event.target === this.modal || event.target.classList.contains('bg-black/55')) this.close();
+        });
+    }
+
+    open() {
+        this.isOpen = true;
+        this.modal.classList.remove('hidden');
+        this.render();
+    }
+
+    close() {
+        this.isOpen = false;
+        this.modal.classList.add('hidden');
+    }
+
+    getController() {
+        return window.gameController || null;
+    }
+
+    getRooms() {
+        const controller = this.getController();
+        return Array.isArray(controller?.hiddenRooms) ? controller.hiddenRooms : [];
+    }
+
+    getTypeLabel(typeKey) {
+        const labels = {
+            treasure: 'Treasure',
+            event: 'Event',
+            trial: 'Trial',
+            elite: 'Elite',
+            rest: 'Rest',
+            merchant: 'Merchant'
+        };
+        return labels[typeKey] || (typeKey ? typeKey[0].toUpperCase() + typeKey.slice(1) : 'Unknown');
+    }
+
+    getRoutingStateMeta(state) {
+        const meta = {
+            selected: { label: 'Selected', className: 'border-violet-700/70 bg-violet-500/10 text-violet-200' },
+            eligible: { label: 'Eligible', className: 'border-emerald-700/70 bg-emerald-500/10 text-emerald-200' },
+            'below-threshold': { label: 'Below Threshold', className: 'border-amber-700/70 bg-amber-500/10 text-amber-200' },
+            locked: { label: 'Locked', className: 'border-slate-700 bg-slate-900 text-slate-400' },
+            cleared: { label: 'Cleared', className: 'border-cyan-700/70 bg-cyan-500/10 text-cyan-200' },
+            'path-missing': { label: 'Path Missing', className: 'border-rose-700/70 bg-rose-500/10 text-rose-200' },
+            'room-unreachable': { label: 'Room Unreachable', className: 'border-rose-700/70 bg-rose-500/10 text-rose-200' },
+            'exit-unreachable': { label: 'Exit Unreachable', className: 'border-rose-700/70 bg-rose-500/10 text-rose-200' },
+            pending: { label: 'Pending', className: 'border-slate-700 bg-slate-900 text-slate-300' }
+        };
+        return meta[state] || meta.pending;
+    }
+
+    getGateSummary(room) {
+        if (!room?.gateType) return 'Open';
+        if (room.gateType === 'kills_this_floor') {
+            const current = GameState.floorStats?.kills || 0;
+            return `Kills ${current}/${room.gateThreshold}`;
+        }
+        return room.gateType;
+    }
+
+    formatNumber(value, digits = 2) {
+        return Number.isFinite(value) ? value.toFixed(digits) : '--';
+    }
+
+    formatPercent(value) {
+        return Number.isFinite(value) ? `${Math.round(value * 100)}%` : '--';
+    }
+
+    formatObjective(objective) {
+        if (!objective || !Number.isFinite(objective.c) || !Number.isFinite(objective.r)) return '--';
+        return `${objective.c}, ${objective.r}`;
+    }
+
+    renderSummaryCard(label, value, hint, accentClass = 'text-slate-100') {
+        return `
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+                <div class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">${label}</div>
+                <div class="mt-2 text-2xl font-black ${accentClass}">${value}</div>
+                <div class="mt-1 text-[11px] leading-5 text-slate-400">${hint}</div>
+            </div>
+        `;
+    }
+
+    renderMetric(label, value, accentClass = 'text-slate-100') {
+        return `
+            <div class="rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2">
+                <div class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">${label}</div>
+                <div class="mt-1 text-sm font-black ${accentClass}">${value}</div>
+            </div>
+        `;
+    }
+
+    renderFlag(label, active, trueClass, falseClass = 'border-slate-700 bg-slate-950 text-slate-500') {
+        return `<span class="rounded-md border px-2 py-1 text-[10px] font-black ${active ? trueClass : falseClass}">${label}</span>`;
+    }
+
+    renderContext(controller, rooms, threshold, selectedRoom) {
+        const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
+        const selectedLabel = controller?.currentPathTarget === 'end'
+            ? 'Exit'
+            : selectedRoom?.displayName || controller?.currentPathTarget || 'None';
+        const supplyLabel = GameState.floorBuff?.supplyActive
+            ? GameState.floorBuff?.supplyLabel || this.getTypeLabel(GameState.floorBuff?.supplyKey)
+            : 'None';
+        const strategy = [
+            `risk=${GameState.autoStrategy.risk}`,
+            `rest=${GameState.autoStrategy.rest}`,
+            `merchant=${GameState.autoStrategy.merchant}`,
+            `supply=${GameState.autoStrategy.supply}`
+        ].join(' | ');
+        const roomStates = rooms.reduce((acc, room) => {
+            const state = room.routingDebug?.state || 'pending';
+            acc[state] = (acc[state] || 0) + 1;
+            return acc;
+        }, {});
+        const stateLine = Object.entries(roomStates)
+            .map(([state, count]) => `${this.getRoutingStateMeta(state).label}: ${count}`)
+            .join(' | ') || 'No routing data yet';
+
+        this.contextEl.innerHTML = `
+            <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div class="min-w-0">
+                    <div class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Run Context</div>
+                    <div class="mt-2 text-sm font-bold text-slate-100">Current target: <span class="text-violet-200">${selectedLabel}</span></div>
+                    <div class="mt-2 text-[11px] leading-5 text-slate-400">${strategy}</div>
+                    <div class="mt-1 text-[11px] leading-5 text-slate-500">${stateLine}</div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 xl:w-[360px]">
+                    ${this.renderMetric('HP Ratio', this.formatPercent(hpRatio), 'text-emerald-200')}
+                    ${this.renderMetric('Supply', supplyLabel, 'text-cyan-200')}
+                    ${this.renderMetric('Kills', String(GameState.floorStats?.kills || 0), 'text-rose-200')}
+                    ${this.renderMetric('Cleared Rooms', `${GameState.floorStats?.hiddenRoomsCleared || 0}/${rooms.length}`, 'text-amber-200')}
+                </div>
+            </div>
+        `;
+    }
+
+    renderRoomCard(room, isSelected) {
+        const debug = room.routingDebug || {};
+        const stateMeta = this.getRoutingStateMeta(debug.state || 'pending');
+        const roomAccent = {
+            treasure: 'text-amber-200',
+            event: 'text-cyan-200',
+            trial: 'text-rose-200',
+            elite: 'text-violet-200',
+            rest: 'text-emerald-200',
+            merchant: 'text-sky-200'
+        }[room.typeKey] || 'text-slate-100';
+        const seedLabel = room.eventSeed?.label || room.trialSeed?.label || room.rewardProfile?.label || '';
+        const selectionBadge = isSelected
+            ? '<span class="rounded-md border border-violet-700/70 bg-violet-500/15 px-2 py-1 text-[10px] font-black text-violet-200">Current Target</span>'
+            : '';
+
+        return `
+            <article class="rounded-2xl border ${isSelected ? 'border-violet-700/80 bg-violet-950/15' : 'border-slate-800 bg-slate-950/60'} p-4">
+                <div class="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h4 class="text-sm font-black ${roomAccent}">${room.displayName}</h4>
+                            <span class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] font-black text-slate-300">${this.getTypeLabel(room.typeKey)}</span>
+                            <span class="rounded-md border px-2 py-1 text-[10px] font-black ${stateMeta.className}">${stateMeta.label}</span>
+                            ${selectionBadge}
+                        </div>
+                        <div class="mt-2 text-[11px] leading-5 text-slate-400">
+                            Gate: ${this.getGateSummary(room)} | Objective: ${this.formatObjective(debug.objective)}
+                            ${seedLabel ? ` | Variant: ${seedLabel}` : ''}
+                        </div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            ${this.renderFlag('Generated', true, 'border-emerald-700/70 bg-emerald-500/10 text-emerald-200')}
+                            ${this.renderFlag('Unlocked', !!room.unlocked, 'border-cyan-700/70 bg-cyan-500/10 text-cyan-200')}
+                            ${this.renderFlag('Entered', !!room.entered, 'border-amber-700/70 bg-amber-500/10 text-amber-200')}
+                            ${this.renderFlag('Cleared', !!room.cleared, 'border-violet-700/70 bg-violet-500/10 text-violet-200')}
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 xl:w-[360px]">
+                        ${this.renderMetric('Base Access', this.formatNumber(room.accessScore, 3), 'text-slate-100')}
+                        ${this.renderMetric('Final Score', this.formatNumber(debug.finalScore, 3), isSelected ? 'text-violet-200' : 'text-slate-100')}
+                        ${this.renderMetric('Threshold', this.formatNumber(debug.threshold, 3), 'text-amber-200')}
+                        ${this.renderMetric('Detour', this.formatNumber(debug.detourExtra, 2), 'text-rose-200')}
+                        ${this.renderMetric('To Room', this.formatNumber(debug.pathToRoomLength, 0), 'text-cyan-200')}
+                        ${this.renderMetric('To Exit', this.formatNumber(debug.pathRoomToExitLength, 0), 'text-cyan-200')}
+                    </div>
+                </div>
+            </article>
+        `;
+    }
+
+    render() {
+        if (!this.summaryEl || !this.contextEl || !this.roomListEl || !this.roomCountEl) return;
+        const controller = this.getController();
+        const rooms = this.getRooms();
+        const threshold = GameState.getDiversionThreshold();
+        const selectedRoom = rooms.find((room) => room.id === controller?.currentPathTarget) || null;
+        const reachableRooms = rooms.filter((room) => {
+            const state = room.routingDebug?.state;
+            return state === 'eligible' || state === 'selected';
+        }).length;
+        const blockedRooms = rooms.filter((room) => {
+            const state = room.routingDebug?.state;
+            return state === 'path-missing' || state === 'room-unreachable' || state === 'exit-unreachable';
+        }).length;
+
+        this.summaryEl.innerHTML = [
+            this.renderSummaryCard('Diversion Threshold', this.formatNumber(threshold, 3), 'Current minimum score to take a detour.', 'text-amber-200'),
+            this.renderSummaryCard('Direct Exit Path', controller ? String(controller.lastDirectExitPathLength || 0) : '--', 'Path length when ignoring hidden-room detours.', 'text-cyan-200'),
+            this.renderSummaryCard('Reachable Candidates', `${reachableRooms}/${rooms.length}`, 'Rooms that passed current routing checks.', 'text-emerald-200'),
+            this.renderSummaryCard('Blocked Rooms', `${blockedRooms}`, 'Rooms missing a valid in-and-out route.', 'text-rose-200')
+        ].join('');
+
+        this.renderContext(controller, rooms, threshold, selectedRoom);
+        this.roomCountEl.innerText = `${rooms.length} room${rooms.length === 1 ? '' : 's'}`;
+        this.roomListEl.innerHTML = rooms.length > 0
+            ? rooms.map((room) => this.renderRoomCard(room, room.id === controller?.currentPathTarget)).join('')
+            : '<div class="rounded-2xl border border-dashed border-slate-700 bg-slate-950/50 px-4 py-6 text-center text-sm font-bold text-slate-500">No hidden rooms were generated on this floor yet.</div>';
+    }
+}
+
 window.onload = () => {
     window.soundEngine = new SoundEngine();
     const unlockAudio = () => window.soundEngine.unlock();
@@ -7685,6 +8132,7 @@ window.onload = () => {
     window.modelEditor = new ModelEditor(window.engine);
     window.soundEditor = new SoundEditor(window.soundEngine);
     window.collectionPanel = new CollectionPanel();
+    window.pathDebugPanel = new PathDebugPanel();
     window.gameController = new GameController(window.engine);
     GameState.updateUI();
 
