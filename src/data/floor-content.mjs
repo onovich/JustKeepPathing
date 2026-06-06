@@ -70,7 +70,6 @@ export const FLOOR_THEME_ROTATION = Object.freeze([
     'signal_warrens',
     'quarantine_vault'
 ]);
-
 export const FLOOR_THEME_DEFS = Object.freeze({
     ember_forge: Object.freeze({
         label: '余烬铸区',
@@ -404,7 +403,7 @@ export const HIDDEN_ROOM_ACCESS_PARAMS = Object.freeze({
 export const EVENT_ROOM_SEEDS = Object.freeze([
     Object.freeze({
         id: 'repair_shrine',
-        label: '修复异象',
+        label: '??????',
         effect: 'heal_or_shield',
         rewardMult: 0.94,
         nodeCountBias: 0,
@@ -415,7 +414,7 @@ export const EVENT_ROOM_SEEDS = Object.freeze([
     }),
     Object.freeze({
         id: 'unstable_cache',
-        label: '失稳缓存',
+        label: '??????',
         effect: 'score_now_risk_next_floor',
         rewardMult: 1.16,
         nodeCountBias: -1,
@@ -426,7 +425,7 @@ export const EVENT_ROOM_SEEDS = Object.freeze([
     }),
     Object.freeze({
         id: 'scout_beacon',
-        label: '侦测异象',
+        label: '??????',
         effect: 'next_floor_hidden_room_bonus',
         rewardMult: 0.92,
         nodeCountBias: 0,
@@ -437,7 +436,7 @@ export const EVENT_ROOM_SEEDS = Object.freeze([
     }),
     Object.freeze({
         id: 'cursed_core',
-        label: '诅咒核心',
+        label: '??????',
         effect: 'power_up_with_penalty',
         rewardMult: 1.18,
         nodeCountBias: -1,
@@ -448,7 +447,7 @@ export const EVENT_ROOM_SEEDS = Object.freeze([
     }),
     Object.freeze({
         id: 'salvage_matrix',
-        label: '回收矩阵',
+        label: '??????',
         effect: 'chest_density_boost',
         rewardMult: 1.04,
         nodeCountBias: 1,
@@ -459,7 +458,7 @@ export const EVENT_ROOM_SEEDS = Object.freeze([
     }),
     Object.freeze({
         id: 'raid_signal',
-        label: '狩猎信号',
+        label: '??????',
         effect: 'monster_density_boost',
         rewardMult: 1.08,
         nodeCountBias: 1,
@@ -467,13 +466,35 @@ export const EVENT_ROOM_SEEDS = Object.freeze([
         themeBias: Object.freeze({ ember_forge: 4, signal_warrens: 4, quarantine_vault: 2 }),
         weight: 12,
         minLevel: 2
+    }),
+    Object.freeze({
+        id: 'repair_dock',
+        label: '????',
+        effect: 'repair_and_guard',
+        rewardMult: 0.9,
+        nodeCountBias: 0,
+        diversionBias: 0.12,
+        themeBias: Object.freeze({ quarantine_vault: 8, salvage_reaches: 3 }),
+        weight: 16,
+        minLevel: 2
+    }),
+    Object.freeze({
+        id: 'supply_depot',
+        label: '????',
+        effect: 'supply_stockpile',
+        rewardMult: 0.98,
+        nodeCountBias: 1,
+        diversionBias: 0.09,
+        themeBias: Object.freeze({ salvage_reaches: 8, signal_warrens: 3 }),
+        weight: 15,
+        minLevel: 2
     })
 ]);
 
 export const TRIAL_ROOM_SEEDS = Object.freeze([
     Object.freeze({
         id: 'overclock_array',
-        label: '过载试炼',
+        label: '??????',
         effect: 'assault_cache',
         rewardMult: 1.22,
         hazardMult: 1.35,
@@ -485,7 +506,7 @@ export const TRIAL_ROOM_SEEDS = Object.freeze([
     }),
     Object.freeze({
         id: 'salvage_run',
-        label: '回收试炼',
+        label: '??????',
         effect: 'salvage_cache',
         rewardMult: 1.06,
         hazardMult: 0.82,
@@ -497,7 +518,7 @@ export const TRIAL_ROOM_SEEDS = Object.freeze([
     }),
     Object.freeze({
         id: 'pulse_survey',
-        label: '脉冲试炼',
+        label: '??????',
         effect: 'survey',
         rewardMult: 0.98,
         hazardMult: 0.9,
@@ -509,7 +530,7 @@ export const TRIAL_ROOM_SEEDS = Object.freeze([
     }),
     Object.freeze({
         id: 'endurance_loop',
-        label: '续航试炼',
+        label: '??????',
         effect: 'repair_loop',
         rewardMult: 1.08,
         hazardMult: 1.02,
@@ -517,6 +538,30 @@ export const TRIAL_ROOM_SEEDS = Object.freeze([
         diversionBias: 0.03,
         themeBias: Object.freeze({ quarantine_vault: 7, ember_forge: 1 }),
         weight: 14,
+        minLevel: 5
+    }),
+    Object.freeze({
+        id: 'breach_charge',
+        label: '????',
+        effect: 'attack_overdrive',
+        rewardMult: 1.16,
+        hazardMult: 1.16,
+        nodeCountBias: -1,
+        diversionBias: -0.04,
+        themeBias: Object.freeze({ ember_forge: 8, signal_warrens: 2 }),
+        weight: 16,
+        minLevel: 5
+    }),
+    Object.freeze({
+        id: 'guard_cache',
+        label: '?????',
+        effect: 'guard_cache',
+        rewardMult: 1.04,
+        hazardMult: 0.88,
+        nodeCountBias: 0,
+        diversionBias: 0.07,
+        themeBias: Object.freeze({ quarantine_vault: 8, salvage_reaches: 2 }),
+        weight: 15,
         minLevel: 5
     })
 ]);

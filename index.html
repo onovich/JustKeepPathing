@@ -1591,6 +1591,43 @@ const GameState = {
             return priority.indexOf(a) - priority.indexOf(b);
         })[0];
     },
+    getSupportRoomNeedState(archetypeKey = this.floorContent?.archetypeKey || 'combat') {
+        const neededType = this.getMostNeededSupplyType(archetypeKey);
+        const neededCount = this.getSupplyCount(neededType);
+        const totalSupply = this.getTotalSupplyCount();
+        const supplyActive = !!this.floorBuff?.supplyActive;
+        const totalScarcity = totalSupply <= 0
+            ? 1
+            : totalSupply === 1
+                ? 0.74
+                : totalSupply === 2
+                    ? 0.42
+                    : totalSupply === 3
+                        ? 0.18
+                        : 0;
+        const neededScarcity = neededCount <= 0
+            ? 1
+            : neededCount === 1
+                ? 0.55
+                : neededCount === 2
+                    ? 0.22
+                    : 0;
+        const shortfallSeverity = Math.min(1, totalScarcity * 0.62 + neededScarcity * 0.52);
+        const restockUrgency = Math.min(
+            1,
+            shortfallSeverity + (supplyActive ? 0.16 : 0) + (neededCount <= 0 ? 0.12 : 0)
+        );
+        return {
+            archetypeKey,
+            neededType,
+            neededCount,
+            totalSupply,
+            supplyActive,
+            missingPreferred: neededCount <= 0,
+            shortfallSeverity,
+            restockUrgency
+        };
+    },
     resetFloorStats() {
         this.floorStats = { kills: 0, chests: 0, hiddenRoomsCleared: 0 };
     },
@@ -4257,10 +4294,19 @@ class GameController {
 
     chooseHiddenRoomTarget(directExitPath) {
         const threshold = GameState.getDiversionThreshold();
+        const restNeedState = GameState.getSupportRoomNeedState('rest');
+        const merchantNeedState = GameState.getSupportRoomNeedState('merchant');
         let best = null;
 
         for (const room of this.hiddenRooms) {
-            if (room.cleared || !room.unlocked) continue;
+            if (room.cleared) {
+                room.routingDebug = { state: 'cleared', threshold, baseAccessScore: room.accessScore };
+                continue;
+            }
+            if (!room.unlocked) {
+                room.routingDebug = { state: 'locked', threshold, baseAccessScore: room.accessScore };
+                continue;
+            }
             const objective = this.getHiddenRoomObjectiveCell(room);
             const pathToRoom = this.computePathBetween(this.playerPos, objective, {
                 avoidUnclearedHiddenRooms: true,
@@ -4270,11 +4316,35 @@ class GameController {
                 avoidUnclearedHiddenRooms: true,
                 allowedHiddenRoomId: room.id
             });
-            if (!Array.isArray(pathToRoom) || !Array.isArray(pathRoomToExit)) continue;
-            if (this.playerPos.c !== objective.c || this.playerPos.r !== objective.r) {
-                if (pathToRoom.length === 0) continue;
+            if (!Array.isArray(pathToRoom) || !Array.isArray(pathRoomToExit)) {
+                room.routingDebug = {
+                    state: 'path-missing',
+                    threshold,
+                    baseAccessScore: room.accessScore
+                };
+                continue;
             }
-            if (pathRoomToExit.length === 0 && (objective.c !== this.endPos.c || objective.r !== this.endPos.r)) continue;
+            if (this.playerPos.c !== objective.c || this.playerPos.r !== objective.r) {
+                if (pathToRoom.length === 0) {
+                    room.routingDebug = {
+                        state: 'room-unreachable',
+                        threshold,
+                        baseAccessScore: room.accessScore,
+                        objective
+                    };
+                    continue;
+                }
+            }
+            if (pathRoomToExit.length === 0 && (objective.c !== this.endPos.c || objective.r !== this.endPos.r)) {
+                room.routingDebug = {
+                    state: 'exit-unreachable',
+                    threshold,
+                    baseAccessScore: room.accessScore,
+                    objective,
+                    pathToRoomLength: pathToRoom.length
+                };
+                continue;
+            }
 
             const detourExtra = Math.max(0, pathToRoom.length + pathRoomToExit.length - directExitPath.length);
             let score = room.accessScore - Math.min(0.34, detourExtra * 0.032);
@@ -4283,8 +4353,10 @@ class GameController {
             if (room.typeKey === 'event') {
                 const eventSeed = room.eventSeed || {};
                 if (eventSeed.effect === 'heal_or_shield' && GameState.player.currentHp < GameState.player.baseHp * 0.7) score += 0.08;
+                if (eventSeed.effect === 'repair_and_guard' && GameState.player.currentHp < GameState.player.baseHp * 0.76) score += 0.1;
                 if (eventSeed.effect === 'next_floor_hidden_room_bonus') score += 0.05;
                 if (eventSeed.effect === 'chest_density_boost') score += 0.04;
+                if (eventSeed.effect === 'supply_stockpile' && GameState.getSupportRoomNeedState('event').shortfallSeverity > 0.4) score += 0.09;
                 if (eventSeed.effect === 'monster_density_boost' && GameState.floorBuff?.supplyKey === 'assault') score += 0.04;
                 if (eventSeed.effect === 'power_up_with_penalty' && GameState.player.currentHp < GameState.player.baseHp * 0.58) score -= 0.08;
                 if (eventSeed.effect === 'score_now_risk_next_floor' && GameState.autoStrategy.risk === 'cautious') score -= 0.06;
@@ -4301,11 +4373,13 @@ class GameController {
             }
             if (room.typeKey === 'rest') {
                 const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
-                const totalSupply = GameState.getTotalSupplyCount();
-                const supplyNeed = totalSupply <= 0 ? 0.18 : totalSupply === 1 ? 0.1 : 0;
-                if (hpRatio < 0.45) score += 0.24 + supplyNeed;
-                else if (hpRatio < 0.72) score += 0.12 + supplyNeed;
-                else score += supplyNeed - 0.05;
+                if (hpRatio < 0.4) score += 0.26 + restNeedState.restockUrgency * 0.14;
+                else if (hpRatio < 0.58) score += 0.17 + restNeedState.restockUrgency * 0.12;
+                else if (hpRatio < 0.76) score += 0.08 + restNeedState.restockUrgency * 0.09;
+                else score += restNeedState.restockUrgency * 0.08 - 0.06;
+                if (restNeedState.missingPreferred) score += 0.08;
+                if (restNeedState.supplyActive) score += 0.05;
+                else if (restNeedState.shortfallSeverity < 0.28 && hpRatio > 0.82) score -= 0.03;
                 if (GameState.autoStrategy.rest === 'emergency') {
                     if (hpRatio > 0.72) score -= 0.18;
                     else if (hpRatio > 0.55) score -= 0.08;
@@ -4321,13 +4395,15 @@ class GameController {
                     GameState.costs.chest(),
                     GameState.isMazeSizeMaxed() ? Infinity : GameState.costs.size()
                 );
-                const totalSupply = GameState.getTotalSupplyCount();
-                const supplyNeed = totalSupply <= 0 ? 0.22 : totalSupply === 1 ? 0.12 : 0;
-                const neededSupplyType = GameState.getMostNeededSupplyType();
-                if (GameState.score >= cheapest * 0.8 || GameState.score >= GameState.getSupplyCost(neededSupplyType) * 0.72) score += 0.08 + supplyNeed;
-                else score += supplyNeed - 0.08;
-                if (GameState.autoStrategy.merchant === 'supplies') score += 0.08 + supplyNeed * 0.5;
-                if (GameState.autoStrategy.merchant === 'save') score -= 0.1;
+                const canAffordUpgrade = GameState.score >= cheapest * 0.8;
+                const canAffordSupply = GameState.score >= GameState.getSupplyCost(merchantNeedState.neededType) * 0.72;
+                if (canAffordUpgrade || canAffordSupply) score += 0.06 + merchantNeedState.shortfallSeverity * 0.16;
+                else score += merchantNeedState.shortfallSeverity * 0.08 - 0.1;
+                if (merchantNeedState.missingPreferred) score += 0.07;
+                if (!merchantNeedState.supplyActive) score += 0.06;
+                if (GameState.autoStrategy.merchant === 'supplies') score += 0.08 + merchantNeedState.restockUrgency * 0.08;
+                if (GameState.autoStrategy.merchant === 'save') score -= merchantNeedState.shortfallSeverity < 0.45 ? 0.12 : 0.05;
+                if (GameState.autoStrategy.merchant === 'power' && canAffordUpgrade) score += 0.05;
             }
             if (room.typeKey === 'trial') {
                 const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
@@ -4339,7 +4415,9 @@ class GameController {
                 if (GameState.floorBuff?.supplyKey === 'scout') score += 0.04;
                 score += trialSeed.diversionBias || 0;
                 if (trialSeed.effect === 'repair_loop' && hpRatio < 0.62) score += 0.06;
+                if (trialSeed.effect === 'guard_cache' && hpRatio < 0.72) score += 0.08;
                 if (trialSeed.effect === 'assault_cache' && GameState.autoStrategy.risk === 'greedy') score += 0.04;
+                if (trialSeed.effect === 'attack_overdrive' && (GameState.autoStrategy.risk === 'greedy' || GameState.floorBuff?.supplyKey === 'assault')) score += 0.08;
             }
             if (room.typeKey === 'treasure' && room.entered && room.pendingCacheIds?.length) score += 0.22;
             if (room.typeKey === 'event' && room.entered && room.pendingEventNodeIds?.length) score += 0.2;
@@ -4347,12 +4425,26 @@ class GameController {
             if (room.typeKey === 'elite' && room.entered && room.eliteEntity && !(room.pendingEliteNodeIds?.length > 0)) score += 0.14;
             if (room.typeKey === 'trial' && room.entered && room.pendingTrialNodeIds?.length) score += 0.22;
             score += GameState.floorBuff?.diversionBonus || 0;
+            room.routingDebug = {
+                state: score >= threshold ? 'eligible' : 'below-threshold',
+                threshold,
+                baseAccessScore: room.accessScore,
+                finalScore: score,
+                detourExtra,
+                pathToRoomLength: pathToRoom.length,
+                pathRoomToExitLength: pathRoomToExit.length,
+                objective,
+                targetType: room.typeKey
+            };
 
             if (score >= threshold && (!best || score > best.score)) {
                 best = { room, score, path: pathToRoom };
             }
         }
 
+        if (best?.room?.routingDebug) {
+            best.room.routingDebug.state = 'selected';
+        }
         return best;
     }
 
@@ -4439,7 +4531,8 @@ class GameController {
         const chargeBonus = chargeCount * 0.16;
         const baseReward = Math.floor((70 + rewardProfile.chestBonus * 18) * GameState.level * (rewardProfile.scoreMult + chargeBonus) * (seed.rewardMult || 1));
         const label = seed.label || room.displayName;
-        let message = `${label}完成了共振。`;
+        const supplyNeedState = GameState.getSupportRoomNeedState('event');
+        let message = label + ' stabilized the anomaly.';
 
         if (seed.effect === 'heal_or_shield') {
             const heal = Math.max(10, Math.floor(GameState.player.baseHp * (0.14 + rewardProfile.repairValue + chargeBonus * 0.35)));
@@ -4447,50 +4540,86 @@ class GameController {
             GameState.addScore(Math.floor(baseReward * 0.94));
             if (GameState.player.currentHp >= GameState.player.baseHp * 0.92) {
                 GameState.grantFloorSupply('salvage', 1);
-                message = `${label}修复了机体，回复 ${heal} 点生命，并顺手补进 1 份${GameState.supplyDefs.salvage?.label || '层补给'}。`;
+                const supplyLabel = GameState.supplyDefs.salvage?.label || 'supply';
+                message = label + ' restored ' + heal + ' HP and added 1 ' + supplyLabel + '.';
             } else {
-                message = `${label}稳住了机体，回复 ${heal} 点生命，并结算 ${Math.floor(baseReward * 0.94)} 魂能。`;
+                message = label + ' restored ' + heal + ' HP and granted ' + Math.floor(baseReward * 0.94) + ' score.';
             }
         } else if (seed.effect === 'next_floor_hidden_room_bonus') {
             const bonus = 0.05 + room.rewardTier * 0.015 + chargeBonus * 0.05;
             GameState.meta.nextHiddenRoomBonus = Math.min(0.3, GameState.meta.nextHiddenRoomBonus + bonus);
             GameState.addScore(Math.floor(baseReward * 0.88));
-            message = `${label}发出侦测脉冲，下一层更容易刷出密室，并结算 ${Math.floor(baseReward * 0.88)} 魂能。`;
+            message = label + ' boosted next-floor hidden room odds and granted ' + Math.floor(baseReward * 0.88) + ' score.';
+        } else if (seed.effect === 'repair_and_guard') {
+            const heal = Math.max(12, Math.floor(GameState.player.baseHp * (0.12 + rewardProfile.repairValue * 0.78 + chargeBonus * 0.22)));
+            const reduction = Math.min(0.24, 0.08 + room.rewardTier * 0.025 + chargeBonus * 0.06);
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
+            GameState.floorBuff.incomingDamageMult *= Math.max(0.56, 1 - reduction);
+            GameState.addScore(Math.floor(baseReward * 0.9));
+            if (chargeCount >= 2) {
+                const supplyType = supplyNeedState.neededType;
+                const supplyLabel = GameState.supplyDefs[supplyType]?.label || 'supply';
+                GameState.grantFloorSupply(supplyType, 1);
+                message = label + ' repaired for ' + heal + ' HP, reduced incoming damage, and added 1 ' + supplyLabel + '.';
+            } else {
+                message = label + ' repaired for ' + heal + ' HP and reduced incoming damage.';
+            }
         } else if (seed.effect === 'power_up_with_penalty') {
             const atkBoost = 2 + room.rewardTier + Math.round(chargeCount * 0.8);
             const hpLoss = Math.max(1, Math.floor(GameState.player.baseHp * 0.08));
             GameState.player.baseAtk += atkBoost;
             GameState.player.currentHp = Math.max(1, GameState.player.currentHp - hpLoss);
             GameState.addScore(Math.floor(baseReward * 1.12));
-            message = `${label}把火力推到更高，攻击 +${atkBoost}，但也烧掉了 ${hpLoss} 点生命。`;
+            message = label + ' overclocked attack by +' + atkBoost + ' and lost ' + hpLoss + ' HP.';
         } else if (seed.effect === 'chest_density_boost') {
             const chestBoost = 0.012 + room.rewardTier * 0.004 + chargeBonus * 0.01;
             GameState.maze.baseChestRate += chestBoost;
             GameState.addScore(Math.floor(baseReward * 0.96));
             if (chargeCount >= 2) {
+                const supplyLabel = GameState.supplyDefs.salvage?.label || 'supply';
                 GameState.grantFloorSupply('salvage', 1);
-                message = `${label}展开回收矩阵，后续更容易刷出宝箱，还额外拿到 1 份${GameState.supplyDefs.salvage?.label || '层补给'}。`;
+                message = label + ' boosted chest density and added 1 ' + supplyLabel + '.';
             } else {
-                message = `${label}展开回收矩阵，后续更容易刷出宝箱，并结算 ${Math.floor(baseReward * 0.96)} 魂能。`;
+                message = label + ' boosted chest density and granted ' + Math.floor(baseReward * 0.96) + ' score.';
             }
+        } else if (seed.effect === 'supply_stockpile') {
+            const firstSupply = supplyNeedState.neededType;
+            const priority = GameState.getSupplyPriority('event');
+            const secondSupply = priority.find((type) => type !== firstSupply) || firstSupply;
+            const firstSupplyLabel = GameState.supplyDefs[firstSupply]?.label || 'supply';
+            const secondSupplyLabel = GameState.supplyDefs[secondSupply]?.label || 'supply';
+            GameState.grantFloorSupply(firstSupply, 1);
+            if (chargeCount >= 2) {
+                GameState.grantFloorSupply(secondSupply, 1);
+            }
+            GameState.addScore(Math.floor(baseReward * (chargeCount >= 2 ? 0.82 : 0.74)));
+            message = chargeCount >= 2
+                ? label + ' granted 1 ' + firstSupplyLabel + ' and 1 ' + secondSupplyLabel + '.'
+                : label + ' granted 1 ' + firstSupplyLabel + ' and some score.';
         } else if (seed.effect === 'monster_density_boost') {
             const monsterBoost = 0.009 + room.rewardTier * 0.003 + chargeBonus * 0.008;
             const atkBoost = 1 + room.rewardTier + Math.round(chargeCount * 0.6);
             GameState.maze.baseMonsterRate += monsterBoost;
             GameState.player.baseAtk += atkBoost;
             GameState.addScore(Math.floor(baseReward * 1.04));
-            message = `${label}放大了狩猎信号，后面怪会更多，但攻击也跟着涨了 ${atkBoost}。`;
+            message = label + ' increased enemy density and attack by ' + atkBoost + '.';
         } else {
             const unstableReward = Math.floor(baseReward * 1.18);
             const monsterBoost = 0.006 + room.rewardTier * 0.002 + chargeBonus * 0.006;
             GameState.maze.baseMonsterRate += monsterBoost;
             GameState.addScore(unstableReward);
-            message = `${label}抖出一笔暴利缓存，立刻拿到 ${unstableReward} 魂能，但后面楼层也会更躁一点。`;
+            message = label + ' granted ' + unstableReward + ' score and increased enemy density.';
         }
 
-        const themeChainMessage = this.applyThemeChainBonus('rest', room);
+        if (GameState.hasRunRelic('echo_engine')) {
+            const attackBonus = Math.min(0.24, 0.08 + room.rewardTier * 0.02 + chargeBonus * 0.04);
+            GameState.meta.nextFloorAttackBonus = Math.min(0.32, GameState.meta.nextFloorAttackBonus + attackBonus);
+            message += ' Echo Engine preheated next-floor attack by ' + Math.round(attackBonus * 100) + '%.';
+        }
+
+        const themeChainMessage = this.applyThemeChainBonus('event', room);
         if (themeChainMessage) {
-            message += ` ${themeChainMessage}`;
+            message += ' ' + themeChainMessage;
         }
         GameState.updateUI();
         return message;
@@ -4501,10 +4630,11 @@ class GameController {
         const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
         const scoreReward = Math.floor((26 + room.rewardTier * 12) * GameState.level * (0.7 + rewardProfile.scoreMult));
         let message = `${room.displayName}让飞船短暂稳定了下来。`;
-        const neededSupply = GameState.getMostNeededSupplyType();
-        const shouldRestockSupply = GameState.getTotalSupplyCount() <= 1
-            || GameState.getSupplyCount(neededSupply) <= 0
-            || !GameState.floorBuff.supplyActive;
+        const supplyNeedState = GameState.getSupportRoomNeedState('rest');
+        const neededSupply = supplyNeedState.neededType;
+        const shouldRestockSupply = supplyNeedState.restockUrgency >= 0.44
+            || supplyNeedState.missingPreferred
+            || !supplyNeedState.supplyActive;
 
         if (hpRatio < 0.88) {
             const heal = Math.max(12, Math.floor(GameState.player.baseHp * (0.16 + rewardProfile.repairValue * 0.85)));
@@ -4532,12 +4662,13 @@ class GameController {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const discount = Math.max(0.68, 0.86 - room.rewardTier * 0.05);
         const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
-        const neededSupply = GameState.getMostNeededSupplyType();
+        const supplyNeedState = GameState.getSupportRoomNeedState('merchant');
+        const neededSupply = supplyNeedState.neededType;
         const supplyPrice = Math.max(18, Math.floor(GameState.getSupplyCost(neededSupply) * Math.max(0.68, discount - 0.08)));
         const merchantMode = GameState.autoStrategy.merchant;
         const shouldPrioritizeSupply = merchantMode === 'supplies'
-            ? (GameState.getTotalSupplyCount() <= 2 || GameState.getSupplyCount(neededSupply) <= 0)
-            : (GameState.getTotalSupplyCount() <= 1 || GameState.getSupplyCount(neededSupply) <= 0);
+            ? (supplyNeedState.restockUrgency >= 0.38 || supplyNeedState.totalSupply <= 2)
+            : (supplyNeedState.restockUrgency >= 0.58 || supplyNeedState.missingPreferred);
         if (shouldPrioritizeSupply && GameState.score >= supplyPrice) {
             GameState.score -= supplyPrice;
             GameState.grantFloorSupply(neededSupply, 1);
@@ -4647,32 +4778,66 @@ class GameController {
             const heal = Math.max(12, Math.floor(GameState.player.baseHp * (0.12 + rewardProfile.repairValue * 0.5)));
             GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
             room.trialBonusSupply = null;
-            bonusText = ` 并回修了 ${heal} 点生命。`;
+            bonusText = ' Restored ' + heal + ' HP.';
+        } else if (trialSeed.effect === 'guard_cache') {
+            const heal = Math.max(10, Math.floor(GameState.player.baseHp * (0.08 + rewardProfile.repairValue * 0.36)));
+            const reduction = Math.min(0.22, 0.06 + room.rewardTier * 0.018 + chargeCount * 0.012);
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
+            GameState.floorBuff.incomingDamageMult *= Math.max(0.56, 1 - reduction);
+            if (chargeCount >= Math.max(2, room.rewardTier - 1)) {
+                const supplyType = GameState.getSupportRoomNeedState('trial').neededType;
+                const supplyLabel = GameState.supplyDefs[supplyType]?.label || 'supply';
+                GameState.grantFloorSupply(supplyType, 1);
+                room.trialBonusSupply = supplyType;
+                bonusText = ' Restored ' + heal + ' HP, reduced incoming damage, and added 1 ' + supplyLabel + '.';
+            } else {
+                room.trialBonusSupply = null;
+                bonusText = ' Restored ' + heal + ' HP and reduced incoming damage.';
+            }
         } else if (trialSeed.effect === 'survey') {
             const scoutBonus = 0.05 + room.rewardTier * 0.012 + chargeCount * 0.01;
             GameState.meta.nextHiddenRoomBonus = Math.min(0.28, GameState.meta.nextHiddenRoomBonus + scoutBonus);
             room.trialBonusSupply = null;
-            bonusText = ' 并把下一层的密室侦测再往上推了一截。';
+            bonusText = ' Boosted next-floor hidden room scouting.';
+        } else if (trialSeed.effect === 'attack_overdrive') {
+            const atkBoost = 2 + room.rewardTier + Math.max(1, Math.round(chargeCount * 0.8));
+            const attackBonus = Math.min(0.22, 0.05 + room.rewardTier * 0.015 + chargeCount * 0.02);
+            GameState.player.baseAtk += atkBoost;
+            GameState.meta.nextFloorAttackBonus = Math.min(0.4, GameState.meta.nextFloorAttackBonus + attackBonus);
+            if (chargeCount >= Math.max(2, room.rewardTier - 1)) {
+                const supplyLabel = GameState.supplyDefs.assault?.label || 'assault supply';
+                GameState.grantFloorSupply('assault', 1);
+                room.trialBonusSupply = 'assault';
+                bonusText = ' Attack +' + atkBoost + ', next-floor attack +' + Math.round(attackBonus * 100) + '%, and added 1 ' + supplyLabel + '.';
+            } else {
+                room.trialBonusSupply = null;
+                bonusText = ' Attack +' + atkBoost + ' and next-floor attack +' + Math.round(attackBonus * 100) + '%.';
+            }
         } else if (chargeCount >= Math.max(2, room.rewardTier - 1)) {
             const supplyType = trialSeed.effect === 'salvage_cache'
                 ? 'salvage'
                 : trialSeed.effect === 'assault_cache'
                     ? 'assault'
                     : room.rewardTier >= 4 ? 'assault' : GameState.getMostNeededSupplyType();
+            const supplyLabel = GameState.supplyDefs[supplyType]?.label || 'supply';
             GameState.grantFloorSupply(supplyType, 1);
             room.trialBonusSupply = supplyType;
-            bonusText = ` 并额外拿到 1 份${GameState.supplyDefs[supplyType]?.label || '层补给'}。`;
+            bonusText = ' Added 1 ' + supplyLabel + '.';
         } else {
             const scoutBonus = 0.03 + room.rewardTier * 0.01;
             GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + scoutBonus);
             room.trialBonusSupply = null;
-            bonusText = ' 并为下一层追加了一点密室侦测。';
+            bonusText = ' Added a small next-floor scouting bonus.';
+        }
+
+        const themeChainMessage = this.applyThemeChainBonus('trial', room);
+        if (themeChainMessage) {
+            bonusText += ' ' + themeChainMessage;
         }
 
         GameState.updateUI();
-        return `${trialSeed.label || room.displayName}完成试炼，结算 ${bonusReward} 魂能。${bonusText}`;
+        return (trialSeed.label || room.displayName) + ' completed the trial and granted ' + bonusReward + ' score.' + bonusText;
     }
-
     clearHiddenRoom(room) {
         if (!room || room.cleared) return;
         room.cleared = true;
