@@ -633,6 +633,11 @@ import {
     createFootstepTrack,
     createOneShotSoundConfig
 } from './src/data/game-config.mjs';
+import {
+    RUN_RELIC_SLOTS,
+    getRelicDef,
+    pickRelicReward
+} from './src/data/relics.mjs';
 
 function normalizeColorHex(value, fallback = '#ffffff') {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -647,6 +652,25 @@ function normalizeColorHex(value, fallback = '#ffffff') {
         if (/^[0-9a-fA-F]{6}$/.test(trimmed)) return `#${trimmed.toLowerCase()}`;
     }
     return fallback.toLowerCase();
+}
+
+function createBaseFloorBuff(overrides = {}) {
+    return {
+        supplyActive: false,
+        supplyKey: null,
+        supplyLabel: '',
+        hiddenRoomBonus: 0,
+        chestRewardMult: 1,
+        attackMult: 1,
+        supplyDropBonus: 0,
+        diversionBonus: 0,
+        moveSpeedMult: 1,
+        monsterSpawnMult: 1,
+        monsterRewardMult: 1,
+        incomingDamageMult: 1,
+        bossRewardMult: 1,
+        ...overrides
+    };
 }
 
 function sanitizeAppearanceConfig(rawConfig) {
@@ -1398,19 +1422,19 @@ const GameState = {
             scout: 0
         }
     },
-    floorBuff: {
-        supplyActive: false,
-        supplyKey: null,
-        supplyLabel: '',
-        hiddenRoomBonus: 0,
-        chestRewardMult: 1,
-        attackMult: 1,
-        supplyDropBonus: 0,
-        diversionBonus: 0
-    },
+    relicSlots: RUN_RELIC_SLOTS,
+    runRelics: [],
+    floorBuff: createBaseFloorBuff(),
     floorContent: null,
+    floorDirective: null,
     floorStats: { kills: 0, chests: 0, hiddenRoomsCleared: 0 },
-    meta: { nextHiddenRoomBonus: 0 },
+    floorRuntime: {
+        reflexShieldReady: false
+    },
+    meta: {
+        nextHiddenRoomBonus: 0,
+        nextFloorAttackBonus: 0
+    },
     strategyStorageKey: 'jkp-auto-strategy',
     autoStrategy: {
         risk: 'balanced',
@@ -1458,6 +1482,54 @@ const GameState = {
     },
     getSupplyCount(type) {
         return Math.max(0, this.items.supplies[type] || 0);
+    },
+    hasRunRelic(id) {
+        return this.runRelics.includes(id);
+    },
+    getRunRelicDefs() {
+        return this.runRelics
+            .map((id) => getRelicDef(id))
+            .filter(Boolean);
+    },
+    getRelicOverflowScore(source = 'elite') {
+        return Math.floor((90 + this.level * 24) * (source === 'boss' ? 1.45 : 1));
+    },
+    claimRunRelic(relic, source = 'elite') {
+        if (!relic) return { status: 'none', relic: null, bonusScore: 0 };
+        if (this.hasRunRelic(relic.id) || this.runRelics.length >= this.relicSlots) {
+            const bonusScore = this.getRelicOverflowScore(source);
+            this.addScore(bonusScore);
+            return {
+                status: this.hasRunRelic(relic.id) ? 'duplicate' : 'overflow',
+                relic,
+                bonusScore
+            };
+        }
+        this.runRelics.push(relic.id);
+        this.updateUI();
+        return { status: 'added', relic, bonusScore: 0 };
+    },
+    rollRelicReward({
+        source = 'elite',
+        themeKey = this.floorContent?.themeKey || null,
+        rewardTier = 1,
+        guaranteed = false
+    } = {}) {
+        const baseChance = source === 'boss' ? 1 : 0.08 + rewardTier * 0.08;
+        const chance = guaranteed ? 1 : Math.min(0.72, baseChance);
+        if (Math.random() > chance) return { status: 'miss', relic: null, bonusScore: 0, chance };
+        const relic = pickRelicReward({
+            level: this.level,
+            source,
+            themeKey,
+            ownedIds: this.runRelics
+        });
+        if (!relic) {
+            const bonusScore = this.getRelicOverflowScore(source);
+            this.addScore(bonusScore);
+            return { status: 'empty-pool', relic: null, bonusScore, chance };
+        }
+        return { ...this.claimRunRelic(relic, source), chance };
     },
     getTotalSupplyCount() {
         return Object.values(this.items.supplies).reduce((sum, value) => sum + Math.max(0, value || 0), 0);
@@ -1553,55 +1625,85 @@ const GameState = {
         const priority = this.getSupplyPriority(archetypeKey);
         const chosenType = priority.find((type) => this.getSupplyCount(type) > 0) || null;
         if (!chosenType) {
-            this.floorBuff = {
-                supplyActive: false,
-                supplyKey: null,
-                supplyLabel: '',
-                hiddenRoomBonus: 0,
-                chestRewardMult: 1,
-                attackMult: 1,
-                supplyDropBonus: 0,
-                diversionBonus: 0
-            };
+            this.floorBuff = createBaseFloorBuff();
             return false;
         }
         this.items.supplies[chosenType] -= 1;
         if (chosenType === 'assault') {
-            this.floorBuff = {
+            this.floorBuff = createBaseFloorBuff({
                 supplyActive: true,
                 supplyKey: chosenType,
                 supplyLabel: this.supplyDefs[chosenType].label,
-                hiddenRoomBonus: 0,
-                chestRewardMult: 1,
                 attackMult: 1.24,
-                supplyDropBonus: 0,
-                diversionBonus: 0
-            };
+                bossRewardMult: 1.08
+            });
         } else if (chosenType === 'salvage') {
-            this.floorBuff = {
+            this.floorBuff = createBaseFloorBuff({
                 supplyActive: true,
                 supplyKey: chosenType,
                 supplyLabel: this.supplyDefs[chosenType].label,
-                hiddenRoomBonus: 0,
                 chestRewardMult: 1.42,
-                attackMult: 1,
-                supplyDropBonus: 0.14,
-                diversionBonus: 0
-            };
+                supplyDropBonus: 0.14
+            });
         } else {
-            this.floorBuff = {
+            this.floorBuff = createBaseFloorBuff({
                 supplyActive: true,
                 supplyKey: chosenType,
                 supplyLabel: this.supplyDefs[chosenType].label,
                 hiddenRoomBonus: 0.1,
-                chestRewardMult: 1,
-                attackMult: 1,
                 supplyDropBonus: 0.04,
                 diversionBonus: 0.08
-            };
+            });
         }
         this.updateUI();
         return true;
+    },
+    applyRunRelicsAtFloorStart(archetypeKey = 'combat') {
+        this.floorRuntime = {
+            reflexShieldReady: this.hasRunRelic('reflex_shield')
+        };
+        if (this.hasRunRelic('pathfinder_lens')) {
+            this.floorBuff.hiddenRoomBonus += 0.08;
+            this.floorBuff.diversionBonus += 0.06;
+        }
+        if (this.hasRunRelic('salvage_thrusters')) {
+            this.floorBuff.chestRewardMult *= 1.18;
+            this.floorBuff.supplyDropBonus += 0.08;
+            this.floorBuff.moveSpeedMult *= archetypeKey === 'treasure' ? 0.9 : 0.95;
+        }
+        if (this.hasRunRelic('blood_compass')) {
+            this.floorBuff.monsterSpawnMult *= 1.18;
+            this.floorBuff.monsterRewardMult *= 1.18;
+        }
+        if (this.hasRunRelic('echo_engine') && this.meta.nextFloorAttackBonus > 0) {
+            this.floorBuff.attackMult *= 1 + this.meta.nextFloorAttackBonus;
+            this.meta.nextFloorAttackBonus = 0;
+        }
+        if (this.hasRunRelic('boss_harvester')) {
+            this.floorBuff.bossRewardMult *= 1.22;
+        }
+    },
+    applyThemeDirectiveAtFloorStart(floorPlan = null) {
+        const directive = floorPlan?.theme?.directive || null;
+        if (!directive) {
+            this.floorDirective = null;
+            return;
+        }
+        const scale = floorPlan?.isFinaleFloor ? 1.35 : 1;
+        this.floorDirective = {
+            label: directive.label,
+            summary: directive.summary
+        };
+        if (directive.attackBonus) this.floorBuff.attackMult *= 1 + directive.attackBonus * scale;
+        if (directive.chestRewardBonus) this.floorBuff.chestRewardMult *= 1 + directive.chestRewardBonus * scale;
+        if (directive.hiddenRoomBonus) this.floorBuff.hiddenRoomBonus += directive.hiddenRoomBonus * scale;
+        if (directive.supplyDropBonus) this.floorBuff.supplyDropBonus += directive.supplyDropBonus * scale;
+        if (directive.diversionBonus) this.floorBuff.diversionBonus += directive.diversionBonus * scale;
+        if (directive.monsterRewardBonus) this.floorBuff.monsterRewardMult *= 1 + directive.monsterRewardBonus * scale;
+        if (directive.bossRewardBonus) this.floorBuff.bossRewardMult *= 1 + directive.bossRewardBonus * scale;
+        if (directive.incomingDamageReduction) {
+            this.floorBuff.incomingDamageMult *= Math.max(0.2, 1 - directive.incomingDamageReduction * scale);
+        }
     },
     addScore(val) {
         this.score += val;
@@ -1691,6 +1793,29 @@ const GameState = {
         }
 
         document.getElementById('ui-score').innerText = Math.floor(this.score);
+        const relicCountEl = document.getElementById('ui-relic-count');
+        const relicListEl = document.getElementById('ui-relic-list');
+        const relicHintEl = document.getElementById('ui-relic-hint');
+        if (relicCountEl && relicListEl && relicHintEl) {
+            const relicDefs = this.getRunRelicDefs();
+            relicCountEl.innerText = `${relicDefs.length}/${this.relicSlots}`;
+            relicHintEl.innerText = this.meta.nextFloorAttackBonus > 0
+                ? `回响引擎已为下层预热 +${Math.round(this.meta.nextFloorAttackBonus * 100)}% 火力`
+                : relicDefs.length > 0
+                    ? '这些核心会持续影响当前这轮推进。'
+                    : '精英密室和 Boss 有机会掉当前这轮的核心。';
+            relicListEl.innerHTML = relicDefs.length > 0
+                ? relicDefs.map((relic) => `
+                    <div class="rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="text-xs font-bold text-slate-100">${relic.label}</div>
+                            <div class="text-[10px] font-bold text-cyan-300">${relic.summary}</div>
+                        </div>
+                        <div class="mt-1 text-[10px] leading-4 text-slate-400">${relic.shortLabel}</div>
+                    </div>
+                `).join('')
+                : '<div class="rounded-lg border border-dashed border-slate-700 bg-slate-950/50 px-3 py-3 text-[11px] font-bold text-slate-500">还没有拿到核心。先闯精英密室，或者把 Boss 打出来。</div>';
+        }
         ['speed', 'atk', 'hp', 'chest', 'size', 'monster'].forEach((id) => {
             const lv = this.player[`lv${id.charAt(0).toUpperCase() + id.slice(1)}`] || this.maze[`lv${id.charAt(0).toUpperCase() + id.slice(1)}`];
             const isSizeMaxed = id === 'size' && this.isMazeSizeMaxed();
@@ -1749,10 +1874,13 @@ const GameState = {
             const floorLabel = floorLabels[this.floorContent?.archetypeKey] || floorLabels.combat;
             const themeLabel = this.floorContent?.theme?.label;
             const finaleLabel = this.floorContent?.isFinaleFloor ? this.floorContent?.finale?.label : '';
+            const directiveLabel = this.floorDirective?.label;
+            const directiveSummary = this.floorDirective?.summary;
             const themedMonsterText = themeLabel
                 ? `${baseText} · ${floorLabel} · ${themeLabel}${finaleLabel ? ` · ${finaleLabel}` : ''}`
                 : `${baseText} · ${floorLabel}`;
-            monsterDesc.innerText = themedMonsterText;
+            const decoratedMonsterText = `${themedMonsterText}${directiveLabel ? ` 路 ${directiveLabel}` : ''}${directiveSummary ? ` 路 ${directiveSummary}` : ''}`;
+            monsterDesc.innerText = decoratedMonsterText;
         }
     }
 };
@@ -1793,6 +1921,23 @@ function initializeSupplyCardUi() {
     `;
 }
 
+function initializeRelicCardUi() {
+    const scoreCard = document.getElementById('ui-score-card');
+    if (!scoreCard || document.getElementById('ui-relic-card')) return;
+    const card = document.createElement('div');
+    card.id = 'ui-relic-card';
+    card.className = 'bg-slate-800 rounded-xl p-4 border-2 border-slate-700 shadow-inner';
+    card.innerHTML = `
+        <div class="flex items-center justify-between">
+            <span class="text-slate-400 font-bold text-sm">本轮核心</span>
+            <span id="ui-relic-count" class="text-xl font-black text-cyan-300">0/${RUN_RELIC_SLOTS}</span>
+        </div>
+        <div id="ui-relic-hint" class="mt-2 text-[11px] font-bold text-slate-400">精英密室和 Boss 有机会掉当前这轮的核心。</div>
+        <div id="ui-relic-list" class="mt-3 space-y-2"></div>
+    `;
+    scoreCard.insertAdjacentElement('afterend', card);
+}
+
 function initializeSupplyStatusPill() {
     const host = document.getElementById('ui-status-box')?.parentElement;
     if (!host || document.getElementById('ui-supply-pill')) return;
@@ -1814,6 +1959,7 @@ function initializeThemeStatusPill() {
 }
 
 initializeSupplyCardUi();
+initializeRelicCardUi();
 initializeThemeStatusPill();
 initializeSupplyStatusPill();
 window.GameState = GameState;
@@ -3730,6 +3876,43 @@ class GameController {
         };
     }
 
+    async resolveHiddenEliteRoomClear(room, enemyMesh) {
+        if (!room || room.cleared) return;
+        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const bonusReward = Math.floor((120 + rewardProfile.chestBonus * 24) * GameState.level * rewardProfile.scoreMult);
+        const repair = Math.floor(GameState.player.baseHp * rewardProfile.repairValue * 0.45);
+        GameState.addScore(bonusReward);
+        if (repair > 0) {
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
+        }
+        window.soundEngine?.upgrade();
+        this.engine.spawnBurst(enemyMesh.position, 0xa78bfa, 26, 2.4);
+        this.engine.addFloatingText(`${room.displayName} 已清空`, enemyMesh.position, '#c084fc', true);
+        if (room.entity?.mesh) {
+            this.engine.scene.remove(room.entity.mesh);
+        }
+        const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
+        if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
+        this.clearHiddenRoom(room);
+        await this.resolveRunRelicReward(
+            relicReward,
+            enemyMesh.position.clone().add(new THREE.Vector3(0, 0.45, 0)),
+            room.displayName
+        );
+        await this.resolveRunRelicReward(
+            relicReward,
+            enemyMesh.position.clone().add(new THREE.Vector3(0, 0.45, 0)),
+            room.displayName
+        );
+        const relicMessage = await this.resolveRunRelicReward(
+            relicReward,
+            enemyMesh.position.clone().add(new THREE.Vector3(0, 0.45, 0)),
+            room.displayName
+        );
+        await this.typeText(`你扫清了 ${room.displayName}，额外获得 ${bonusReward} 魂能${repair > 0 ? `，并修复了 ${repair} 点护盾` : ''}${relicMessage ? `，同时 ${relicMessage}` : ''}。`);
+        await this.sleep(520);
+    }
+
     buildEliteArchetype(room) {
         const base = this.pickEnemyArchetype();
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
@@ -4231,6 +4414,20 @@ class GameController {
             message = `${room.displayName}抖出一份不稳定缓存，立刻换来一笔额外魂能。`;
         }
 
+        if (GameState.hasRunRelic('echo_engine')) {
+            const attackBonus = Math.min(0.24, 0.08 + room.rewardTier * 0.02 + chargeBonus * 0.04);
+            GameState.meta.nextFloorAttackBonus = Math.min(0.32, GameState.meta.nextFloorAttackBonus + attackBonus);
+            message += ` 回响引擎顺手把下层火力也预热了 ${Math.round(attackBonus * 100)}%。`;
+        }
+        if (GameState.hasRunRelic('echo_engine')) {
+            const attackBonus = Math.min(0.24, 0.08 + room.rewardTier * 0.02 + chargeBonus * 0.04);
+            GameState.meta.nextFloorAttackBonus = Math.min(0.32, GameState.meta.nextFloorAttackBonus + attackBonus);
+            message += ` 回响引擎顺手把下层火力也预热了 ${Math.round(attackBonus * 100)}%。`;
+        }
+        const themeChainMessage = this.applyThemeChainBonus('event', room);
+        if (themeChainMessage) {
+            message += ` ${themeChainMessage}`;
+        }
         GameState.updateUI();
         return message;
     }
@@ -4291,6 +4488,10 @@ class GameController {
             message = `${label}抖出一笔暴利缓存，立刻拿到 ${unstableReward} 魂能，但后面楼层也会更躁一点。`;
         }
 
+        const themeChainMessage = this.applyThemeChainBonus('rest', room);
+        if (themeChainMessage) {
+            message += ` ${themeChainMessage}`;
+        }
         GameState.updateUI();
         return message;
     }
@@ -4340,6 +4541,7 @@ class GameController {
         if (shouldPrioritizeSupply && GameState.score >= supplyPrice) {
             GameState.score -= supplyPrice;
             GameState.grantFloorSupply(neededSupply, 1);
+            const themeChainMessage = this.applyThemeChainBonus('merchant', room);
             GameState.updateUI();
             return `${room.displayName}补进了 1 份${GameState.supplyDefs[neededSupply]?.label || '层补给'}，折后花费 ${supplyPrice} 魂能。`;
         }
@@ -4380,6 +4582,7 @@ class GameController {
             const consolation = Math.floor((22 + rewardProfile.chestBonus * 8) * GameState.level * 0.85);
             GameState.addScore(consolation);
             GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + 0.02 + room.rewardTier * 0.01);
+            const themeChainMessage = this.applyThemeChainBonus('merchant', room);
             GameState.updateUI();
             return `${room.displayName}没找到合适买卖，商贩给了份情报，下一层更容易刷出密室。`;
         }
@@ -4395,6 +4598,7 @@ class GameController {
         if (rebate > 0) {
             GameState.score += rebate;
         }
+        const themeChainMessage = this.applyThemeChainBonus('merchant', room);
         GameState.updateUI();
 
         const typeLabels = {
@@ -4584,6 +4788,11 @@ class GameController {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const bonusReward = Math.floor((120 + rewardProfile.chestBonus * 24) * GameState.level * rewardProfile.scoreMult);
         const repair = Math.floor(GameState.player.baseHp * rewardProfile.repairValue * 0.45);
+        const relicReward = GameState.rollRelicReward({
+            source: 'elite',
+            themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
+            rewardTier: room.rewardTier
+        });
         GameState.addScore(bonusReward);
         if (repair > 0) {
             GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
@@ -4624,6 +4833,14 @@ class GameController {
             const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
             if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
             this.clearHiddenRoom(room);
+            const themeChainMessage = this.applyThemeChainBonus(
+                'treasure',
+                room,
+                entityObj?.mesh?.position?.clone() || this.engine.playerObj.position.clone()
+            );
+            if (themeChainMessage) {
+                this.engine.addFloatingText(themeChainMessage, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.3, 0)), '#e2e8f0');
+            }
         }
         await this.sleep(90);
     }
@@ -4758,6 +4975,11 @@ class GameController {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const bonusReward = Math.floor((120 + rewardProfile.chestBonus * 24) * GameState.level * rewardProfile.scoreMult);
         const repair = Math.floor(GameState.player.baseHp * rewardProfile.repairValue * 0.45);
+        const relicReward = GameState.rollRelicReward({
+            source: 'elite',
+            themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
+            rewardTier: room.rewardTier
+        });
         GameState.addScore(bonusReward);
         if (repair > 0) {
             GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
@@ -4796,6 +5018,208 @@ class GameController {
             hiddenRoomId: room.id,
             hiddenRoomRewardTier: room.rewardTier
         };
+    }
+
+    buildFinaleBossArchetype() {
+        const baseBoss = ENEMY_ARCHETYPES.find((enemy) => enemy.id === 'boss');
+        const bossMod = this.floorPlan?.isFinaleFloor ? this.floorPlan?.finale?.bossMod : null;
+        if (!baseBoss || !bossMod) return baseBoss;
+
+        return {
+            ...baseBoss,
+            id: `${baseBoss.id}-${this.floorPlan?.themeKey || 'finale'}`,
+            name: bossMod.name || baseBoss.name,
+            intro: bossMod.intro || baseBoss.intro,
+            attackVerb: bossMod.attackVerb || baseBoss.attackVerb,
+            color: bossMod.color ?? baseBoss.color,
+            accent: bossMod.accent ?? baseBoss.accent,
+            baseHp: Math.max(1, Math.floor(baseBoss.baseHp * (bossMod.hpMult || 1))),
+            baseAtk: Math.max(1, Math.floor(baseBoss.baseAtk * (bossMod.atkMult || 1))),
+            reward: Math.max(1, Math.floor(baseBoss.reward * (bossMod.rewardMult || 1))),
+            scale: (baseBoss.scale || 1) * 1.04,
+            finaleBoss: true,
+            finaleBossLabel: this.floorPlan?.finale?.label || '\u7ec8\u5c40\u5a01\u80c1',
+            finaleBossClearBonusMult: Math.max(0, bossMod.clearBonusMult || 0),
+            bossMechanic: bossMod.bossMechanic || null
+        };
+    }
+
+    getFinaleBossClearBonus(enemyObj, profile) {
+        const mult = enemyObj?.enemyData?.finaleBossClearBonusMult || 0;
+        if (!mult) return 0;
+        return Math.max(40, Math.floor(profile.reward * mult));
+    }
+
+    buildBossMechanicState(enemyObj) {
+        const mechanic = enemyObj?.enemyData?.bossMechanic;
+        if (!enemyObj?.enemyData?.finaleBoss || !mechanic?.key) return null;
+        if (mechanic.key === 'heat_ramp') {
+            return {
+                key: mechanic.key,
+                stacks: 0,
+                maxStacks: mechanic.maxStacks || 3,
+                atkGainPerStack: mechanic.atkGainPerStack || 0.16
+            };
+        }
+        if (mechanic.key === 'salvage_repair') {
+            return {
+                key: mechanic.key,
+                healRatio: mechanic.healRatio || 0.08,
+                remainingTriggers: mechanic.maxTriggers || 3
+            };
+        }
+        if (mechanic.key === 'signal_jam') {
+            return {
+                key: mechanic.key,
+                playerDamageMult: mechanic.playerDamageMult || 0.62,
+                pendingJam: false
+            };
+        }
+        if (mechanic.key === 'seal_layers') {
+            return {
+                key: mechanic.key,
+                layers: mechanic.layers || 2,
+                damageMult: mechanic.damageMult || 0.48
+            };
+        }
+        return null;
+    }
+
+    getBossMechanicIntro(state) {
+        if (!state) return '';
+        if (state.key === 'heat_ramp') return '终局机制：它会在每次出手前继续升温，火力会越打越重。';
+        if (state.key === 'salvage_repair') return '终局机制：它会尝试回收周围碎片，慢慢把自己修回去。';
+        if (state.key === 'signal_jam') return '终局机制：它会持续干扰你的锁定，下一轮火力可能会被压低。';
+        if (state.key === 'seal_layers') return `终局机制：它带着 ${state.layers} 层封锁护壳，前几次命中会被硬吃掉。`;
+        return '';
+    }
+
+    applyBossMechanicToPlayerDamage(mechanicState, damage, enemyMesh) {
+        if (!mechanicState) return { damage, message: '' };
+        if (mechanicState.key === 'signal_jam' && mechanicState.pendingJam) {
+            mechanicState.pendingJam = false;
+            const reducedDamage = Math.max(1, Math.floor(damage * mechanicState.playerDamageMult));
+            this.engine.addFloatingText('干扰', enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#67e8f9', true);
+            return {
+                damage: reducedDamage,
+                message: `脉冲干扰压低了锁定精度，这一击只打出了 ${reducedDamage}。`
+            };
+        }
+        if (mechanicState.key === 'seal_layers' && mechanicState.layers > 0) {
+            mechanicState.layers -= 1;
+            const reducedDamage = Math.max(1, Math.floor(damage * mechanicState.damageMult));
+            this.engine.addFloatingText(`封锁 ${mechanicState.layers}`, enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#c4b5fd', true);
+            return {
+                damage: reducedDamage,
+                message: `封锁护壳吞掉了大半伤害，还剩 ${mechanicState.layers} 层。`
+            };
+        }
+        return { damage, message: '' };
+    }
+
+    applyBossMechanicBeforeEnemyAttack(mechanicState, enemyHp, profile, enemyMesh) {
+        if (!mechanicState) {
+            return { enemyHp, attackMult: 1, message: '' };
+        }
+        if (mechanicState.key === 'heat_ramp') {
+            mechanicState.stacks = Math.min(mechanicState.maxStacks, mechanicState.stacks + 1);
+            this.engine.addFloatingText(`过热 x${mechanicState.stacks}`, enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#fb923c', true);
+            return {
+                enemyHp,
+                attackMult: 1 + mechanicState.stacks * mechanicState.atkGainPerStack,
+                message: `熔压核心继续升温，下一击更重了。`
+            };
+        }
+        if (mechanicState.key === 'salvage_repair' && mechanicState.remainingTriggers > 0 && enemyHp < profile.maxHp) {
+            const heal = Math.max(8, Math.floor(profile.maxHp * mechanicState.healRatio));
+            const nextHp = Math.min(profile.maxHp, enemyHp + heal);
+            mechanicState.remainingTriggers -= 1;
+            this.updateRPG_HP(nextHp, profile.maxHp, this.currentEnemy);
+            this.engine.addFloatingText(`+${nextHp - enemyHp}`, enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#fde68a', true);
+            return {
+                enemyHp: nextHp,
+                attackMult: 1,
+                message: `回收洪流把它重新拼起来了一点。`
+            };
+        }
+        if (mechanicState.key === 'signal_jam') {
+            mechanicState.pendingJam = true;
+            this.engine.addFloatingText('干扰脉冲', enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#67e8f9', true);
+            return {
+                enemyHp,
+                attackMult: 1,
+                message: `满频干扰已经锁上来了，你下一轮火力会被压住。`
+            };
+        }
+        return { enemyHp, attackMult: 1, message: '' };
+    }
+
+    async resolveRunRelicReward(result, anchorPos, contextLabel = '') {
+        if (!result || result.status === 'miss') return '';
+        if (result.status === 'added' && result.relic) {
+            window.soundEngine?.upgrade();
+            this.engine.spawnBurst(anchorPos, 0x22d3ee, 22, 2.1);
+            this.engine.addFloatingText(result.relic.label, anchorPos, '#67e8f9', true);
+            return `${contextLabel}${contextLabel ? ' ' : ''}掉出了核心「${result.relic.label}」，${result.relic.shortLabel}`;
+        }
+        if ((result.status === 'overflow' || result.status === 'duplicate' || result.status === 'empty-pool') && result.bonusScore > 0) {
+            this.engine.addFloatingText(`+核心残响 ${result.bonusScore}`, anchorPos, '#facc15', true);
+            return result.status === 'duplicate'
+                ? `这枚核心你已经拿过了，转化成了 ${result.bonusScore} 魂能。`
+                : `核心槽已经装满，额外掉落转化成了 ${result.bonusScore} 魂能。`;
+        }
+        return '';
+    }
+
+    applyThemeChainBonus(sourceKey, room, anchorPos = null) {
+        const themeKey = this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null;
+        const rewardTier = Math.max(1, room?.rewardTier || 1);
+        const accent = this.floorPlan?.theme?.accentColor || '#e2e8f0';
+        if (!themeKey || !sourceKey || !room) return '';
+
+        let message = '';
+        if (themeKey === 'ember_forge' && ['event', 'elite', 'trial'].includes(sourceKey)) {
+            const attackBonus = Math.min(0.18, 0.04 + rewardTier * 0.015);
+            GameState.meta.nextFloorAttackBonus = Math.min(0.42, GameState.meta.nextFloorAttackBonus + attackBonus);
+            if (sourceKey === 'elite' && rewardTier >= 3) {
+                GameState.grantFloorSupply('assault', 1);
+                message = `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%，并补了 1 份${GameState.supplyDefs.assault?.label || '战备补给'}。`;
+            } else {
+                message = `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%。`;
+            }
+        } else if (themeKey === 'salvage_reaches' && ['treasure', 'merchant', 'rest'].includes(sourceKey)) {
+            const salvageBonus = Math.floor((16 + rewardTier * 7) * GameState.level * 0.72);
+            GameState.addScore(salvageBonus);
+            GameState.grantFloorSupply('salvage', 1);
+            message = `回收浪潮又卷出 ${salvageBonus} 魂能，并补了 1 份${GameState.supplyDefs.salvage?.label || '探宝补给'}。`;
+        } else if (themeKey === 'signal_warrens' && ['event', 'trial'].includes(sourceKey)) {
+            const hiddenBonus = 0.03 + rewardTier * 0.012;
+            GameState.meta.nextHiddenRoomBonus = Math.min(0.38, GameState.meta.nextHiddenRoomBonus + hiddenBonus);
+            if (sourceKey === 'event' || rewardTier >= 3) {
+                GameState.grantFloorSupply('scout', 1);
+                message = `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%，并补了 1 份${GameState.supplyDefs.scout?.label || '侦测补给'}。`;
+            } else {
+                message = `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%。`;
+            }
+        } else if (themeKey === 'quarantine_vault' && ['rest', 'elite'].includes(sourceKey)) {
+            const damageReduction = Math.min(0.2, 0.06 + rewardTier * 0.02);
+            const repair = Math.max(8, Math.floor(GameState.player.baseHp * (0.04 + rewardTier * 0.012)));
+            GameState.floorBuff.incomingDamageMult *= Math.max(0.58, 1 - damageReduction);
+            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
+            if (sourceKey === 'elite') {
+                GameState.floorRuntime.reflexShieldReady = true;
+                message = `封锁协议稳住了机体，立刻修复 ${repair} 点护盾，并重新挂上一次反射护盾。`;
+            } else {
+                message = `封锁协议稳住了机体，立刻修复 ${repair} 点护盾，并让本层后续受伤更轻。`;
+            }
+        }
+
+        if (!message) return '';
+        if (anchorPos) {
+            this.engine.addFloatingText(this.floorDirective?.label || this.floorPlan?.theme?.directive?.label || '地带加成', anchorPos, accent, true);
+        }
+        GameState.updateUI();
+        return message;
     }
 
     async resolveHiddenRoomInteraction(room, entityObj) {
@@ -4955,18 +5379,19 @@ class GameController {
         GameState.player.currentHp = GameState.player.baseHp;
         GameState.resetFloorStats();
         const archetypeKey = pickFloorArchetypeKey(GameState.level);
-        GameState.floorBuff = {
-            supplyActive: false,
-            supplyKey: null,
-            supplyLabel: '',
-            hiddenRoomBonus: 0,
-            chestRewardMult: 1,
-            attackMult: 1,
-            supplyDropBonus: 0,
-            diversionBonus: 0
-        };
+        GameState.floorDirective = null;
+        GameState.floorBuff = createBaseFloorBuff();
         GameState.consumeFloorSupplyIfAvailable(archetypeKey);
-        const hiddenRoomUnlockBonus = (GameState.meta.nextHiddenRoomBonus || 0) + (GameState.floorBuff.hiddenRoomBonus || 0);
+        GameState.applyRunRelicsAtFloorStart(archetypeKey);
+        let hiddenRoomUnlockBonus = (GameState.meta.nextHiddenRoomBonus || 0) + (GameState.floorBuff.hiddenRoomBonus || 0);
+        const previewFloorPlan = buildFloorContentPlan({
+            level: GameState.level,
+            maze: GameState.maze,
+            archetypeKey,
+            hiddenRoomUnlockBonus
+        });
+        GameState.applyThemeDirectiveAtFloorStart(previewFloorPlan);
+        hiddenRoomUnlockBonus = (GameState.meta.nextHiddenRoomBonus || 0) + (GameState.floorBuff.hiddenRoomBonus || 0);
         GameState.meta.nextHiddenRoomBonus = 0;
         GameState.updateUI();
         this.floorPlan = buildFloorContentPlan({
@@ -5029,11 +5454,20 @@ class GameController {
     }
 
     getSpawnTargets(openCellCount) {
-        return calculateSpawnTargets({
+        const baseTargets = calculateSpawnTargets({
             openCellCount,
             maze: GameState.maze,
             floorPlan: this.floorPlan || GameState.floorContent
         });
+        return {
+            ...baseTargets,
+            monsters: baseTargets.monsters > 0
+                ? Math.max(1, Math.min(openCellCount, Math.floor(baseTargets.monsters * (GameState.floorBuff?.monsterSpawnMult || 1))))
+                : 0,
+            chests: baseTargets.chests > 0
+                ? Math.max(1, Math.min(openCellCount, baseTargets.chests))
+                : 0
+        };
     }
 
     digWall(cell) {
@@ -5245,7 +5679,7 @@ class GameController {
             const bossCandidates = openCells.filter((cell) => cell.entity === null && !cell.hiddenRoomId);
             if (bossCandidates.length > 0) {
                 const bossCell = bossCandidates[Math.floor(Math.random() * bossCandidates.length)];
-                const boss = this.createMonsterEntity(ENEMY_ARCHETYPES.find((enemy) => enemy.id === 'boss'), bossCell.c, bossCell.r);
+                const boss = this.createMonsterEntity(this.buildFinaleBossArchetype(), bossCell.c, bossCell.r);
                 this.engine.entities.push(boss);
                 bossCell.entity = 'monster';
             }
@@ -5295,11 +5729,17 @@ class GameController {
 
         this.path.shift();
         const targetPos = this.getWorldPos(nextNode.c, nextNode.r);
-        this.engine.tweens.add(this.engine.playerObj.position, { x: targetPos.x, z: targetPos.z }, GameState.player.baseSpeed, Easing.linear, () => {
+        this.engine.tweens.add(
+            this.engine.playerObj.position,
+            { x: targetPos.x, z: targetPos.z },
+            GameState.player.baseSpeed * (GameState.floorBuff?.moveSpeedMult || 1),
+            Easing.linear,
+            () => {
             this.playerPos.c = nextNode.c;
             this.playerPos.r = nextNode.r;
             this.checkInteraction();
-        });
+            }
+        );
     }
 
     async checkInteraction() {
@@ -5385,11 +5825,31 @@ class GameController {
             monsterName.className = 'text-amber-50 font-bold italic mb-1 text-xs md:text-sm tracking-widest text-right';
             monsterBar.className = 'bg-amber-400 h-full w-full hp-bar-fill origin-right';
             monsterText.className = 'text-left text-[10px] md:text-xs text-amber-100 mt-1 font-mono';
+            if (enemyObj.enemyData.finaleBoss) {
+                const accentColor = normalizeColorHex(enemyObj.enemyData.accent || enemyObj.enemyData.color || 0xfbbf24, '#fbbf24');
+                const baseColor = normalizeColorHex(enemyObj.enemyData.color || 0xf59e0b, '#f59e0b');
+                monsterCard.style.borderColor = accentColor;
+                monsterCard.style.boxShadow = `0 0 18px ${accentColor}88`;
+                monsterName.style.color = accentColor;
+                monsterBar.style.background = baseColor;
+                monsterText.style.color = accentColor;
+            } else {
+                monsterCard.style.borderColor = '';
+                monsterCard.style.boxShadow = '';
+                monsterName.style.color = '';
+                monsterBar.style.background = '';
+                monsterText.style.color = '';
+            }
         } else {
             monsterCard.className = 'bg-red-900/90 border-2 border-red-500 p-2 md:p-3 rounded-lg w-32 md:w-56 shadow-[0_0_15px_rgba(248,113,113,0.4)] transform skew-x-6 backdrop-blur-sm';
             monsterName.className = 'text-red-100 font-bold italic mb-1 text-xs md:text-sm tracking-widest text-right';
             monsterBar.className = 'bg-red-500 h-full w-full hp-bar-fill origin-right';
             monsterText.className = 'text-left text-[10px] md:text-xs text-red-200 mt-1 font-mono';
+            monsterCard.style.borderColor = '';
+            monsterCard.style.boxShadow = '';
+            monsterName.style.color = '';
+            monsterBar.style.background = '';
+            monsterText.style.color = '';
         }
     }
 
@@ -5397,6 +5857,8 @@ class GameController {
         const data = enemyObj.enemyData;
         const linearScale = data.boss ? 1 + (GameState.level - 1) * 0.34 : 1 + (GameState.level - 1) * 0.18;
         const curveScale = Math.pow(data.boss ? 1.1 : 1.06, Math.max(0, GameState.level - 1));
+        let rewardMult = GameState.floorBuff?.monsterRewardMult || 1;
+        if (data.boss) rewardMult *= GameState.floorBuff?.bossRewardMult || 1;
         let supportHpMult = 0;
         let supportAtkMult = 0;
         let intro = data.intro;
@@ -5420,11 +5882,13 @@ class GameController {
             name: data.name,
             intro,
             attackVerb: data.attackVerb,
-            reward: Math.floor(data.reward * (1 + GameState.level * 0.18)),
+            reward: Math.floor(data.reward * (1 + GameState.level * 0.18) * rewardMult),
             maxHp: Math.floor(data.baseHp * linearScale * curveScale * (1 + supportHpMult)),
             atk: Math.floor(data.baseAtk * linearScale * (1 + supportAtkMult)),
             boss: !!data.boss,
-            color: data.color
+            color: data.color,
+            finaleBoss: !!data.finaleBoss,
+            bossMechanic: data.bossMechanic || null
         };
     }
 
@@ -5435,6 +5899,7 @@ class GameController {
         this.currentEnemy = enemyObj;
 
         const profile = this.buildCombatProfile(enemyObj);
+        const bossMechanicState = this.buildBossMechanicState(enemyObj);
         let enemyHp = profile.maxHp;
         const enemyMesh = enemyObj.mesh;
         const playerMesh = this.engine.playerObj;
@@ -5449,6 +5914,13 @@ class GameController {
         if (profile.boss) window.soundEngine?.bossIntro();
         await this.typeText(profile.intro);
         await this.sleep(profile.boss ? 900 : 700);
+        if (bossMechanicState) {
+            const mechanicIntro = this.getBossMechanicIntro(bossMechanicState);
+            if (mechanicIntro) {
+                await this.typeText(mechanicIntro);
+                await this.sleep(720);
+            }
+        }
 
         const dir = new THREE.Vector3().subVectors(enemyMesh.position, playerMesh.position).normalize();
         const dashDist = profile.boss ? 0.82 : 0.65;
@@ -5457,14 +5929,17 @@ class GameController {
             await this.typeText(`【玩家的回合】飞碟主炮锁定 ${profile.name}！`);
             await this.sleep(320);
 
-            const damage = Math.floor(GameState.player.baseAtk * (GameState.floorBuff?.attackMult || 1) * (0.84 + Math.random() * 0.42) * (profile.boss ? 0.92 : 1));
+            let damage = Math.floor(GameState.player.baseAtk * (GameState.floorBuff?.attackMult || 1) * (0.84 + Math.random() * 0.42) * (profile.boss ? 0.92 : 1));
+            const playerDamageResolution = this.applyBossMechanicToPlayerDamage(bossMechanicState, damage, enemyMesh);
+            damage = playerDamageResolution.damage;
+            const resolvedDamage = damage;
             const origPos = playerMesh.position.clone();
             const dashPos = origPos.clone().add(dir.clone().multiplyScalar(dashDist));
 
             this.engine.tweens.add(playerMesh.position, { x: dashPos.x, z: dashPos.z }, 0.1, Easing.easeOutQuad, () => {
                 this.engine.shake(profile.boss ? 0.42 : 0.3);
                 window.soundEngine?.enemyHit(profile.boss);
-                this.engine.addFloatingText(damage.toString(), enemyMesh.position, '#38bdf8', true);
+                this.engine.addFloatingText(resolvedDamage.toString(), enemyMesh.position, '#38bdf8', true);
                 this.engine.spawnBurst(enemyMesh.position, profile.color, profile.boss ? 18 : 12, profile.boss ? 2.1 : 1.5);
                 this.engine.tweens.add(enemyMesh.scale, { x: 1.35, y: 0.55, z: 1.35 }, 0.1, Easing.linear, () => {
                     this.engine.tweens.add(enemyMesh.scale, { x: 1, y: 1, z: 1 }, 0.22, Easing.easeOutElastic);
@@ -5473,8 +5948,12 @@ class GameController {
             });
 
             await this.sleep(300);
-            enemyHp -= damage;
+            enemyHp -= resolvedDamage;
             this.updateRPG_HP(enemyHp, profile.maxHp, enemyObj);
+            if (playerDamageResolution.message) {
+                await this.typeText(playerDamageResolution.message);
+                await this.sleep(420);
+            }
             await this.typeText(`命中！${profile.name} 受到了 ${damage} 点伤害。`);
             await this.sleep(620);
 
@@ -5483,7 +5962,19 @@ class GameController {
             await this.typeText(`【${profile.name} 的回合】释放 ${profile.attackVerb}！`);
             await this.sleep(360);
 
-            const enemyDamage = Math.floor(profile.atk * (0.82 + Math.random() * 0.38));
+            const bossAttackPrep = this.applyBossMechanicBeforeEnemyAttack(bossMechanicState, enemyHp, profile, enemyMesh);
+            enemyHp = bossAttackPrep.enemyHp;
+            if (bossAttackPrep.message) {
+                await this.typeText(bossAttackPrep.message);
+                await this.sleep(420);
+            }
+            const reflexShieldTriggered = !!GameState.floorRuntime?.reflexShieldReady;
+            let damageMult = GameState.floorBuff?.incomingDamageMult || 1;
+            if (reflexShieldTriggered) {
+                GameState.floorRuntime.reflexShieldReady = false;
+                damageMult *= 0.38;
+            }
+            const enemyDamage = Math.floor(profile.atk * (0.82 + Math.random() * 0.38) * damageMult * (bossAttackPrep.attackMult || 1));
             const enemyOrigPos = enemyMesh.position.clone();
             const enemyDashPos = enemyOrigPos.clone().sub(dir.clone().multiplyScalar(dashDist));
 
@@ -5510,6 +6001,15 @@ class GameController {
             GameState.addScore(profile.reward);
             GameState.floorStats.kills += 1;
             const hiddenRoom = this.getHiddenRoomById(this.grid[enemyNode.r][enemyNode.c].hiddenRoomId);
+            const finaleBossBonus = this.getFinaleBossClearBonus(enemyObj, profile);
+            const relicReward = profile.boss
+                ? GameState.rollRelicReward({
+                    source: 'boss',
+                    themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
+                    rewardTier: enemyObj.enemyData.finaleBoss ? 4 : 3,
+                    guaranteed: true
+                })
+                : { status: 'miss', relic: null, bonusScore: 0 };
             window.soundEngine?.enemyDefeat(profile.boss);
             await this.typeText(`战斗胜利！击溃 ${profile.name}，获得了 ${profile.reward} 魂能！`);
 
@@ -5525,6 +6025,42 @@ class GameController {
             this.updateHiddenRoomLocks();
             if (hiddenRoom?.typeKey === 'elite') {
                 await this.resolveHiddenEliteRoomClear(hiddenRoom, enemyMesh);
+                const eliteRelicReward = GameState.rollRelicReward({
+                    source: 'elite',
+                    themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
+                    rewardTier: hiddenRoom.rewardTier
+                });
+                const eliteRelicMessage = await this.resolveRunRelicReward(
+                    eliteRelicReward,
+                    enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)),
+                    hiddenRoom.displayName
+                );
+                if (eliteRelicMessage) {
+                    await this.typeText(eliteRelicMessage);
+                    await this.sleep(700);
+                }
+            }
+            if (profile.boss) {
+                const relicMessage = await this.resolveRunRelicReward(
+                    relicReward,
+                    enemyMesh.position.clone().add(new THREE.Vector3(0, 0.6, 0)),
+                    profile.name
+                );
+                if (relicMessage) {
+                    await this.typeText(relicMessage);
+                    await this.sleep(700);
+                }
+            }
+            if (finaleBossBonus > 0) {
+                GameState.addScore(finaleBossBonus);
+                this.engine.addFloatingText(
+                    `+\u7ec8\u5c40 ${finaleBossBonus}`,
+                    enemyMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
+                    normalizeColorHex(enemyObj.enemyData.accent || enemyObj.enemyData.color || 0xfbbf24, '#fbbf24'),
+                    true
+                );
+                await this.typeText(`${enemyObj.enemyData.finaleBossLabel || '\u7ec8\u5c40\u5a01\u80c1'} \u5df2\u88ab\u7a81\u7834\uff0c\u989d\u5916\u83b7\u5f97 ${finaleBossBonus} \u9b42\u80fd\u3002`);
+                await this.sleep(720);
             }
 
             await this.sleep(profile.boss ? 1900 : 1400);

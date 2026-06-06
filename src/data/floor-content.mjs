@@ -79,6 +79,12 @@ export const FLOOR_THEME_DEFS = Object.freeze({
         chestRateMult: 0.9,
         hiddenRoomBonus: 0.02,
         hiddenRoomWeightBias: Object.freeze({ event: -2, elite: 6, merchant: -2, rest: -2, trial: 4, treasure: -3 }),
+        directive: Object.freeze({
+            label: '熔压火线',
+            summary: '这一段火力更猛，清怪收益也会更高。',
+            attackBonus: 0.06,
+            monsterRewardBonus: 0.08
+        }),
         finale: Object.freeze({
             label: '熔压收束',
             monsterRateMult: 1.18,
@@ -95,7 +101,12 @@ export const FLOOR_THEME_DEFS = Object.freeze({
                 rewardMult: 1.18,
                 clearBonusMult: 0.18,
                 color: 0xf97316,
-                accent: 0xfdba74
+                accent: 0xfdba74,
+                bossMechanic: Object.freeze({
+                    key: 'heat_ramp',
+                    atkGainPerStack: 0.16,
+                    maxStacks: 3
+                })
             })
         })
     }),
@@ -106,6 +117,12 @@ export const FLOOR_THEME_DEFS = Object.freeze({
         chestRateMult: 1.18,
         hiddenRoomBonus: 0.05,
         hiddenRoomWeightBias: Object.freeze({ event: 2, elite: -3, merchant: 4, rest: 3, trial: -2, treasure: 8 }),
+        directive: Object.freeze({
+            label: '回收浪潮',
+            summary: '这一段更容易滚起资源，宝箱和补给都会更肥。',
+            chestRewardBonus: 0.14,
+            supplyDropBonus: 0.06
+        }),
         finale: Object.freeze({
             label: '清算回收',
             monsterRateMult: 0.95,
@@ -122,7 +139,12 @@ export const FLOOR_THEME_DEFS = Object.freeze({
                 rewardMult: 1.22,
                 clearBonusMult: 0.24,
                 color: 0xfbbf24,
-                accent: 0xfef08a
+                accent: 0xfef08a,
+                bossMechanic: Object.freeze({
+                    key: 'salvage_repair',
+                    healRatio: 0.08,
+                    maxTriggers: 3
+                })
             })
         })
     }),
@@ -133,6 +155,12 @@ export const FLOOR_THEME_DEFS = Object.freeze({
         chestRateMult: 0.96,
         hiddenRoomBonus: 0.07,
         hiddenRoomWeightBias: Object.freeze({ event: 10, elite: -2, merchant: 2, rest: 2, trial: 3, treasure: -2 }),
+        directive: Object.freeze({
+            label: '讯号导流',
+            summary: '这一段更容易刷出密室，也更愿意自动绕进去。',
+            hiddenRoomBonus: 0.05,
+            diversionBonus: 0.05
+        }),
         finale: Object.freeze({
             label: '满频脉冲',
             monsterRateMult: 1.04,
@@ -149,7 +177,11 @@ export const FLOOR_THEME_DEFS = Object.freeze({
                 rewardMult: 1.16,
                 clearBonusMult: 0.2,
                 color: 0x22d3ee,
-                accent: 0xa5f3fc
+                accent: 0xa5f3fc,
+                bossMechanic: Object.freeze({
+                    key: 'signal_jam',
+                    playerDamageMult: 0.62
+                })
             })
         })
     }),
@@ -160,6 +192,12 @@ export const FLOOR_THEME_DEFS = Object.freeze({
         chestRateMult: 0.88,
         hiddenRoomBonus: 0.01,
         hiddenRoomWeightBias: Object.freeze({ event: 2, elite: 8, merchant: -2, rest: 4, trial: 5, treasure: -4 }),
+        directive: Object.freeze({
+            label: '封锁协议',
+            summary: '这一段更抗压，Boss 结算也会再抬高一点。',
+            incomingDamageReduction: 0.08,
+            bossRewardBonus: 0.08
+        }),
         finale: Object.freeze({
             label: '封锁清剿',
             monsterRateMult: 1.2,
@@ -176,7 +214,12 @@ export const FLOOR_THEME_DEFS = Object.freeze({
                 rewardMult: 1.2,
                 clearBonusMult: 0.22,
                 color: 0xa78bfa,
-                accent: 0xe9d5ff
+                accent: 0xe9d5ff,
+                bossMechanic: Object.freeze({
+                    key: 'seal_layers',
+                    layers: 2,
+                    damageMult: 0.48
+                })
             })
         })
     })

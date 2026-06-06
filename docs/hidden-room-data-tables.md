@@ -646,6 +646,7 @@ Biome themes should be allowed to bias:
 - event seed pool
 - trial seed pool
 - ambient enemy family weights
+- one lightweight `directive` that automatically buffs the whole 6-floor segment without adding prompts
 
 Each biome can also define a light finale package for floor `6/6`:
 
@@ -653,6 +654,9 @@ Each biome can also define a light finale package for floor `6/6`:
 - extra hidden-room bias
 - extra density bias
 - optional boss chance bonus
+- if a boss appears on that finale floor, the biome's `bossMod` can turn it into a themed boss variant
+- that themed boss can also grant a small extra clear bonus so finale floors read as real chapter peaks
+- `bossMod` can also carry one small `bossMechanic` so the chapter boss feels mechanically distinct, not only numerically stronger
 
 ## 15. Direct Mapping To Current Systems
 
