@@ -239,6 +239,10 @@
                 <button id="btn-sound-editor" class="h-11 whitespace-nowrap rounded-xl border-2 border-slate-700 bg-slate-900/95 px-2.5 text-xs font-bold tracking-wide text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.45)] transition-colors hover:bg-slate-800 sm:px-3">
                     音效编辑器
                 </button>
+                <button id="btn-collection" class="h-11 whitespace-nowrap rounded-xl border-2 border-slate-700 bg-slate-900/95 px-2.5 text-xs font-bold tracking-wide text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.45)] transition-colors hover:bg-slate-800 sm:px-3">
+                    收藏图鉴
+                    <span id="collection-count-badge" class="ml-1 rounded-md border border-cyan-700/70 bg-cyan-500/15 px-1.5 py-0.5 text-[10px] font-black text-cyan-200">0/0</span>
+                </button>
                 <button id="btn-settings" class="h-11 w-11 rounded-xl border-2 border-slate-700 bg-slate-900/95 text-slate-100 shadow-[0_4px_0_rgba(0,0,0,0.45)] flex items-center justify-center hover:bg-slate-800 transition-colors" aria-label="打开设置">
                     <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="3.2"></circle>
@@ -588,6 +592,53 @@
         </div>
     </div>
 
+    <div id="collection-modal" class="hidden fixed inset-0 z-[78] editor-surface backdrop-blur-sm">
+        <div class="absolute inset-0 bg-black/55"></div>
+        <div class="relative z-10 h-full w-full p-3 md:p-6">
+            <div class="flex h-full w-full flex-col overflow-hidden rounded-2xl border-2 border-slate-700 bg-slate-950/95 shadow-[0_18px_60px_rgba(0,0,0,0.65)]">
+                <div class="flex items-center justify-between border-b border-slate-800 px-4 py-3 md:px-5">
+                    <div>
+                        <h2 class="text-base md:text-lg font-black tracking-wide text-slate-50">收藏图鉴</h2>
+                        <p class="text-[11px] md:text-xs font-bold text-slate-400">记录已经见过的特殊房间种子、圣物和终局 Boss。这里先做只读展示，不打断挂机流程。</p>
+                    </div>
+                    <button id="btn-collection-close" class="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800" title="Close" aria-label="Close">
+                        <svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18"></path><path d="M18 6 6 18"></path></svg>
+                    </button>
+                </div>
+                <div class="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
+                    <div id="collection-summary" class="grid grid-cols-2 gap-3 lg:grid-cols-4"></div>
+                    <div class="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
+                        <section class="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-black text-cyan-200">事件种子</h3>
+                                <span id="collection-event-count" class="text-[11px] font-bold text-slate-400">0/0</span>
+                            </div>
+                            <div id="collection-event-list" class="mt-3 space-y-2"></div>
+                        </section>
+                        <section class="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-black text-rose-200">试炼种子</h3>
+                                <span id="collection-trial-count" class="text-[11px] font-bold text-slate-400">0/0</span>
+                            </div>
+                            <div id="collection-trial-list" class="mt-3 space-y-2"></div>
+                        </section>
+                        <section class="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-black text-amber-200">圣物与终局</h3>
+                                <span id="collection-meta-count" class="text-[11px] font-bold text-slate-400">0/0</span>
+                            </div>
+                            <div id="collection-relic-list" class="mt-3 space-y-2"></div>
+                            <div class="mt-4 border-t border-slate-800 pt-4">
+                                <div class="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Finale Bosses</div>
+                                <div id="collection-boss-list" class="space-y-2"></div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 <script type="module">
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -615,6 +666,11 @@ import {
     getHiddenRoomRewardTier
 } from './src/logic/hidden-rooms.mjs';
 import {
+    EVENT_ROOM_SEEDS,
+    FLOOR_THEME_DEFS,
+    TRIAL_ROOM_SEEDS
+} from './src/data/floor-content.mjs';
+import {
     BGM_KERNELS,
     ENEMY_ARCHETYPES,
     MODEL_EDITOR_ASSET_LABELS,
@@ -634,6 +690,7 @@ import {
     createOneShotSoundConfig
 } from './src/data/game-config.mjs';
 import {
+    RELIC_DEFS,
     RUN_RELIC_SLOTS,
     getRelicDef,
     pickRelicReward
@@ -671,6 +728,65 @@ function createBaseFloorBuff(overrides = {}) {
         bossRewardMult: 1,
         ...overrides
     };
+}
+
+const COLLECTION_STORAGE_KEY = 'jkp-collection-v1';
+
+function sanitizeCollection(rawCollection) {
+    const safe = rawCollection && typeof rawCollection === 'object' ? rawCollection : {};
+    const eventRoomSeeds = Array.isArray(safe.eventRoomSeeds) ? safe.eventRoomSeeds : [];
+    const trialRoomSeeds = Array.isArray(safe.trialRoomSeeds) ? safe.trialRoomSeeds : [];
+    const relics = Array.isArray(safe.relics) ? safe.relics : [];
+    const finaleBosses = Array.isArray(safe.finaleBosses) ? safe.finaleBosses : [];
+
+    return {
+        eventRoomSeeds: [...new Set(eventRoomSeeds.filter((value) => typeof value === 'string' && value.trim()))],
+        trialRoomSeeds: [...new Set(trialRoomSeeds.filter((value) => typeof value === 'string' && value.trim()))],
+        relics: [...new Set(relics.filter((value) => typeof value === 'string' && value.trim()))],
+        finaleBosses: [...new Set(finaleBosses.filter((value) => typeof value === 'string' && value.trim()))]
+    };
+}
+
+function buildCollectionProgress() {
+    const finaleBossTotal = Object.values(FLOOR_THEME_DEFS).filter((theme) => theme?.finale?.bossMod?.name).length;
+    return {
+        eventRoomSeeds: {
+            found: GameState.collection.eventRoomSeeds.length,
+            total: EVENT_ROOM_SEEDS.length
+        },
+        trialRoomSeeds: {
+            found: GameState.collection.trialRoomSeeds.length,
+            total: TRIAL_ROOM_SEEDS.length
+        },
+        relics: {
+            found: GameState.collection.relics.length,
+            total: RELIC_DEFS.length
+        },
+        finaleBosses: {
+            found: GameState.collection.finaleBosses.length,
+            total: finaleBossTotal
+        }
+    };
+}
+
+function getRoomSeedEffectSummary(effect) {
+    const summaryMap = {
+        heal_or_shield: 'heal and stabilize this floor',
+        score_now_risk_next_floor: 'gain score now, add later risk',
+        next_floor_hidden_room_bonus: 'raise next-floor hidden room odds',
+        power_up_with_penalty: 'trade HP for attack',
+        chest_density_boost: 'increase later chest density',
+        monster_density_boost: 'increase enemy density for more power',
+        repair_and_guard: 'heal and reduce incoming damage',
+        supply_stockpile: 'restock the most-needed floor supply',
+        assault_cache: 'combat-heavy supply reward',
+        salvage_cache: 'resource-heavy supply reward',
+        survey: 'improve next-floor scouting',
+        repair_loop: 'steady healing trial',
+        attack_overdrive: 'preheat next-floor attack',
+        guard_cache: 'heal, guard, and resupply'
+    };
+    return summaryMap[effect] || 'special effect';
 }
 
 function sanitizeAppearanceConfig(rawConfig) {
@@ -1435,6 +1551,8 @@ const GameState = {
         nextHiddenRoomBonus: 0,
         nextFloorAttackBonus: 0
     },
+    collectionStorageKey: COLLECTION_STORAGE_KEY,
+    collection: sanitizeCollection(null),
     strategyStorageKey: 'jkp-auto-strategy',
     autoStrategy: {
         risk: 'balanced',
@@ -1480,6 +1598,46 @@ const GameState = {
         const base = 56 * Math.pow(1.16, Math.max(0, this.level - 1));
         return Math.floor(base * (this.supplyDefs[type]?.manualCostMult || 1));
     },
+    loadCollection() {
+        try {
+            const raw = window.localStorage.getItem(this.collectionStorageKey);
+            this.collection = sanitizeCollection(raw ? JSON.parse(raw) : null);
+        } catch {
+            this.collection = sanitizeCollection(null);
+        }
+        return this.collection;
+    },
+    saveCollection() {
+        try {
+            window.localStorage.setItem(this.collectionStorageKey, JSON.stringify(this.collection));
+        } catch {}
+        this.updateUI();
+        window.collectionPanel?.render();
+    },
+    getCollectionProgress() {
+        return buildCollectionProgress();
+    },
+    discoverRoomSeed(type, seed) {
+        const bucketKey = type === 'trial' ? 'trialRoomSeeds' : 'eventRoomSeeds';
+        const seedId = typeof seed === 'string' ? seed : seed?.id;
+        if (!seedId || this.collection[bucketKey].includes(seedId)) return false;
+        this.collection[bucketKey].push(seedId);
+        this.saveCollection();
+        return true;
+    },
+    discoverRelic(relic) {
+        const relicId = typeof relic === 'string' ? relic : relic?.id;
+        if (!relicId || this.collection.relics.includes(relicId)) return false;
+        this.collection.relics.push(relicId);
+        this.saveCollection();
+        return true;
+    },
+    discoverFinaleBoss(bossId) {
+        if (!bossId || this.collection.finaleBosses.includes(bossId)) return false;
+        this.collection.finaleBosses.push(bossId);
+        this.saveCollection();
+        return true;
+    },
     getSupplyCount(type) {
         return Math.max(0, this.items.supplies[type] || 0);
     },
@@ -1506,6 +1664,7 @@ const GameState = {
             };
         }
         this.runRelics.push(relic.id);
+        this.discoverRelic(relic);
         this.updateUI();
         return { status: 'added', relic, bonusScore: 0 };
     },
@@ -1830,6 +1989,13 @@ const GameState = {
         }
 
         document.getElementById('ui-score').innerText = Math.floor(this.score);
+        const collectionBadgeEl = document.getElementById('collection-count-badge');
+        if (collectionBadgeEl) {
+            const progress = this.getCollectionProgress();
+            const found = progress.eventRoomSeeds.found + progress.trialRoomSeeds.found + progress.relics.found + progress.finaleBosses.found;
+            const total = progress.eventRoomSeeds.total + progress.trialRoomSeeds.total + progress.relics.total + progress.finaleBosses.total;
+            collectionBadgeEl.innerText = `${found}/${total}`;
+        }
         const relicCountEl = document.getElementById('ui-relic-count');
         const relicListEl = document.getElementById('ui-relic-list');
         const relicHintEl = document.getElementById('ui-relic-hint');
@@ -3913,43 +4079,6 @@ class GameController {
         };
     }
 
-    async resolveHiddenEliteRoomClear(room, enemyMesh) {
-        if (!room || room.cleared) return;
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
-        const bonusReward = Math.floor((120 + rewardProfile.chestBonus * 24) * GameState.level * rewardProfile.scoreMult);
-        const repair = Math.floor(GameState.player.baseHp * rewardProfile.repairValue * 0.45);
-        GameState.addScore(bonusReward);
-        if (repair > 0) {
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
-        }
-        window.soundEngine?.upgrade();
-        this.engine.spawnBurst(enemyMesh.position, 0xa78bfa, 26, 2.4);
-        this.engine.addFloatingText(`${room.displayName} 已清空`, enemyMesh.position, '#c084fc', true);
-        if (room.entity?.mesh) {
-            this.engine.scene.remove(room.entity.mesh);
-        }
-        const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
-        if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
-        this.clearHiddenRoom(room);
-        await this.resolveRunRelicReward(
-            relicReward,
-            enemyMesh.position.clone().add(new THREE.Vector3(0, 0.45, 0)),
-            room.displayName
-        );
-        await this.resolveRunRelicReward(
-            relicReward,
-            enemyMesh.position.clone().add(new THREE.Vector3(0, 0.45, 0)),
-            room.displayName
-        );
-        const relicMessage = await this.resolveRunRelicReward(
-            relicReward,
-            enemyMesh.position.clone().add(new THREE.Vector3(0, 0.45, 0)),
-            room.displayName
-        );
-        await this.typeText(`你扫清了 ${room.displayName}，额外获得 ${bonusReward} 魂能${repair > 0 ? `，并修复了 ${repair} 点护盾` : ''}${relicMessage ? `，同时 ${relicMessage}` : ''}。`);
-        await this.sleep(520);
-    }
-
     buildEliteArchetype(room) {
         const base = this.pickEnemyArchetype();
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
@@ -4467,63 +4596,6 @@ class GameController {
         this.currentPathTarget = 'end';
     }
 
-    resolveEventRoom(room) {
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
-        const seed = room.eventSeed;
-        const chargeBonus = (room.eventCharge || 0) * 0.18;
-        const baseReward = Math.floor((70 + rewardProfile.chestBonus * 18) * GameState.level * (rewardProfile.scoreMult + chargeBonus));
-        let message = `${room.displayName}回响稳定。`;
-
-        if (seed?.effect === 'heal_or_shield') {
-            const heal = Math.max(10, Math.floor(GameState.player.baseHp * (0.14 + rewardProfile.repairValue + chargeBonus * 0.4)));
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
-            GameState.addScore(baseReward);
-            message = `${room.displayName}修复护盾，恢复 ${heal} 点生命并获得 ${baseReward} 魂能。`;
-        } else if (seed?.effect === 'next_floor_hidden_room_bonus') {
-            const bonus = 0.05 + room.rewardTier * 0.015 + chargeBonus * 0.05;
-            GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + bonus);
-            GameState.addScore(Math.floor(baseReward * 0.85));
-            message = `${room.displayName}发送侦测脉冲，下一层更容易出现密室。`;
-        } else if (seed?.effect === 'power_up_with_penalty') {
-            GameState.player.baseAtk += 2 + room.rewardTier + Math.round(room.eventCharge || 0);
-            GameState.player.currentHp = Math.max(1, GameState.player.currentHp - Math.floor(GameState.player.baseHp * 0.08));
-            GameState.addScore(Math.floor(baseReward * 1.15));
-            message = `${room.displayName}灌注超载核心，火力提高，但护盾被撕开了一道口子。`;
-        } else if (seed?.effect === 'chest_density_boost') {
-            const bonus = 0.012 + room.rewardTier * 0.004 + chargeBonus * 0.01;
-            GameState.maze.baseChestRate += bonus;
-            GameState.addScore(Math.floor(baseReward * 0.92));
-            message = `${room.displayName}展开回收矩阵，之后几层更容易刷出宝箱。`;
-        } else if (seed?.effect === 'monster_density_boost') {
-            const bonus = 0.009 + room.rewardTier * 0.003 + chargeBonus * 0.008;
-            GameState.maze.baseMonsterRate += bonus;
-            GameState.player.baseAtk += 1 + room.rewardTier + Math.round((room.eventCharge || 0) * 0.6);
-            GameState.addScore(Math.floor(baseReward * 1.02));
-            message = `${room.displayName}放大了狩猎信号，怪会更多，但火力也被同步放大。`;
-        } else {
-            GameState.addScore(Math.floor(baseReward * 1.08));
-            GameState.player.currentHp = Math.max(1, GameState.player.currentHp - Math.floor(GameState.player.baseHp * 0.05));
-            message = `${room.displayName}抖出一份不稳定缓存，立刻换来一笔额外魂能。`;
-        }
-
-        if (GameState.hasRunRelic('echo_engine')) {
-            const attackBonus = Math.min(0.24, 0.08 + room.rewardTier * 0.02 + chargeBonus * 0.04);
-            GameState.meta.nextFloorAttackBonus = Math.min(0.32, GameState.meta.nextFloorAttackBonus + attackBonus);
-            message += ` 回响引擎顺手把下层火力也预热了 ${Math.round(attackBonus * 100)}%。`;
-        }
-        if (GameState.hasRunRelic('echo_engine')) {
-            const attackBonus = Math.min(0.24, 0.08 + room.rewardTier * 0.02 + chargeBonus * 0.04);
-            GameState.meta.nextFloorAttackBonus = Math.min(0.32, GameState.meta.nextFloorAttackBonus + attackBonus);
-            message += ` 回响引擎顺手把下层火力也预热了 ${Math.round(attackBonus * 100)}%。`;
-        }
-        const themeChainMessage = this.applyThemeChainBonus('event', room);
-        if (themeChainMessage) {
-            message += ` ${themeChainMessage}`;
-        }
-        GameState.updateUI();
-        return message;
-    }
-
     resolveEventRoomV2(room) {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const seed = room.eventSeed || {};
@@ -4629,41 +4701,47 @@ class GameController {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
         const scoreReward = Math.floor((26 + room.rewardTier * 12) * GameState.level * (0.7 + rewardProfile.scoreMult));
-        let message = `${room.displayName}让飞船短暂稳定了下来。`;
         const supplyNeedState = GameState.getSupportRoomNeedState('rest');
         const neededSupply = supplyNeedState.neededType;
         const shouldRestockSupply = supplyNeedState.restockUrgency >= 0.44
             || supplyNeedState.missingPreferred
             || !supplyNeedState.supplyActive;
+        let message = room.displayName + ' stabilized the run.';
 
         if (hpRatio < 0.88) {
             const heal = Math.max(12, Math.floor(GameState.player.baseHp * (0.16 + rewardProfile.repairValue * 0.85)));
             GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
             GameState.addScore(scoreReward);
-            message = `${room.displayName}完成了紧急修整，恢复 ${heal} 点生命，并带回 ${scoreReward} 魂能。`;
+            message = room.displayName + ' restored ' + heal + ' HP and granted ' + scoreReward + ' score.';
         } else {
             const atkBoost = 1 + Math.max(0, room.rewardTier - 1);
             const chestBoost = 0.004 + room.rewardTier * 0.002;
             GameState.player.baseAtk += atkBoost;
             GameState.maze.baseChestRate += chestBoost;
             GameState.addScore(Math.floor(scoreReward * 0.8));
-            message = `${room.displayName}把多余时间用于调校火力，攻击 +${atkBoost}，后续宝箱率小幅提升。`;
+            message = room.displayName + ' improved attack by ' + atkBoost + ' and slightly raised chest density.';
         }
         if (shouldRestockSupply) {
+            const supplyLabel = GameState.supplyDefs[neededSupply]?.label || 'supply';
             GameState.grantFloorSupply(neededSupply, 1);
-            message += ` 顺手补了 1 份${GameState.supplyDefs[neededSupply]?.label || '层补给'}。`;
+            message += ' Added 1 ' + supplyLabel + '.';
+        }
+
+        const themeChainMessage = this.applyThemeChainBonus('rest', room);
+        if (themeChainMessage) {
+            message += ' ' + themeChainMessage;
         }
 
         GameState.updateUI();
         return message;
     }
-
     resolveMerchantRoom(room) {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const discount = Math.max(0.68, 0.86 - room.rewardTier * 0.05);
         const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
         const supplyNeedState = GameState.getSupportRoomNeedState('merchant');
         const neededSupply = supplyNeedState.neededType;
+        const neededSupplyLabel = GameState.supplyDefs[neededSupply]?.label || 'supply';
         const supplyPrice = Math.max(18, Math.floor(GameState.getSupplyCost(neededSupply) * Math.max(0.68, discount - 0.08)));
         const merchantMode = GameState.autoStrategy.merchant;
         const shouldPrioritizeSupply = merchantMode === 'supplies'
@@ -4674,7 +4752,7 @@ class GameController {
             GameState.grantFloorSupply(neededSupply, 1);
             const themeChainMessage = this.applyThemeChainBonus('merchant', room);
             GameState.updateUI();
-            return `${room.displayName}补进了 1 份${GameState.supplyDefs[neededSupply]?.label || '层补给'}，折后花费 ${supplyPrice} 魂能。`;
+            return room.displayName + ' bought 1 ' + neededSupplyLabel + ' for ' + supplyPrice + ' score.' + (themeChainMessage ? ' ' + themeChainMessage : '');
         }
         const candidateTypes = ['atk', 'hp', 'chest', 'size'];
         if (GameState.isMazeSizeMaxed()) {
@@ -4715,7 +4793,7 @@ class GameController {
             GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + 0.02 + room.rewardTier * 0.01);
             const themeChainMessage = this.applyThemeChainBonus('merchant', room);
             GameState.updateUI();
-            return `${room.displayName}没找到合适买卖，商贩给了份情报，下一层更容易刷出密室。`;
+            return room.displayName + ' found no good deal, took intel instead, and improved next-floor hidden room odds.' + (themeChainMessage ? ' ' + themeChainMessage : '');
         }
 
         const baseCost = purchase.baseCost;
@@ -4724,7 +4802,9 @@ class GameController {
         if (!bought) {
             const fallback = Math.floor((20 + rewardProfile.chestBonus * 7) * GameState.level * 0.75);
             GameState.addScore(fallback);
-            return `${room.displayName}临时收摊，转手换回了 ${fallback} 魂能。`;
+            const themeChainMessage = this.applyThemeChainBonus('merchant', room);
+            GameState.updateUI();
+            return room.displayName + ' converted the failed deal into ' + fallback + ' score.' + (themeChainMessage ? ' ' + themeChainMessage : '');
         }
         if (rebate > 0) {
             GameState.score += rebate;
@@ -4733,38 +4813,13 @@ class GameController {
         GameState.updateUI();
 
         const typeLabels = {
-            atk: '火力升级',
-            hp: '装甲整备',
-            chest: '寻宝模块',
-            size: '迷宫扩容蓝图'
+            atk: 'attack upgrade',
+            hp: 'armor upgrade',
+            chest: 'treasure module',
+            size: 'maze expansion'
         };
-        return `${room.displayName}自动代购了${typeLabels[purchase.type] || '补给'}，折后花费 ${purchase.discountedCost} 魂能。`;
+        return room.displayName + ' auto-purchased ' + (typeLabels[purchase.type] || 'supplies') + ' for ' + purchase.discountedCost + ' score.' + (themeChainMessage ? ' ' + themeChainMessage : '');
     }
-
-    resolveTrialRoom(room) {
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
-        const chargeCount = Math.max(1, room.trialCharge || 0);
-        const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
-        const bonusReward = Math.floor((90 + rewardProfile.chestBonus * 24) * GameState.level * (rewardProfile.scoreMult + chargeCount * 0.22 + hpRatio * 0.18));
-        GameState.addScore(bonusReward);
-
-        let bonusText = '';
-        if (chargeCount >= Math.max(2, room.rewardTier - 1)) {
-            const supplyType = room.rewardTier >= 4 ? 'assault' : GameState.getMostNeededSupplyType();
-            GameState.grantFloorSupply(supplyType, 1);
-            room.trialBonusSupply = supplyType;
-            bonusText = ` 并额外拿到 1 份${GameState.supplyDefs[supplyType]?.label || '层补给'}。`;
-        } else {
-            const scoutBonus = 0.03 + room.rewardTier * 0.01;
-            GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + scoutBonus);
-            room.trialBonusSupply = null;
-            bonusText = ' 并为下一层追加了一点密室侦测。';
-        }
-
-        GameState.updateUI();
-        return `${room.displayName}完成试炼，结算 ${bonusReward} 魂能。${bonusText}`;
-    }
-
     resolveTrialRoomV2(room) {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const trialSeed = room.trialSeed || {};
@@ -4896,6 +4951,11 @@ class GameController {
     async resolveHiddenRoomInteraction(room, entityObj) {
         if (!room || room.cleared) return;
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        if (room.typeKey === 'event' && room.eventSeed) {
+            GameState.discoverRoomSeed('event', room.eventSeed);
+        } else if (room.typeKey === 'trial' && room.trialSeed) {
+            GameState.discoverRoomSeed('trial', room.trialSeed);
+        }
         const worldPos = entityObj?.mesh?.position || this.engine.playerObj.position;
         let message = `${room.displayName}被清空。`;
 
@@ -4946,28 +5006,6 @@ class GameController {
         }
         await this.sleep(120);
         this.engine.addFloatingText(message, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.3, 0)), '#e2e8f0');
-    }
-
-    async resolveHiddenEliteRoomClear(room, enemyMesh) {
-        if (!room || room.cleared) return;
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
-        const bonusReward = Math.floor((120 + rewardProfile.chestBonus * 24) * GameState.level * rewardProfile.scoreMult);
-        const repair = Math.floor(GameState.player.baseHp * rewardProfile.repairValue * 0.45);
-        const relicReward = GameState.rollRelicReward({
-            source: 'elite',
-            themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
-            rewardTier: room.rewardTier
-        });
-        GameState.addScore(bonusReward);
-        if (repair > 0) {
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
-        }
-        window.soundEngine?.upgrade();
-        this.engine.spawnBurst(enemyMesh.position, 0xa78bfa, 26, 2.4);
-        this.engine.addFloatingText(`${room.displayName}肃清`, enemyMesh.position, '#c084fc', true);
-        this.clearHiddenRoom(room);
-        await this.typeText(`你扫清了 ${room.displayName}，额外获得 ${bonusReward} 魂能${repair > 0 ? `，并修复了 ${repair} 点护盾` : ''}。`);
-        await this.sleep(520);
     }
 
     async resolveHiddenCachePickup(room, entityObj) {
@@ -5136,7 +5174,7 @@ class GameController {
     }
 
     async resolveHiddenEliteRoomClear(room, enemyMesh) {
-        if (!room || room.cleared) return;
+        if (!room || room.cleared) return '';
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const bonusReward = Math.floor((120 + rewardProfile.chestBonus * 24) * GameState.level * rewardProfile.scoreMult);
         const repair = Math.floor(GameState.player.baseHp * rewardProfile.repairValue * 0.45);
@@ -5151,17 +5189,33 @@ class GameController {
         }
         window.soundEngine?.upgrade();
         this.engine.spawnBurst(enemyMesh.position, 0xa78bfa, 26, 2.4);
-        this.engine.addFloatingText(`${room.displayName}已肃清`, enemyMesh.position, '#c084fc', true);
+        this.engine.addFloatingText(room.displayName + ' cleared', enemyMesh.position, '#c084fc', true);
+        const relicMessage = await this.resolveRunRelicReward(
+            relicReward,
+            enemyMesh.position.clone().add(new THREE.Vector3(0, 0.45, 0)),
+            room.displayName
+        );
+        const themeChainMessage = this.applyThemeChainBonus('elite', room, enemyMesh.position.clone());
         if (room.entity?.mesh) {
             this.engine.scene.remove(room.entity.mesh);
         }
         const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
         if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
         this.clearHiddenRoom(room);
-        await this.typeText(`你扫清了 ${room.displayName}，额外获得 ${bonusReward} 魂能${repair > 0 ? `，并修复了 ${repair} 点护盾` : ''}。`);
+        let summary = room.displayName + ' cleared and granted ' + bonusReward + ' bonus score.';
+        if (repair > 0) {
+            summary += ' Restored ' + repair + ' HP.';
+        }
+        if (relicMessage) {
+            summary += ' ' + relicMessage;
+        }
+        if (themeChainMessage) {
+            summary += ' ' + themeChainMessage;
+        }
+        await this.typeText(summary);
         await this.sleep(520);
+        return summary;
     }
-
     buildEliteArchetype(room) {
         const base = this.pickEnemyArchetype();
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
@@ -6064,6 +6118,9 @@ class GameController {
         this.currentEnemy = enemyObj;
 
         const profile = this.buildCombatProfile(enemyObj);
+        if (profile.finaleBoss) {
+            GameState.discoverFinaleBoss(this.floorPlan?.themeKey || enemyObj?.enemyData?.id || 'finale');
+        }
         const bossMechanicState = this.buildBossMechanicState(enemyObj);
         let enemyHp = profile.maxHp;
         const enemyMesh = enemyObj.mesh;
@@ -6135,9 +6192,11 @@ class GameController {
             }
             const reflexShieldTriggered = !!GameState.floorRuntime?.reflexShieldReady;
             let damageMult = GameState.floorBuff?.incomingDamageMult || 1;
+            let reflexShieldMessage = '';
             if (reflexShieldTriggered) {
                 GameState.floorRuntime.reflexShieldReady = false;
                 damageMult *= 0.38;
+                reflexShieldMessage = 'Reflex Shield absorbed most of the hit.';
             }
             const enemyDamage = Math.floor(profile.atk * (0.82 + Math.random() * 0.38) * damageMult * (bossAttackPrep.attackMult || 1));
             const enemyOrigPos = enemyMesh.position.clone();
@@ -6148,6 +6207,9 @@ class GameController {
                 this.engine.shake(profile.boss ? 0.8 : 0.6);
                 window.soundEngine?.playerHit(profile.boss);
                 this.engine.addFloatingText(`-${enemyDamage}`, playerMesh.position, '#ef4444', true);
+                if (reflexShieldTriggered) {
+                    this.engine.addFloatingText('SHIELD', playerMesh.position.clone().add(new THREE.Vector3(0.18, 0.28, 0)), '#67e8f9', true);
+                }
                 this.engine.spawnBurst(playerMesh.position, 0xef4444, profile.boss ? 22 : 15, profile.boss ? 2.8 : 2);
                 this.engine.tweens.add(this.engine.playerMesh.scale, { x: 1.24, y: 0.68, z: 1.24 }, 0.1, Easing.linear, () => {
                     this.engine.tweens.add(this.engine.playerMesh.scale, { x: 1, y: 1, z: 1 }, 0.22, Easing.easeOutElastic);
@@ -6158,7 +6220,11 @@ class GameController {
             await this.sleep(320);
             GameState.player.currentHp -= enemyDamage;
             this.updateRPG_HP(enemyHp, profile.maxHp, enemyObj);
-            await this.typeText(`警告！玩家损失了 ${enemyDamage} 点生命值！`);
+            if (reflexShieldMessage) {
+                await this.typeText(reflexShieldMessage);
+                await this.sleep(420);
+            }
+            await this.typeText(`璀﹀憡锛佺帺瀹舵崯澶变簡 ${enemyDamage} 鐐圭敓鍛藉€硷紒`);
             await this.sleep(700);
         }
 
@@ -6190,20 +6256,6 @@ class GameController {
             this.updateHiddenRoomLocks();
             if (hiddenRoom?.typeKey === 'elite') {
                 await this.resolveHiddenEliteRoomClear(hiddenRoom, enemyMesh);
-                const eliteRelicReward = GameState.rollRelicReward({
-                    source: 'elite',
-                    themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
-                    rewardTier: hiddenRoom.rewardTier
-                });
-                const eliteRelicMessage = await this.resolveRunRelicReward(
-                    eliteRelicReward,
-                    enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)),
-                    hiddenRoom.displayName
-                );
-                if (eliteRelicMessage) {
-                    await this.typeText(eliteRelicMessage);
-                    await this.sleep(700);
-                }
             }
             if (profile.boss) {
                 const relicMessage = await this.resolveRunRelicReward(
@@ -7389,6 +7441,155 @@ class SoundEditor {
     }
 }
 
+class CollectionPanel {
+    constructor() {
+        this.modal = document.getElementById('collection-modal');
+        this.summaryEl = document.getElementById('collection-summary');
+        this.eventCountEl = document.getElementById('collection-event-count');
+        this.trialCountEl = document.getElementById('collection-trial-count');
+        this.metaCountEl = document.getElementById('collection-meta-count');
+        this.eventListEl = document.getElementById('collection-event-list');
+        this.trialListEl = document.getElementById('collection-trial-list');
+        this.relicListEl = document.getElementById('collection-relic-list');
+        this.bossListEl = document.getElementById('collection-boss-list');
+        this.openButton = document.getElementById('btn-collection');
+        this.closeButton = document.getElementById('btn-collection-close');
+        this.isOpen = false;
+        this.bindUi();
+        this.render();
+    }
+
+    bindUi() {
+        this.openButton?.addEventListener('click', (event) => {
+            event.stopPropagation();
+            this.open();
+        });
+        this.closeButton?.addEventListener('click', () => this.close());
+        this.modal?.addEventListener('click', (event) => {
+            if (event.target === this.modal || event.target.classList.contains('bg-black/55')) this.close();
+        });
+    }
+
+    open() {
+        this.isOpen = true;
+        this.modal.classList.remove('hidden');
+        this.render();
+    }
+
+    close() {
+        this.isOpen = false;
+        this.modal.classList.add('hidden');
+    }
+
+    getBossMechanicSummary(mechanicKey) {
+        const summaryMap = {
+            heat_ramp: 'ramps damage over time',
+            salvage_repair: 'slowly repairs itself',
+            signal_jam: 'suppresses your output',
+            seal_layers: 'starts with layered shields'
+        };
+        return summaryMap[mechanicKey] || 'finale mechanic';
+    }
+
+    renderSummaryCard(label, found, total, accentClass) {
+        return `
+            <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
+                <div class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">${label}</div>
+                <div class="mt-2 flex items-end justify-between">
+                    <div class="text-2xl font-black ${accentClass}">${found}</div>
+                    <div class="text-xs font-bold text-slate-400">/ ${total}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderDiscoveryItem({ label, subtitle, found, accentClass = 'text-cyan-200' }) {
+        return `
+            <article class="rounded-xl border ${found ? 'border-slate-700 bg-slate-950/70' : 'border-slate-800 bg-slate-950/35 opacity-70'} p-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="text-sm font-bold ${found ? accentClass : 'text-slate-500'}">${label}</div>
+                        <div class="mt-1 text-[11px] leading-5 ${found ? 'text-slate-300' : 'text-slate-500'}">${subtitle}</div>
+                    </div>
+                    <span class="shrink-0 rounded-md border px-2 py-1 text-[10px] font-black ${found ? 'border-emerald-700/70 bg-emerald-500/10 text-emerald-200' : 'border-slate-700 bg-slate-900 text-slate-500'}">${found ? 'Found' : 'Hidden'}</span>
+                </div>
+            </article>
+        `;
+    }
+
+    renderSeedList(defs, foundIds, accentClass) {
+        const sortedDefs = [...defs].sort((a, b) => {
+            const aFound = foundIds.includes(a.id) ? 0 : 1;
+            const bFound = foundIds.includes(b.id) ? 0 : 1;
+            if (aFound !== bFound) return aFound - bFound;
+            return (a.minLevel || 0) - (b.minLevel || 0);
+        });
+        return sortedDefs.map((def) => this.renderDiscoveryItem({
+            label: def.label,
+            subtitle: `${getRoomSeedEffectSummary(def.effect)} · Lv.${def.minLevel || 1}+`,
+            found: foundIds.includes(def.id),
+            accentClass
+        })).join('');
+    }
+
+    renderRelicList() {
+        const foundIds = GameState.collection.relics;
+        const sortedDefs = [...RELIC_DEFS].sort((a, b) => {
+            const aFound = foundIds.includes(a.id) ? 0 : 1;
+            const bFound = foundIds.includes(b.id) ? 0 : 1;
+            if (aFound !== bFound) return aFound - bFound;
+            return (a.minLevel || 0) - (b.minLevel || 0);
+        });
+        return sortedDefs.map((def) => this.renderDiscoveryItem({
+            label: def.label,
+            subtitle: def.summary || def.shortLabel || 'relic effect',
+            found: foundIds.includes(def.id),
+            accentClass: 'text-amber-200'
+        })).join('');
+    }
+
+    renderBossList() {
+        const foundIds = GameState.collection.finaleBosses;
+        const bossDefs = Object.entries(FLOOR_THEME_DEFS)
+            .filter(([, theme]) => theme?.finale?.bossMod?.name)
+            .map(([themeKey, theme]) => ({
+                id: themeKey,
+                label: theme.finale.bossMod.name,
+                subtitle: `${theme.label} · ${theme.finale.label} · ${this.getBossMechanicSummary(theme.finale.bossMod.bossMechanic?.key)}`
+            }))
+            .sort((a, b) => {
+                const aFound = foundIds.includes(a.id) ? 0 : 1;
+                const bFound = foundIds.includes(b.id) ? 0 : 1;
+                if (aFound !== bFound) return aFound - bFound;
+                return a.label.localeCompare(b.label, 'zh-CN');
+            });
+        return bossDefs.map((def) => this.renderDiscoveryItem({
+            label: def.label,
+            subtitle: def.subtitle,
+            found: foundIds.includes(def.id),
+            accentClass: 'text-fuchsia-200'
+        })).join('');
+    }
+
+    render() {
+        if (!this.summaryEl) return;
+        const progress = GameState.getCollectionProgress();
+        this.summaryEl.innerHTML = [
+            this.renderSummaryCard('Event Seeds', progress.eventRoomSeeds.found, progress.eventRoomSeeds.total, 'text-cyan-200'),
+            this.renderSummaryCard('Trial Seeds', progress.trialRoomSeeds.found, progress.trialRoomSeeds.total, 'text-rose-200'),
+            this.renderSummaryCard('Relics', progress.relics.found, progress.relics.total, 'text-amber-200'),
+            this.renderSummaryCard('Finale Bosses', progress.finaleBosses.found, progress.finaleBosses.total, 'text-fuchsia-200')
+        ].join('');
+        this.eventCountEl.innerText = `${progress.eventRoomSeeds.found}/${progress.eventRoomSeeds.total}`;
+        this.trialCountEl.innerText = `${progress.trialRoomSeeds.found}/${progress.trialRoomSeeds.total}`;
+        this.metaCountEl.innerText = `${progress.relics.found + progress.finaleBosses.found}/${progress.relics.total + progress.finaleBosses.total}`;
+        this.eventListEl.innerHTML = this.renderSeedList(EVENT_ROOM_SEEDS, GameState.collection.eventRoomSeeds, 'text-cyan-200');
+        this.trialListEl.innerHTML = this.renderSeedList(TRIAL_ROOM_SEEDS, GameState.collection.trialRoomSeeds, 'text-rose-200');
+        this.relicListEl.innerHTML = this.renderRelicList();
+        this.bossListEl.innerHTML = this.renderBossList();
+    }
+}
+
 window.onload = () => {
     window.soundEngine = new SoundEngine();
     const unlockAudio = () => window.soundEngine.unlock();
@@ -7476,12 +7677,14 @@ window.onload = () => {
     merchantSelect.addEventListener('change', async () => updateStrategy({ merchant: merchantSelect.value }));
     supplySelect.addEventListener('change', async () => updateStrategy({ supply: supplySelect.value }));
 
+    GameState.loadCollection();
     GameState.loadAutoStrategy();
     syncVolumeUI();
     syncStrategyUI();
     window.engine = new VisualEngine();
     window.modelEditor = new ModelEditor(window.engine);
     window.soundEditor = new SoundEditor(window.soundEngine);
+    window.collectionPanel = new CollectionPanel();
     window.gameController = new GameController(window.engine);
     GameState.updateUI();
 
