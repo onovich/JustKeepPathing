@@ -59,6 +59,28 @@
                 linear-gradient(90deg, rgba(148,163,184,0.08) 1px, transparent 1px);
             background-size: 32px 32px;
         }
+        .loading-overlay {
+            background:
+                radial-gradient(circle at 24% 18%, rgba(34, 211, 238, 0.16), transparent 22%),
+                radial-gradient(circle at 76% 24%, rgba(250, 204, 21, 0.12), transparent 18%),
+                linear-gradient(180deg, rgba(2, 6, 23, 0.98), rgba(15, 23, 42, 0.985));
+            transition: opacity 0.24s ease, visibility 0.24s ease;
+        }
+        .loading-overlay.hidden-overlay {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .loading-bar-track {
+            overflow: hidden;
+            position: relative;
+        }
+        .loading-bar-fill {
+            transition: width 0.18s ease;
+            background:
+                linear-gradient(90deg, rgba(34,211,238,0.95), rgba(59,130,246,0.92) 58%, rgba(250,204,21,0.88));
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.28);
+        }
 
         /* RPG UI 专属动画 */
         .typewriter::after {
@@ -214,6 +236,20 @@
     </style>
 </head>
 <body class="flex flex-col h-[100dvh] w-screen md:flex-row">
+    <div id="app-loading-overlay" class="loading-overlay fixed inset-0 z-[85] flex items-center justify-center px-6">
+        <div class="w-full max-w-md rounded-3xl border border-slate-700/80 bg-slate-950/88 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-md">
+            <div class="text-[11px] font-black uppercase tracking-[0.28em] text-cyan-300">Loading</div>
+            <h2 id="app-loading-title" class="mt-3 text-2xl font-black text-slate-50">正在生成迷宫</h2>
+            <p id="app-loading-detail" class="mt-2 text-sm font-bold leading-6 text-slate-400">请稍等，正在准备本层布局与事件。</p>
+            <div class="mt-5 loading-bar-track h-3 rounded-full border border-slate-700 bg-slate-900/90">
+                <div id="app-loading-bar" class="loading-bar-fill h-full w-[4%] rounded-full"></div>
+            </div>
+            <div class="mt-3 flex items-center justify-between text-xs font-bold text-slate-500">
+                <span id="app-loading-stage">准备中</span>
+                <span id="app-loading-percent" class="text-cyan-300">4%</span>
+            </div>
+        </div>
+    </div>
 
     <!-- 3D 画布区 -->
     <div id="game-container" class="flex-1 relative border-b md:border-b-0 md:border-r border-slate-800 bg-black">
@@ -2277,11 +2313,53 @@ function initializeThemeStatusPill() {
     host.appendChild(pill);
 }
 
+class LoadingOverlay {
+    constructor() {
+        this.root = document.getElementById('app-loading-overlay');
+        this.titleEl = document.getElementById('app-loading-title');
+        this.detailEl = document.getElementById('app-loading-detail');
+        this.barEl = document.getElementById('app-loading-bar');
+        this.percentEl = document.getElementById('app-loading-percent');
+        this.stageEl = document.getElementById('app-loading-stage');
+        this.hideTimer = null;
+    }
+
+    show({
+        title = '正在生成迷宫',
+        detail = '请稍等，正在准备本层布局与事件。',
+        progress = 0.04,
+        stage = '准备中'
+    } = {}) {
+        if (!this.root) return;
+        if (this.hideTimer) {
+            clearTimeout(this.hideTimer);
+            this.hideTimer = null;
+        }
+        const clamped = Math.max(0.04, Math.min(1, progress));
+        this.root.classList.remove('hidden-overlay');
+        if (this.titleEl) this.titleEl.innerText = title;
+        if (this.detailEl) this.detailEl.innerText = detail;
+        if (this.stageEl) this.stageEl.innerText = stage;
+        if (this.barEl) this.barEl.style.width = `${Math.round(clamped * 100)}%`;
+        if (this.percentEl) this.percentEl.innerText = `${Math.round(clamped * 100)}%`;
+    }
+
+    hide(delayMs = 180) {
+        if (!this.root) return;
+        if (this.hideTimer) clearTimeout(this.hideTimer);
+        this.hideTimer = setTimeout(() => {
+            this.root.classList.add('hidden-overlay');
+            this.hideTimer = null;
+        }, Math.max(0, delayMs));
+    }
+}
+
 initializeSupplyCardUi();
 initializeUpgradeStripUi();
 initializeRelicCardUi();
 initializeThemeStatusPill();
 initializeSupplyStatusPill();
+window.loadingOverlay = new LoadingOverlay();
 window.GameState = GameState;
 
 const Easing = {
@@ -3526,6 +3604,9 @@ class GameController {
         this.hiddenRoomLookup = new Map();
         this.currentPathTarget = 'end';
         this.lastDirectExitPathLength = 0;
+        this.generationTargetCount = 0;
+        this.generationVisitedCount = 0;
+        this.generationProgress = 0;
 
         initializeSupplyCardUi();
         initializeUpgradeStripUi();
@@ -3547,6 +3628,16 @@ class GameController {
 
         window.gameController = this;
         this.startLevel();
+    }
+
+    setGenerationLoading(progress, detail, stage = '生成中', title = '正在生成迷宫') {
+        this.generationProgress = Math.max(0, Math.min(1, progress));
+        window.loadingOverlay?.show({
+            title,
+            detail,
+            progress: this.generationProgress,
+            stage
+        });
     }
 
     sleep(ms) {
@@ -5707,6 +5798,7 @@ class GameController {
     runOcclusionSelfTest(mode = 'player') {
         this.selfTestActive = true;
         clearInterval(this.genInterval);
+        window.loadingOverlay?.hide(0);
         clearTimeout(this.combatUiHideTimer);
         this.hideCombatUI();
         this.path = [];
@@ -5750,6 +5842,7 @@ class GameController {
     startLevel() {
         if (this.selfTestActive) return;
         GameState.phase = 'GENERATING';
+        this.setGenerationLoading(0.04, '正在准备本层主题、补给和迷宫尺寸。', '准备中');
         GameState.player.currentHp = GameState.player.baseHp;
         GameState.resetFloorStats();
         const archetypeKey = pickFloorArchetypeKey(GameState.level);
@@ -5816,6 +5909,9 @@ class GameController {
         this.playerPos = { c: 1, r: 1 };
         this.endPos = { c: this.cols - 2, r: this.rows - 2 };
         this.grid[1][1].visited = true;
+        this.generationTargetCount = Math.max(1, Math.ceil((this.cols - 2) / 2) * Math.ceil((this.rows - 2) / 2));
+        this.generationVisitedCount = 1;
+        this.setGenerationLoading(0.08, `正在雕刻通路 1/${this.generationTargetCount}。`, '生成通路');
         this.genStack = [this.grid[1][1]];
         this.engine.playerObj.visible = false;
         this.genInterval = setInterval(() => this.stepGenerate(), 20);
@@ -5882,11 +5978,18 @@ class GameController {
                 const next = neighbors[Math.floor(Math.random() * neighbors.length)];
                 this.digWall(this.grid[next.wr][next.wc]);
                 this.grid[next.r][next.c].visited = true;
+                 this.generationVisitedCount += 1;
                 this.genStack.push(this.grid[next.r][next.c]);
             } else {
                 this.genStack.pop();
             }
         }
+        const carveProgress = this.generationVisitedCount / Math.max(1, this.generationTargetCount);
+        this.setGenerationLoading(
+            0.08 + carveProgress * 0.72,
+            `正在雕刻通路 ${Math.min(this.generationVisitedCount, this.generationTargetCount)}/${this.generationTargetCount}。`,
+            '生成通路'
+        );
     }
 
     pickEnemyArchetype() {
@@ -6019,6 +6122,7 @@ class GameController {
     }
 
     finishGeneration() {
+        this.setGenerationLoading(0.84, '正在安放隐藏房间与分支内容。', '布置房间');
         this.digWall(this.grid[this.endPos.r][this.endPos.c]);
         const openCells = [];
 
@@ -6035,6 +6139,7 @@ class GameController {
         const shuffledCells = this.shuffleCells([...spawnableCells]);
         const spawnTargets = this.getSpawnTargets(shuffledCells.length);
         let spawnCursor = 0;
+        this.setGenerationLoading(0.9, '正在投放敌人、宝箱和终点。', '投放内容');
 
         for (let i = 0; i < spawnTargets.monsters && spawnCursor < shuffledCells.length; i++, spawnCursor++) {
             const cell = shuffledCells[spawnCursor];
@@ -6072,6 +6177,7 @@ class GameController {
         const pStart = this.getWorldPos(1, 1);
         this.engine.playerObj.position.set(pStart.x, 5, pStart.z);
         this.engine.playerObj.visible = true;
+        this.setGenerationLoading(0.97, '正在部署入口并准备开始自动推进。', '即将开始');
         this.engine.tweens.add(this.engine.playerObj.position, { y: 0.1 }, 0.6, Easing.easeOutBounce, () => {
             if (this.selfTestActive) return;
             GameState.phase = 'EXPLORING';
@@ -6081,6 +6187,8 @@ class GameController {
             }
             this.refreshExplorationPath();
             this.exploreNext();
+            this.setGenerationLoading(1, '本层准备完成。', '开始推进');
+            window.loadingOverlay?.hide(180);
         });
     }
 
