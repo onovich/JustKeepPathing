@@ -297,12 +297,12 @@
                             </select>
                         </div>
                         <div>
-                            <label for="select-strategy-supply" class="mb-1 block text-[11px] font-bold text-slate-500">自动用哪种层补给</label>
+                            <label for="select-strategy-supply" class="mb-1 block text-[11px] font-bold text-slate-500">挂机倾向</label>
                             <select id="select-strategy-supply" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-xs font-bold text-slate-100 outline-none focus:border-cyan-500">
-                                <option value="balanced">按楼层自动挑</option>
+                                <option value="balanced">自动均衡</option>
                                 <option value="combat">更偏战斗</option>
-                                <option value="loot">更偏探宝</option>
-                                <option value="explore">更偏探路</option>
+                                <option value="loot">更偏资源</option>
+                                <option value="explore">更偏密室</option>
                             </select>
                         </div>
                     </div>
@@ -359,21 +359,7 @@
             </div>
 
             <!-- 升级面板 -->
-            <div id="ui-supply-card" class="bg-slate-800 rounded-xl p-4 border-2 border-slate-700 shadow-inner">
-                <div class="flex items-center justify-between">
-                    <span class="text-slate-400 font-bold text-sm">层补给</span>
-                    <span id="ui-supply-count" class="text-xl font-black text-emerald-400">0</span>
-                </div>
-                <div id="ui-supply-status" class="mt-2 text-[11px] font-bold text-slate-400">当前没有激活的层补给</div>
-                <div class="mt-3 grid grid-cols-1 gap-2">
-                <button id="btn-up-supply-assault" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
-                    <div>
-                        <div class="font-bold text-emerald-300 flex items-center gap-2">补一份层补给 <span id="val-supply" class="text-[10px] bg-emerald-950 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-800/50">x0</span></div>
-                        <div id="desc-supply" class="text-[10px] text-slate-500 mt-0.5">每层开始会自动消耗 1 份，带来本层增益</div>
-                    </div>
-                    <div class="text-right"><div id="cost-supply" class="text-yellow-400 font-bold text-sm">60</div></div>
-                </button>
-            </div>
+            <div id="ui-supply-card" class="bg-slate-800 rounded-xl p-4 border-2 border-slate-700 shadow-inner"></div>
 
             <div id="upgrade-strip" class="space-y-3">
                 <button id="btn-up-speed" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
@@ -2115,32 +2101,33 @@ const GameState = {
             if (!isSizeMaxed && this.score >= cost) btn.classList.remove('opacity-50', 'grayscale');
             else btn.classList.add('opacity-50', 'grayscale');
         });
-        const supplyKeys = ['assault', 'salvage', 'scout'];
-        for (const key of supplyKeys) {
-            const valueEl = document.getElementById(`val-supply-${key}`);
-            const costEl = document.getElementById(`cost-supply-${key}`);
-            const btnEl = document.getElementById(`btn-up-supply-${key}`);
-            if (!valueEl || !costEl || !btnEl) continue;
-            valueEl.innerText = `x${this.getSupplyCount(key)}`;
-            costEl.innerText = this.getSupplyCost(key);
-            if (this.score >= this.getSupplyCost(key)) btnEl.classList.remove('opacity-50', 'grayscale');
-            else btnEl.classList.add('opacity-50', 'grayscale');
-        }
         const totalSupply = this.getTotalSupplyCount();
-        document.getElementById('ui-supply-count').innerText = totalSupply;
-        document.getElementById('ui-supply-status').innerText = this.floorBuff.supplyActive
-            ? `本层已启用：${this.floorBuff.supplyLabel}`
-            : '当前没有激活的层补给';
+        const supplyModeEl = document.getElementById('ui-supply-mode');
+        const supplyStatusEl = document.getElementById('ui-supply-status');
+        const supplyModeLabels = {
+            balanced: '自动均衡',
+            combat: '偏战斗',
+            loot: '偏资源',
+            explore: '偏密室'
+        };
+        if (supplyModeEl) {
+            supplyModeEl.innerText = supplyModeLabels[this.autoStrategy.supply] || '自动均衡';
+        }
+        if (supplyStatusEl) {
+            supplyStatusEl.innerText = `补给储备 x${totalSupply}`;
+        }
         const supplyDesc = document.getElementById('ui-supply-desc');
         if (supplyDesc) {
             if (this.floorBuff.supplyKey === 'assault') {
-                supplyDesc.innerText = '本层战备补给生效中：伤害提高，更适合战斗层和 Boss。';
+                supplyDesc.innerText = '本层当前偏战斗推进。系统会自动消耗储备，不需要手动购买。';
             } else if (this.floorBuff.supplyKey === 'salvage') {
-                supplyDesc.innerText = '本层探宝补给生效中：宝箱收益提高，补给掉落更积极。';
+                supplyDesc.innerText = '本层当前偏资源回收。系统会自动消耗储备，不需要手动购买。';
             } else if (this.floorBuff.supplyKey === 'scout') {
-                supplyDesc.innerText = '本层侦测补给生效中：密室更容易出现，也更愿意绕路进入。';
+                supplyDesc.innerText = '本层当前偏密室探索。系统会自动消耗储备，不需要手动购买。';
             } else {
-                supplyDesc.innerText = '每层开始会自动消耗 1 份，并按楼层类型选更合适的补给。';
+                supplyDesc.innerText = totalSupply > 0
+                    ? '系统会在合适的楼层自动消耗补给储备，不需要你重复操作。'
+                    : '当前没有补给储备。后续可通过宝箱、房间奖励和主题效果自动补充。';
             }
         }
 
@@ -2178,34 +2165,11 @@ function initializeSupplyCardUi() {
     if (!card) return;
     card.innerHTML = `
         <div class="flex items-center justify-between">
-            <span class="text-slate-400 font-bold text-sm">层补给</span>
-            <span id="ui-supply-count" class="text-xl font-black text-emerald-400">0</span>
+            <span class="text-slate-400 font-bold text-sm">挂机倾向</span>
+            <span id="ui-supply-mode" class="text-sm font-black text-emerald-300">自动均衡</span>
         </div>
-        <div id="ui-supply-status" class="mt-2 text-[11px] font-bold text-slate-400">当前没有激活的层补给</div>
-        <div id="ui-supply-desc" class="mt-1 text-[10px] text-slate-500">每层开始会自动消耗 1 份，并按楼层类型选更合适的补给。</div>
-        <div class="mt-3 grid grid-cols-1 gap-2">
-            <button id="btn-up-supply-assault" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
-                <div>
-                    <div class="font-bold text-rose-300 flex items-center gap-2">战备补给 <span id="val-supply-assault" class="text-[10px] bg-rose-950 text-rose-300 px-1.5 py-0.5 rounded border border-rose-800/50">x0</span></div>
-                    <div class="text-[10px] text-slate-500 mt-0.5">本层伤害更高，适合战斗和 Boss</div>
-                </div>
-                <div class="text-right"><div id="cost-supply-assault" class="text-yellow-400 font-bold text-sm">60</div></div>
-            </button>
-            <button id="btn-up-supply-salvage" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
-                <div>
-                    <div class="font-bold text-amber-300 flex items-center gap-2">探宝补给 <span id="val-supply-salvage" class="text-[10px] bg-amber-950 text-amber-300 px-1.5 py-0.5 rounded border border-amber-800/50">x0</span></div>
-                    <div class="text-[10px] text-slate-500 mt-0.5">本层宝箱收益更高，也更容易掉补给</div>
-                </div>
-                <div class="text-right"><div id="cost-supply-salvage" class="text-yellow-400 font-bold text-sm">60</div></div>
-            </button>
-            <button id="btn-up-supply-scout" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
-                <div>
-                    <div class="font-bold text-cyan-300 flex items-center gap-2">侦测补给 <span id="val-supply-scout" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">x0</span></div>
-                    <div class="text-[10px] text-slate-500 mt-0.5">本层更容易刷出密室，也更愿意绕路进入</div>
-                </div>
-                <div class="text-right"><div id="cost-supply-scout" class="text-yellow-400 font-bold text-sm">60</div></div>
-            </button>
-        </div>
+        <div id="ui-supply-status" class="mt-2 text-[11px] font-bold text-slate-300">补给储备 x0</div>
+        <div id="ui-supply-desc" class="mt-1 text-[10px] leading-5 text-slate-500">系统会自动使用补给储备，不需要手动购买或切换。</div>
     `;
 }
 
@@ -2299,7 +2263,7 @@ function initializeSupplyStatusPill() {
     const pill = document.createElement('div');
     pill.id = 'ui-supply-pill';
     pill.className = 'hidden bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]';
-    pill.innerHTML = '<span class="whitespace-nowrap">补给</span><span id="ui-supply-pill-text" class="ml-1 inline-block font-bold text-emerald-300">未启用</span>';
+    pill.innerHTML = '<span class="whitespace-nowrap">本层倾向</span><span id="ui-supply-pill-text" class="ml-1 inline-block font-bold text-emerald-300">未启用</span>';
     host.appendChild(pill);
 }
 
@@ -3578,23 +3542,6 @@ class GameController {
             button.addEventListener('click', async () => {
                 await window.soundEngine?.unlock();
                 GameState.tryBuy(type);
-            });
-        });
-        ['assault', 'salvage', 'scout'].forEach((type) => {
-            const button = document.getElementById(`btn-up-supply-${type}`);
-            if (!button) {
-                console.warn('Missing supply button:', `btn-up-supply-${type}`);
-                return;
-            }
-            button.addEventListener('click', async () => {
-                await window.soundEngine?.unlock();
-                const cost = GameState.getSupplyCost(type);
-                if (GameState.score < cost) return;
-                GameState.score -= cost;
-                GameState.grantFloorSupply(type, 1);
-                window.soundEngine?.upgrade();
-                if (window.engine) window.engine.triggerUpgradeEffect();
-                GameState.updateUI();
             });
         });
 
@@ -8075,11 +8022,11 @@ window.onload = () => {
             save: '商贩会更克制地花钱'
         })[GameState.autoStrategy.merchant] || '商贩更偏向买升级';
         const supplyLabel = ({
-            balanced: '层补给按楼层自动挑',
-            combat: '层补给会优先战备补给',
-            loot: '层补给会优先探宝补给',
-            explore: '层补给会优先侦测补给'
-        })[GameState.autoStrategy.supply] || '层补给按楼层自动挑';
+            balanced: '挂机倾向会自动保持均衡',
+            combat: '挂机倾向会更偏向战斗推进',
+            loot: '挂机倾向会更偏向资源回收',
+            explore: '挂机倾向会更偏向密室探索'
+        })[GameState.autoStrategy.supply] || '挂机倾向会自动保持均衡';
         strategyHint.innerText = `${riskLabel}；${restLabel}；${merchantLabel}；${supplyLabel}。`;
     };
 
