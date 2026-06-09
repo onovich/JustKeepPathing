@@ -47,3 +47,20 @@ export function removeHiddenRoomEntityReference(entities = [], entity) {
     entities.splice(entityIndex, 1);
     return true;
 }
+
+export function markHiddenRoomClearedState({ room, grid, floorStats } = {}) {
+    if (!room || room.cleared) return false;
+
+    room.cleared = true;
+    room.entered = true;
+    if (floorStats) {
+        floorStats.hiddenRoomsCleared = (floorStats.hiddenRoomsCleared || 0) + 1;
+    }
+
+    for (const chamberCell of room.chamberCells || [room.anchor]) {
+        const cell = grid?.[chamberCell?.r]?.[chamberCell?.c];
+        if (cell) cell.hiddenRoomId = null;
+    }
+
+    return true;
+}

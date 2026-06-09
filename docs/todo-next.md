@@ -36,7 +36,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Sound config sanitizing and cloning were extracted into `src/logic/sound-config.mjs`, with focused checks for numeric clamps, waveform fallback, track caps, BGM kernel fallback, and deep cloning.
 - Sound master-volume and sound-config localStorage helpers were extracted into `src/logic/sound-storage.mjs`, with focused checks for missing, invalid, and blocked storage reads/writes.
 - Collection/codex storage sanitizing, progress counts, and persistence helpers were extracted into `src/logic/collection-state.mjs`, with focused checks and browser smoke coverage for persisted discoveries.
-- Hidden-room diversion scoring, routing-debug assembly, interaction-resolution, pending-entity lookup, pickup pending-state, and marker entity-cleanup helpers were extracted into `src/logic/hidden-room-routing.mjs` and `src/logic/hidden-room-resolution.mjs`, with focused check scripts.
+- Hidden-room diversion scoring, routing-debug assembly, interaction-resolution, pending-entity lookup, pickup pending-state, clear-state application, and marker entity-cleanup helpers were extracted into `src/logic/hidden-room-routing.mjs` and `src/logic/hidden-room-resolution.mjs`, with focused check scripts.
 - Theme-chain bonus formulas were extracted into `src/logic/theme-chain-bonuses.mjs`, with focused checks and `GameController` still owning message/effect presentation.
 - Event, rest, merchant, trial, and elite room reward formulas were extracted into `src/logic/room-reward-calculations.mjs`, with focused checks.
 - Event stockpile, trial supply rewards, and merchant purchase decisions were extracted into `src/logic/room-reward-plans.mjs`, with focused checks.

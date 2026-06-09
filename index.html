@@ -724,6 +724,7 @@ import {
 import {
     getHiddenRoomInteractionAccent,
     getPendingHiddenRoomEntities,
+    markHiddenRoomClearedState,
     removeHiddenRoomEntityReference,
     removePendingHiddenRoomEntity,
     shouldClearHiddenRoomAfterInteraction
@@ -4856,14 +4857,12 @@ class GameController {
         );
     }
     clearHiddenRoom(room) {
-        if (!room || room.cleared) return;
-        room.cleared = true;
-        room.entered = true;
-        GameState.floorStats.hiddenRoomsCleared += 1;
-        for (const chamberCell of room.chamberCells || [room.anchor]) {
-            const cell = this.grid?.[chamberCell.r]?.[chamberCell.c];
-            if (cell) cell.hiddenRoomId = null;
-        }
+        const didClear = markHiddenRoomClearedState({
+            room,
+            grid: this.grid,
+            floorStats: GameState.floorStats
+        });
+        if (!didClear) return;
         if (room.decorationGroup) {
             room.decorationGroup.traverse((child) => {
                 if (child.material && 'opacity' in child.material) child.material.opacity *= 0.38;
