@@ -260,6 +260,10 @@ async function runSmoke() {
       const settingsPanel = document.getElementById('settings-panel');
       const settingsHint = document.getElementById('settings-strategy-hint');
       const riskSelect = document.getElementById('select-strategy-risk');
+      const modelEditorButton = document.getElementById('btn-editor');
+      const soundEditorButton = document.getElementById('btn-sound-editor');
+      const modelEditorModal = document.getElementById('editor-modal');
+      const soundEditorModal = document.getElementById('sound-editor-modal');
       const hudSupplyMode = document.getElementById('ui-supply-mode');
       const hudRelicCard = document.getElementById('ui-relic-card');
       const hudThemePill = document.getElementById('ui-theme-pill');
@@ -285,6 +289,10 @@ async function runSmoke() {
         settingsPanelHidden: settingsPanel.classList.contains('hidden'),
         settingsRiskValue: riskSelect.value,
         settingsHintText: settingsHint.innerText || '',
+        hasModelEditorButton: !!modelEditorButton,
+        hasSoundEditorButton: !!soundEditorButton,
+        modelEditorClosed: modelEditorModal?.classList.contains('hidden') || false,
+        soundEditorClosed: soundEditorModal?.classList.contains('hidden') || false,
         hudSupplyModeText: hudSupplyMode?.innerText || '',
         hasHudRelicCard: !!hudRelicCard,
         hasHudThemePill: !!hudThemePill,
@@ -304,6 +312,8 @@ async function runSmoke() {
       if (!result.settingsPanelHidden) throw new Error('Settings panel should start hidden.');
       if (result.settingsHintText.length < 8) throw new Error('Settings strategy hint did not render.');
       if (!result.settingsRiskValue) throw new Error('Settings risk select did not sync.');
+      if (!result.hasModelEditorButton || !result.hasSoundEditorButton) throw new Error('Header editor buttons did not render.');
+      if (!result.modelEditorClosed || !result.soundEditorClosed) throw new Error('Editor modals should start closed.');
       if (!result.hudSupplyModeText) throw new Error('HUD supply card did not render.');
       if (!result.hasHudRelicCard) throw new Error('HUD relic card did not render.');
       if (!result.hasHudThemePill || !result.hasHudSupplyPill) throw new Error('HUD status pills did not render.');

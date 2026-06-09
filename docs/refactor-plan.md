@@ -41,7 +41,7 @@
 
 ## Phase 3: UI And Editor Separation
 
-- Move HUD status UI, loading overlay, settings panel, collection panel, and path debug panel UI into `src/view/` while preserving their DOM ids and runtime update calls. (Started: `hud-status-ui.mjs`, `loading-overlay.mjs`, `settings-panel.mjs`, `panels/collection-panel.mjs`, `panels/path-debug-panel.mjs`.)
+- Move HUD status UI, loading overlay, settings panel, header actions, collection panel, and path debug panel UI into `src/view/` while preserving their DOM ids and runtime update calls. (Started: `hud-status-ui.mjs`, `loading-overlay.mjs`, `settings-panel.mjs`, `header-actions.mjs`, `panels/collection-panel.mjs`, `panels/path-debug-panel.mjs`.)
 - Move model editor UI logic into `src/view/editors/model-editor.mjs`.
 - Move sound editor UI logic into `src/view/editors/sound-editor.mjs`.
 - Keep DOM ids, layout hooks, and existing mobile/PC presentation behavior stable while code moves behind the scenes.
@@ -70,6 +70,6 @@
 ## Recommended Next Slices
 
 1. Continue extracting reward resolution state-application helpers from `GameController`.
-2. Move remaining lightweight UI/editor shells out of `index.html`.
+2. Move remaining lightweight UI/editor shells out of `index.html`, starting with the model editor shell after the header action binding extraction.
 3. Isolate the sound runtime from the sound editor UI so live preview and in-game playback rules are easier to reason about.
 4. Split the wall-occlusion reveal code path into a dedicated rendering helper and verify it with browser smoke/screenshots before further visual tweaks.

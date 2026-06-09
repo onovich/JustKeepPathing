@@ -29,7 +29,7 @@ npm run check
 ```
 
 It reads `index.html` as UTF-8, extracts the main module script, and checks that script separately. This avoids false failures caused by shell-side encoding mismatches when inspecting the big inline module directly.
-The same command also checks extracted `.mjs` modules such as `src/data/game-config.mjs`, `src/logic/hidden-room-routing.mjs`, `src/logic/room-reward-calculations.mjs`, `src/logic/room-reward-plans.mjs`, `src/logic/theme-chain-bonuses.mjs`, `src/view/hud-status-ui.mjs`, `src/view/loading-overlay.mjs`, `src/view/settings-panel.mjs`, and `src/view/panels/collection-panel.mjs`.
+The same command also checks extracted `.mjs` modules such as `src/data/game-config.mjs`, `src/logic/hidden-room-routing.mjs`, `src/logic/room-reward-calculations.mjs`, `src/logic/room-reward-plans.mjs`, `src/logic/theme-chain-bonuses.mjs`, `src/view/header-actions.mjs`, `src/view/hud-status-ui.mjs`, `src/view/loading-overlay.mjs`, `src/view/settings-panel.mjs`, and `src/view/panels/collection-panel.mjs`.
 
 For a real browser startup smoke, run:
 
@@ -37,7 +37,7 @@ For a real browser startup smoke, run:
 npm run smoke:browser
 ```
 
-It launches a temporary local static server and a headless Chrome-compatible browser, then checks page startup, WebGL canvas sizing, loading overlay state, HUD status UI, the settings panel sync state, and the collection panel.
+It launches a temporary local static server and a headless Chrome-compatible browser, then checks page startup, WebGL canvas sizing, loading overlay state, header editor buttons, HUD status UI, the settings panel sync state, and the collection panel.
 
 To capture the current desktop viewport after startup, run:
 
@@ -68,6 +68,7 @@ After pushing, enable GitHub Pages with **Source: GitHub Actions** in the reposi
 - Theme-chain bonus plans: `src/logic/theme-chain-bonuses.mjs`
 - Maze progression rules: `src/logic/maze-progression.mjs`
 - HUD status UI: `src/view/hud-status-ui.mjs`
+- Header action bindings: `src/view/header-actions.mjs`
 - Loading overlay: `src/view/loading-overlay.mjs`
 - Settings panel: `src/view/settings-panel.mjs`
 - Collection and path debug panels: `src/view/panels/`

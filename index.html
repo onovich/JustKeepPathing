@@ -770,6 +770,10 @@ import {
     pickRelicReward
 } from './src/data/relics.mjs';
 import { LoadingOverlay } from './src/view/loading-overlay.mjs';
+import {
+    bindModelEditorHeaderButton,
+    bindSoundEditorHeaderButton
+} from './src/view/header-actions.mjs';
 import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
@@ -6322,9 +6326,9 @@ class ModelEditor {
     }
 
     bindUi() {
-        document.getElementById('btn-editor').addEventListener('click', (event) => {
-            event.stopPropagation();
-            this.open();
+        bindModelEditorHeaderButton({
+            documentRef: document,
+            onOpen: () => this.open()
         });
         this.undoButton.addEventListener('click', () => this.undo());
         this.closeButton.addEventListener('click', () => this.close());
@@ -7065,10 +7069,10 @@ class SoundEditor {
     }
 
     bindUi() {
-        document.getElementById('btn-sound-editor').addEventListener('click', async (event) => {
-            event.stopPropagation();
-            await this.soundEngine.unlock();
-            this.open();
+        bindSoundEditorHeaderButton({
+            documentRef: document,
+            soundEngine: this.soundEngine,
+            onOpen: () => this.open()
         });
         this.closeButton.addEventListener('click', () => this.close());
         this.readButton.addEventListener('click', () => this.readSavedConfig());
