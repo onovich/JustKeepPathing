@@ -15,6 +15,10 @@ Updated 2026-06-09 after reviewing the current runtime state.
 - Empty treasure-room completion now still routes through `applyThemeChainBonus('treasure', ...)`, so salvage-theme treasure bonuses are not skipped when no cache nodes remain.
 - `Reflex Shield` combat text now reports how much damage was blocked and how much damage was actually taken.
 - Empty relic-pool rewards now explain that no new core is available instead of saying the core slots are full.
+- A dependency-free browser smoke now launches a temporary static server and headless Chrome to verify startup, canvas sizing, loading overlay state, and the collection panel.
+- `LoadingOverlay` was extracted into `src/view/loading-overlay.mjs`.
+- `CollectionPanel` and `PathDebugPanel` were extracted into `src/view/panels/` with explicit `GameState`/controller dependencies.
+- Hidden-room diversion scoring and small interaction-resolution helpers were extracted into `src/logic/hidden-room-routing.mjs` and `src/logic/hidden-room-resolution.mjs`, with focused check scripts.
 
 ## 1. Theme Chain And Relic Follow-Up
 
@@ -60,28 +64,26 @@ Acceptance:
 - we can explain why the autopather took or skipped a special room on a given floor
 - balancing room appetite no longer depends on reading scattered runtime state by hand
 
-## 3. Browser Smoke Coverage
+## 3. Browser Smoke Follow-Up
 
 Goal:
 
-- protect the playable baseline while `index.html` is still the canonical entry point
+- broaden browser coverage while keeping the current smoke fast enough for local refactor checks
 
 Recommended slice:
 
-- add a local smoke workflow that can load `http://127.0.0.1:5173/`, wait for the game scene, and fail on console errors
-- include a focused collection smoke:
-  - open the collection panel
-  - verify counts render
-  - seed a localStorage discovery fixture if needed
+- seed a localStorage discovery fixture and verify discovered collection items render as `Found`
 - include a generation-overlay smoke:
-  - confirm the loading overlay is hidden on normal startup
   - confirm delayed generation text appears only for slow generation
+- include a path-debug smoke:
+  - open the path debug panel
+  - verify summary cards render after a floor is generated
 
 Acceptance:
 
 - `npm run check` still stays fast and local
 - browser smoke can be run manually before risky UI/render changes
-- the smoke does not require a production build step
+- the smoke does not require a production build step or external npm dependency
 
 ## 4. Refactor Follow-Up
 
@@ -91,10 +93,10 @@ Goal:
 
 Recommended next extraction candidates:
 
-- special-room scoring and resolution helpers
+- remaining theme-chain and reward resolution helpers
+- remaining lightweight UI shells
 - collection/codex data helpers
-- loading overlay controller
-- path debug panel formatting
+- model editor UI shell
 
 Acceptance:
 

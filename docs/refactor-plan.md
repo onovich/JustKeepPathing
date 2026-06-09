@@ -35,11 +35,13 @@
   - maze scaling and reward formulas
   - hidden room roll rules
   - combat value calculations
+- Keep hidden-room route scoring and small resolution predicates in `src/logic/` modules. (Started: `hidden-room-routing.mjs`, `hidden-room-resolution.mjs`.)
 - Extract shared state helpers into `src/logic/state/` or equivalent modules.
 - Preserve current runtime ordering to avoid subtle regressions in timers, audio, and rendering.
 
 ## Phase 3: UI And Editor Separation
 
+- Move loading overlay, collection panel, and path debug panel UI into `src/view/` while preserving their DOM ids and runtime update calls. (Started: `loading-overlay.mjs`, `panels/collection-panel.mjs`, `panels/path-debug-panel.mjs`.)
 - Move model editor UI logic into `src/view/editors/model-editor.mjs`.
 - Move sound editor UI logic into `src/view/editors/sound-editor.mjs`.
 - Keep DOM ids, layout hooks, and existing mobile/PC presentation behavior stable while code moves behind the scenes.
@@ -56,7 +58,9 @@
 ## Phase 5: Validation And Smoke
 
 - Keep `npm run check` fast and local.
-- Add one browser smoke pass after risky visual changes, especially for:
+- Keep the dependency-free `npm run smoke:browser` pass available after risky visual changes, especially for:
+  - page startup and module import failures
+  - collection and debug panel extraction
   - editor overlays
   - mobile layout
   - wall occlusion reveal
@@ -64,6 +68,7 @@
 
 ## Recommended Next Slices
 
-1. Extract hidden room tables and maze progression formulas into dedicated data/logic modules.
-2. Isolate the sound runtime from the sound editor UI so live preview and in-game playback rules are easier to reason about.
-3. Split the wall-occlusion reveal code path into a dedicated rendering helper and verify it with screenshots before further visual tweaks.
+1. Continue extracting theme-chain and reward resolution helpers from `GameController`.
+2. Move remaining lightweight UI shells out of `index.html`.
+3. Isolate the sound runtime from the sound editor UI so live preview and in-game playback rules are easier to reason about.
+4. Split the wall-occlusion reveal code path into a dedicated rendering helper and verify it with browser smoke/screenshots before further visual tweaks.

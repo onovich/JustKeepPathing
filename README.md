@@ -29,7 +29,7 @@ npm run check
 ```
 
 It reads `index.html` as UTF-8, extracts the main module script, and checks that script separately. This avoids false failures caused by shell-side encoding mismatches when inspecting the big inline module directly.
-The same command also checks extracted `.mjs` modules such as `src/data/game-config.mjs`, `src/view/loading-overlay.mjs`, and `src/view/panels/collection-panel.mjs`.
+The same command also checks extracted `.mjs` modules such as `src/data/game-config.mjs`, `src/logic/hidden-room-routing.mjs`, `src/view/loading-overlay.mjs`, and `src/view/panels/collection-panel.mjs`.
 
 For a real browser startup smoke, run:
 
@@ -54,6 +54,7 @@ After pushing, enable GitHub Pages with **Source: GitHub Actions** in the reposi
 - Refactor plan: `docs/refactor-plan.md`
 - Runtime content tables: `src/data/floor-content.mjs`
 - Hidden room runtime rules: `src/logic/hidden-rooms.mjs`
+- Hidden room routing and resolution helpers: `src/logic/hidden-room-routing.mjs`, `src/logic/hidden-room-resolution.mjs`
 - Maze progression rules: `src/logic/maze-progression.mjs`
 - Loading overlay: `src/view/loading-overlay.mjs`
 - Collection and path debug panels: `src/view/panels/`
