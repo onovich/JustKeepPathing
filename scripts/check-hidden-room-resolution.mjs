@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     getHiddenRoomInteractionAccent,
+    removePendingHiddenRoomEntity,
     shouldClearHiddenRoomAfterInteraction
 } from '../src/logic/hidden-room-resolution.mjs';
 
@@ -55,5 +56,29 @@ assert.equal(
     false,
     'elite rooms should wait for combat clear'
 );
+
+{
+    const picked = { id: 'node-2' };
+    const kept = { id: 'node-1' };
+    const result = removePendingHiddenRoomEntity({
+        pendingIds: ['node-1', 'node-2', 'node-3'],
+        entities: [kept, picked],
+        entity: picked
+    });
+
+    assert.deepEqual(result.pendingIds, ['node-1', 'node-3'], 'picked hidden-room entity id should be removed');
+    assert.deepEqual(result.entities, [kept], 'picked hidden-room entity object should be removed by reference');
+}
+
+{
+    const result = removePendingHiddenRoomEntity({
+        pendingIds: ['node-1'],
+        entities: [{ id: 'node-1' }],
+        entity: null
+    });
+
+    assert.deepEqual(result.pendingIds, ['node-1'], 'missing entity should leave pending ids unchanged');
+    assert.equal(result.entities.length, 1, 'missing entity should leave entity list unchanged');
+}
 
 console.log('hidden-room-resolution checks passed');

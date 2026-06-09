@@ -723,6 +723,7 @@ import {
 } from './src/logic/hidden-rooms.mjs';
 import {
     getHiddenRoomInteractionAccent,
+    removePendingHiddenRoomEntity,
     shouldClearHiddenRoomAfterInteraction
 } from './src/logic/hidden-room-resolution.mjs';
 import { calculateHiddenRoomDiversionScore } from './src/logic/hidden-room-routing.mjs';
@@ -4910,8 +4911,13 @@ class GameController {
             this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#fda4af');
             this.engine.addFloatingText(`-${hazardDamage}`, entityObj.mesh.position.clone().add(new THREE.Vector3(0.18, 0.12, 0)), '#fecdd3');
         }
-        room.pendingTrialNodeIds = (room.pendingTrialNodeIds || []).filter((nodeId) => nodeId !== entityObj.id);
-        room.trialNodeEntities = (room.trialNodeEntities || []).filter((node) => node !== entityObj);
+        const trialPending = removePendingHiddenRoomEntity({
+            pendingIds: room.pendingTrialNodeIds || [],
+            entities: room.trialNodeEntities || [],
+            entity: entityObj
+        });
+        room.pendingTrialNodeIds = trialPending.pendingIds;
+        room.trialNodeEntities = trialPending.entities;
         if (room.pendingTrialNodeIds.length === 0) {
             const message = this.resolveTrialRoomV2(room);
             if (room.entity?.mesh) {
@@ -4947,8 +4953,13 @@ class GameController {
             const droppedSupply = GameState.grantRandomFloorSupply('cache');
             this.showSupplyPickupEffect(droppedSupply, entityObj?.mesh?.position?.clone() || this.engine.playerObj.position.clone());
         }
-        room.pendingCacheIds = (room.pendingCacheIds || []).filter((cacheId) => cacheId !== entityObj.id);
-        room.cacheEntities = (room.cacheEntities || []).filter((cache) => cache !== entityObj);
+        const cachePending = removePendingHiddenRoomEntity({
+            pendingIds: room.pendingCacheIds || [],
+            entities: room.cacheEntities || [],
+            entity: entityObj
+        });
+        room.pendingCacheIds = cachePending.pendingIds;
+        room.cacheEntities = cachePending.entities;
         if (room.pendingCacheIds.length === 0) {
             if (room.entity?.mesh) {
                 this.engine.spawnBurst(room.entity.mesh.position, 0xfacc15, 22, 1.8);
@@ -4984,8 +4995,13 @@ class GameController {
             this.engine.spawnBurst(entityObj.mesh.position, 0xc084fc, 16, 1.2);
             this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#e879f9');
         }
-        room.pendingEventNodeIds = (room.pendingEventNodeIds || []).filter((nodeId) => nodeId !== entityObj.id);
-        room.eventNodeEntities = (room.eventNodeEntities || []).filter((node) => node !== entityObj);
+        const eventPending = removePendingHiddenRoomEntity({
+            pendingIds: room.pendingEventNodeIds || [],
+            entities: room.eventNodeEntities || [],
+            entity: entityObj
+        });
+        room.pendingEventNodeIds = eventPending.pendingIds;
+        room.eventNodeEntities = eventPending.entities;
         if (room.pendingEventNodeIds.length === 0) {
             const message = this.resolveEventRoomV2(room);
             if (room.entity?.mesh) {
@@ -5013,8 +5029,13 @@ class GameController {
             this.engine.spawnBurst(entityObj.mesh.position, 0x38bdf8, 16, 1.2);
             this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#7dd3fc');
         }
-        room.pendingEliteNodeIds = (room.pendingEliteNodeIds || []).filter((nodeId) => nodeId !== entityObj.id);
-        room.eliteNodeEntities = (room.eliteNodeEntities || []).filter((node) => node !== entityObj);
+        const elitePending = removePendingHiddenRoomEntity({
+            pendingIds: room.pendingEliteNodeIds || [],
+            entities: room.eliteNodeEntities || [],
+            entity: entityObj
+        });
+        room.pendingEliteNodeIds = elitePending.pendingIds;
+        room.eliteNodeEntities = elitePending.entities;
         if (room.eliteEntity?.mesh) {
             this.engine.spawnBurst(room.eliteEntity.mesh.position, 0x38bdf8, 10, 1);
             this.engine.addFloatingText(`${entityObj.supportData?.label || '增幅装置'}已拆除`, room.eliteEntity.mesh.position, '#7dd3fc');

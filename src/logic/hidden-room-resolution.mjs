@@ -19,3 +19,14 @@ export function shouldClearHiddenRoomAfterInteraction(room) {
         || room.typeKey === 'rest'
         || room.typeKey === 'merchant';
 }
+
+export function removePendingHiddenRoomEntity({
+    pendingIds = [],
+    entities = [],
+    entity
+}) {
+    return {
+        pendingIds: pendingIds.filter((entityId) => entityId !== entity?.id),
+        entities: entities.filter((item) => item !== entity)
+    };
+}

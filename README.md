@@ -68,7 +68,7 @@ After pushing, enable GitHub Pages with **Source: GitHub Actions** in the reposi
 - Refactor plan: `docs/refactor-plan.md`
 - Runtime content tables: `src/data/floor-content.mjs`
 - Hidden room runtime rules: `src/logic/hidden-rooms.mjs`
-- Hidden room routing and resolution helpers: `src/logic/hidden-room-routing.mjs`, `src/logic/hidden-room-resolution.mjs`
+- Hidden room routing, interaction, and pickup-state helpers: `src/logic/hidden-room-routing.mjs`, `src/logic/hidden-room-resolution.mjs`
 - Room reward calculations: `src/logic/room-reward-calculations.mjs`
 - Room reward side-effect and merchant purchase plans: `src/logic/room-reward-plans.mjs`
 - Room reward resolution message helpers: `src/logic/room-reward-resolution.mjs`
