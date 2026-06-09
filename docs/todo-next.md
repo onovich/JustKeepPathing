@@ -16,7 +16,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - `Reflex Shield` combat text now reports how much damage was blocked and how much damage was actually taken.
 - Empty relic-pool rewards now explain that no new core is available instead of saying the core slots are full.
 - Hidden room plan generation no longer reads the selected type key before initialization, and `npm run check` now exercises `buildHiddenRoomPlan(...)` directly.
-- A dependency-free browser smoke now launches a temporary static server and headless Chrome to verify startup, canvas sizing, loading overlay state, and the collection panel.
+- A dependency-free browser smoke now launches a temporary static server and headless Chrome to verify startup, canvas sizing, loading overlay state, the collection panel, and the path debug panel.
 - HUD status UI initialization was extracted into `src/view/hud-status-ui.mjs`, and browser smoke now verifies HUD supply/relic/pill/upgrade nodes.
 - `LoadingOverlay` was extracted into `src/view/loading-overlay.mjs`.
 - The settings/strategy panel was extracted into `src/view/settings-panel.mjs`, with focused hint text checks.
@@ -98,9 +98,6 @@ Recommended slice:
 - seed a localStorage discovery fixture and verify discovered collection items render as `Found`
 - include a generation-overlay smoke:
   - confirm delayed generation text appears only for slow generation
-- include a path-debug smoke:
-  - open the path debug panel
-  - verify summary cards render after a floor is generated
 - optionally archive screenshots from `npm run smoke:screenshot` before visual-risky refactors
 
 Acceptance:

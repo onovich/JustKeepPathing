@@ -256,6 +256,12 @@ async function runSmoke() {
       const collectionButton = document.getElementById('btn-collection');
       const collectionModal = document.getElementById('collection-modal');
       const collectionBadge = document.getElementById('collection-count-badge');
+      const pathDebugButton = document.getElementById('btn-path-debug');
+      const pathDebugModal = document.getElementById('path-debug-modal');
+      const pathDebugSummary = document.getElementById('path-debug-summary');
+      const pathDebugContext = document.getElementById('path-debug-context');
+      const pathDebugRoomCount = document.getElementById('path-debug-room-count');
+      const pathDebugRoomList = document.getElementById('path-debug-room-list');
       const settingsButton = document.getElementById('btn-settings');
       const settingsPanel = document.getElementById('settings-panel');
       const settingsHint = document.getElementById('settings-strategy-hint');
@@ -296,6 +302,19 @@ async function runSmoke() {
       await waitFor(() => !collectionModal.classList.contains('hidden'), 4000, 'collection modal');
       document.getElementById('btn-collection-close')?.click();
 
+      if (!pathDebugButton || !pathDebugModal || !pathDebugSummary || !pathDebugContext || !pathDebugRoomCount || !pathDebugRoomList) {
+        throw new Error('Path debug controls are missing.');
+      }
+      pathDebugButton.click();
+      await waitFor(() => !pathDebugModal.classList.contains('hidden'), 4000, 'path debug modal');
+      const pathDebugSummaryCards = pathDebugSummary.children.length;
+      const pathDebugContextText = pathDebugContext.innerText || '';
+      const pathDebugRoomCountText = pathDebugRoomCount.innerText || '';
+      const pathDebugRoomCards = pathDebugRoomList.querySelectorAll('article').length;
+      const pathDebugRoomListHasContent = pathDebugRoomCards > 0 || pathDebugRoomList.innerText.includes('No hidden rooms');
+      document.getElementById('btn-path-debug-close')?.click();
+      await waitFor(() => pathDebugModal.classList.contains('hidden'), 4000, 'path debug modal close');
+
       if (!settingsButton || !settingsPanel || !settingsHint || !riskSelect) throw new Error('Settings controls are missing.');
       const modelLogMessage = 'browser-smoke-model-log';
       const soundLogMessage = 'browser-smoke-sound-log';
@@ -329,6 +348,13 @@ async function runSmoke() {
         trialCards: document.querySelectorAll('#collection-trial-list article').length,
         relicCards: document.querySelectorAll('#collection-relic-list article').length,
         bossCards: document.querySelectorAll('#collection-boss-list article').length,
+        pathDebugModalClosed: pathDebugModal.classList.contains('hidden'),
+        pathDebugSummaryCards,
+        pathDebugContextText,
+        pathDebugRoomCountText,
+        pathDebugRoomCards,
+        pathDebugRoomListHasContent,
+        pathDebugHiddenRoomsKnown: Array.isArray(window.gameController?.hiddenRooms),
         settingsPanelHidden: settingsPanel.classList.contains('hidden'),
         settingsRiskValue: riskSelect.value,
         settingsHintText: settingsHint.innerText || '',
@@ -406,6 +432,12 @@ async function runSmoke() {
       if (result.canvasWidth <= 0 || result.canvasHeight <= 0) throw new Error('Canvas has no visible size.');
       if (result.collectionSummaryCards < 4) throw new Error('Collection summary cards did not render.');
       if (!result.collectionBadge.includes('/')) throw new Error('Collection badge did not render progress.');
+      if (!result.pathDebugModalClosed) throw new Error('Path debug modal did not close after smoke.');
+      if (result.pathDebugSummaryCards < 4) throw new Error('Path debug summary cards did not render.');
+      if (!result.pathDebugContextText.includes('Current target')) throw new Error('Path debug context did not render current target.');
+      if (!result.pathDebugRoomCountText.includes('room')) throw new Error('Path debug room count did not render.');
+      if (!result.pathDebugRoomListHasContent) throw new Error('Path debug room list did not render content.');
+      if (!result.pathDebugHiddenRoomsKnown) throw new Error('Path debug controller hidden-room list is not available.');
       if (!result.settingsPanelHidden) throw new Error('Settings panel should start hidden.');
       if (result.settingsHintText.length < 8) throw new Error('Settings strategy hint did not render.');
       if (!result.settingsRiskValue) throw new Error('Settings risk select did not sync.');
