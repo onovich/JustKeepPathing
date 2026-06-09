@@ -42,8 +42,8 @@
 ## Phase 3: UI And Editor Separation
 
 - Move HUD status UI, loading overlay, settings panel, header actions, collection panel, and path debug panel UI into `src/view/` while preserving their DOM ids and runtime update calls. (Started: `hud-status-ui.mjs`, `loading-overlay.mjs`, `settings-panel.mjs`, `header-actions.mjs`, `panels/collection-panel.mjs`, `panels/path-debug-panel.mjs`.)
-- Move model editor UI logic into `src/view/editors/model-editor.mjs`. (Started with `editors/model-editor-chrome.mjs` for header command chrome.)
-- Move sound editor UI logic into `src/view/editors/sound-editor.mjs`.
+- Move model editor UI logic into `src/view/editors/model-editor.mjs`. (Started with `editors/model-editor-chrome.mjs` for header command chrome and shared `editors/editor-chrome.mjs` helpers.)
+- Move sound editor UI logic into `src/view/editors/sound-editor.mjs`. (Started with `editors/sound-editor-chrome.mjs` for transport command chrome.)
 - Keep DOM ids, layout hooks, and existing mobile/PC presentation behavior stable while code moves behind the scenes.
 
 ## Phase 4: Render And Scene Separation

@@ -775,6 +775,7 @@ import {
     bindSoundEditorHeaderButton
 } from './src/view/header-actions.mjs';
 import { configureModelEditorHeaderButtons } from './src/view/editors/model-editor-chrome.mjs';
+import { configureSoundEditorTransportButtons } from './src/view/editors/sound-editor-chrome.mjs';
 import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
@@ -7030,18 +7031,14 @@ class SoundEditor {
     }
 
     setupTransportButtons() {
-        this.previewButton.className = 'flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-700 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25';
-        this.stopPreviewButton.className = 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800';
-        this.stopPreviewButton.title = 'Stop';
-        this.stopPreviewButton.setAttribute('aria-label', 'Stop');
-        this.stopPreviewButton.innerHTML = '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true"><path d="M7 7h10v10H7z"></path></svg>';
-        this.readButton.textContent = 'Load';
-        this.resetButton.textContent = 'Reset';
-        this.saveButton.textContent = 'Save';
-        this.closeButton.className = 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800';
-        this.closeButton.title = 'Close';
-        this.closeButton.setAttribute('aria-label', 'Close');
-        this.closeButton.innerHTML = '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18"></path><path d="M18 6 6 18"></path></svg>';
+        configureSoundEditorTransportButtons({
+            previewButton: this.previewButton,
+            stopPreviewButton: this.stopPreviewButton,
+            readButton: this.readButton,
+            resetButton: this.resetButton,
+            saveButton: this.saveButton,
+            closeButton: this.closeButton
+        });
         this.updateTransportUi();
     }
 

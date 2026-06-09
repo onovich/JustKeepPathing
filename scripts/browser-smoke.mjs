@@ -269,6 +269,12 @@ async function runSmoke() {
       const modelEditorResetButton = document.getElementById('btn-editor-reset');
       const modelEditorSaveButton = document.getElementById('btn-editor-save');
       const modelEditorCloseButton = document.getElementById('btn-editor-close');
+      const soundEditorPreviewButton = document.getElementById('btn-sound-preview');
+      const soundEditorStopButton = document.getElementById('btn-sound-stop-preview');
+      const soundEditorReadButton = document.getElementById('btn-sound-read');
+      const soundEditorResetButton = document.getElementById('btn-sound-reset');
+      const soundEditorSaveButton = document.getElementById('btn-sound-save');
+      const soundEditorCloseButton = document.getElementById('btn-sound-close');
       const hudSupplyMode = document.getElementById('ui-supply-mode');
       const hudRelicCard = document.getElementById('ui-relic-card');
       const hudThemePill = document.getElementById('ui-theme-pill');
@@ -306,6 +312,18 @@ async function runSmoke() {
         ],
         modelEditorCloseAria: modelEditorCloseButton?.getAttribute('aria-label') || '',
         modelEditorCloseHasIcon: !!modelEditorCloseButton?.querySelector('svg path'),
+        soundEditorCommandLabels: [
+          soundEditorReadButton?.innerText || '',
+          soundEditorResetButton?.innerText || '',
+          soundEditorSaveButton?.innerText || ''
+        ],
+        soundEditorPreviewAria: soundEditorPreviewButton?.getAttribute('aria-label') || '',
+        soundEditorPreviewHasIcon: !!soundEditorPreviewButton?.querySelector('svg path'),
+        soundEditorStopAria: soundEditorStopButton?.getAttribute('aria-label') || '',
+        soundEditorStopDisabled: !!soundEditorStopButton?.disabled,
+        soundEditorStopHasIcon: !!soundEditorStopButton?.querySelector('svg path'),
+        soundEditorCloseAria: soundEditorCloseButton?.getAttribute('aria-label') || '',
+        soundEditorCloseHasIcon: !!soundEditorCloseButton?.querySelector('svg path'),
         hudSupplyModeText: hudSupplyMode?.innerText || '',
         hasHudRelicCard: !!hudRelicCard,
         hasHudThemePill: !!hudThemePill,
@@ -329,6 +347,10 @@ async function runSmoke() {
       if (!result.modelEditorClosed || !result.soundEditorClosed) throw new Error('Editor modals should start closed.');
       if (result.modelEditorCommandLabels.join('|') !== 'Undo|Load|Reset|Save') throw new Error('Model editor command labels did not initialize.');
       if (result.modelEditorCloseAria !== 'Close' || !result.modelEditorCloseHasIcon) throw new Error('Model editor close button chrome did not initialize.');
+      if (result.soundEditorCommandLabels.join('|') !== 'Load|Reset|Save') throw new Error('Sound editor command labels did not initialize.');
+      if (result.soundEditorPreviewAria !== 'Play' || !result.soundEditorPreviewHasIcon) throw new Error('Sound editor preview button chrome did not initialize.');
+      if (result.soundEditorStopAria !== 'Stop' || !result.soundEditorStopDisabled || !result.soundEditorStopHasIcon) throw new Error('Sound editor stop button chrome did not initialize.');
+      if (result.soundEditorCloseAria !== 'Close' || !result.soundEditorCloseHasIcon) throw new Error('Sound editor close button chrome did not initialize.');
       if (!result.hudSupplyModeText) throw new Error('HUD supply card did not render.');
       if (!result.hasHudRelicCard) throw new Error('HUD relic card did not render.');
       if (!result.hasHudThemePill || !result.hasHudSupplyPill) throw new Error('HUD status pills did not render.');

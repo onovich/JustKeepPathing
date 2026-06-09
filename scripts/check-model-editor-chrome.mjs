@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import {
-    EDITOR_CLOSE_ICON_SVG,
-    MODEL_EDITOR_CLOSE_BUTTON_CLASS,
-    configureEditorCloseButton,
     configureModelEditorHeaderButtons
 } from '../src/view/editors/model-editor-chrome.mjs';
+import {
+    EDITOR_CLOSE_ICON_SVG,
+    EDITOR_SECONDARY_ICON_BUTTON_CLASS
+} from '../src/view/editors/editor-chrome.mjs';
 
 function createButton() {
     return {
@@ -17,15 +18,6 @@ function createButton() {
             this.attributes[name] = value;
         }
     };
-}
-
-{
-    const closeButton = createButton();
-    assert.equal(configureEditorCloseButton(closeButton), closeButton);
-    assert.equal(closeButton.className, MODEL_EDITOR_CLOSE_BUTTON_CLASS);
-    assert.equal(closeButton.title, 'Close');
-    assert.equal(closeButton.attributes['aria-label'], 'Close');
-    assert.equal(closeButton.innerHTML, EDITOR_CLOSE_ICON_SVG);
 }
 
 {
@@ -43,8 +35,10 @@ function createButton() {
     assert.equal(buttons.readButton.textContent, 'Load');
     assert.equal(buttons.resetButton.textContent, 'Reset');
     assert.equal(buttons.saveButton.textContent, 'Save');
-    assert.equal(buttons.closeButton.className, MODEL_EDITOR_CLOSE_BUTTON_CLASS);
+    assert.equal(buttons.closeButton.className, EDITOR_SECONDARY_ICON_BUTTON_CLASS);
+    assert.equal(buttons.closeButton.title, 'Close');
     assert.equal(buttons.closeButton.attributes['aria-label'], 'Close');
+    assert.equal(buttons.closeButton.innerHTML, EDITOR_CLOSE_ICON_SVG);
 }
 
 console.log('model-editor-chrome checks passed');
