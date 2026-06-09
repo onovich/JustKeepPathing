@@ -333,7 +333,23 @@ async function runSmoke() {
         canvasWidth: canvas?.clientWidth || 0,
         canvasHeight: canvas?.clientHeight || 0,
         hasController: !!window.gameController,
-        hasEngine: !!window.engine
+        hasEngine: !!window.engine,
+        modelEditorDomRefsReady: [
+          'modal',
+          'canvas',
+          'assetSelect',
+          'undoButton',
+          'closeButton',
+          'logEl'
+        ].every((key) => !!window.modelEditor?.[key]),
+        soundEditorDomRefsReady: [
+          'modal',
+          'select',
+          'controlsEl',
+          'previewButton',
+          'stopPreviewButton',
+          'closeButton'
+        ].every((key) => !!window.soundEditor?.[key])
       };
 
       if (!result.overlayHidden) throw new Error('Loading overlay is visible after startup.');
@@ -355,6 +371,7 @@ async function runSmoke() {
       if (!result.hasHudRelicCard) throw new Error('HUD relic card did not render.');
       if (!result.hasHudThemePill || !result.hasHudSupplyPill) throw new Error('HUD status pills did not render.');
       if (!result.hasSpeedUpgradeButton) throw new Error('HUD upgrade strip did not render.');
+      if (!result.modelEditorDomRefsReady || !result.soundEditorDomRefsReady) throw new Error('Editor DOM refs did not initialize.');
       return result;
     }})()`;
 

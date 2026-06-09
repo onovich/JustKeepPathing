@@ -776,6 +776,10 @@ import {
 } from './src/view/header-actions.mjs';
 import { configureModelEditorHeaderButtons } from './src/view/editors/model-editor-chrome.mjs';
 import { configureSoundEditorTransportButtons } from './src/view/editors/sound-editor-chrome.mjs';
+import {
+    getModelEditorDomRefs,
+    getSoundEditorDomRefs
+} from './src/view/editors/editor-dom.mjs';
 import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
@@ -6263,31 +6267,7 @@ class GameController {
 class ModelEditor {
     constructor(engine) {
         this.engine = engine;
-        this.modal = document.getElementById('editor-modal');
-        this.canvas = document.getElementById('editor-preview-canvas');
-        this.assetSelect = document.getElementById('editor-asset-select');
-        this.undoButton = document.getElementById('btn-editor-undo');
-        this.readButton = document.getElementById('btn-editor-read');
-        this.resetButton = document.getElementById('btn-editor-reset');
-        this.saveButton = document.getElementById('btn-editor-save');
-        this.closeButton = document.getElementById('btn-editor-close');
-        this.colorPicker = document.getElementById('editor-color-picker');
-        this.patternColorPicker = document.getElementById('editor-pattern-color');
-        this.patternSelect = document.getElementById('editor-face-pattern');
-        this.patternScale = document.getElementById('editor-pattern-scale');
-        this.patternScaleValue = document.getElementById('editor-pattern-scale-value');
-        this.lineStyleSelect = document.getElementById('editor-line-style');
-        this.lineWidth = document.getElementById('editor-line-width');
-        this.lineWidthValue = document.getElementById('editor-line-width-value');
-        this.eyeDropperButton = document.getElementById('btn-editor-eyedropper');
-        this.selectionStatus = document.getElementById('editor-selection-status');
-        this.selectedTarget = document.getElementById('editor-selected-target');
-        this.selectionKind = document.getElementById('editor-selection-kind');
-        this.selectedType = document.getElementById('editor-selected-type');
-        this.colorValue = document.getElementById('editor-color-value');
-        this.faceControls = document.getElementById('editor-face-controls');
-        this.lineControls = document.getElementById('editor-line-controls');
-        this.logEl = document.getElementById('editor-log');
+        Object.assign(this, getModelEditorDomRefs(document));
 
         this.workingConfig = this.engine.cloneAppearanceConfig();
         this.undoStack = [];
@@ -7004,20 +6984,7 @@ class ModelEditor {
 class SoundEditor {
     constructor(soundEngine) {
         this.soundEngine = soundEngine;
-        this.modal = document.getElementById('sound-editor-modal');
-        this.select = document.getElementById('sound-asset-select');
-        this.typeEl = document.getElementById('sound-editor-type');
-        this.usageEl = document.getElementById('sound-editor-usage');
-        this.descriptionEl = document.getElementById('sound-editor-description');
-        this.statusEl = document.getElementById('sound-editor-status');
-        this.logEl = document.getElementById('sound-editor-log');
-        this.controlsEl = document.getElementById('sound-editor-controls');
-        this.previewButton = document.getElementById('btn-sound-preview');
-        this.stopPreviewButton = document.getElementById('btn-sound-stop-preview');
-        this.readButton = document.getElementById('btn-sound-read');
-        this.resetButton = document.getElementById('btn-sound-reset');
-        this.saveButton = document.getElementById('btn-sound-save');
-        this.closeButton = document.getElementById('btn-sound-close');
+        Object.assign(this, getSoundEditorDomRefs(document));
         this.workingConfig = this.soundEngine.cloneSoundConfig();
         this.currentSoundKey = 'upgrade';
         this.currentTrackIndex = 0;
