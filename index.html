@@ -723,6 +723,7 @@ import {
 } from './src/logic/hidden-rooms.mjs';
 import {
     getHiddenRoomInteractionAccent,
+    getPendingHiddenRoomEntities,
     removeHiddenRoomEntityReference,
     removePendingHiddenRoomEntity,
     shouldClearHiddenRoomAfterInteraction
@@ -4279,31 +4280,31 @@ class GameController {
     }
 
     getPendingHiddenRoomCaches(room) {
-        if (!room?.pendingCacheIds?.length) return [];
-        return room.pendingCacheIds
-            .map((cacheId) => room.cacheEntities?.find((entity) => entity.id === cacheId))
-            .filter(Boolean);
+        return getPendingHiddenRoomEntities({
+            pendingIds: room?.pendingCacheIds || [],
+            entities: room?.cacheEntities || []
+        });
     }
 
     getPendingHiddenEventNodes(room) {
-        if (!room?.pendingEventNodeIds?.length) return [];
-        return room.pendingEventNodeIds
-            .map((nodeId) => room.eventNodeEntities?.find((entity) => entity.id === nodeId))
-            .filter(Boolean);
+        return getPendingHiddenRoomEntities({
+            pendingIds: room?.pendingEventNodeIds || [],
+            entities: room?.eventNodeEntities || []
+        });
     }
 
     getPendingHiddenEliteNodes(room) {
-        if (!room?.pendingEliteNodeIds?.length) return [];
-        return room.pendingEliteNodeIds
-            .map((nodeId) => room.eliteNodeEntities?.find((entity) => entity.id === nodeId))
-            .filter(Boolean);
+        return getPendingHiddenRoomEntities({
+            pendingIds: room?.pendingEliteNodeIds || [],
+            entities: room?.eliteNodeEntities || []
+        });
     }
 
     getPendingHiddenTrialNodes(room) {
-        if (!room?.pendingTrialNodeIds?.length) return [];
-        return room.pendingTrialNodeIds
-            .map((nodeId) => room.trialNodeEntities?.find((entity) => entity.id === nodeId))
-            .filter(Boolean);
+        return getPendingHiddenRoomEntities({
+            pendingIds: room?.pendingTrialNodeIds || [],
+            entities: room?.trialNodeEntities || []
+        });
     }
 
     getPendingHiddenRoomSweepEntities(room) {

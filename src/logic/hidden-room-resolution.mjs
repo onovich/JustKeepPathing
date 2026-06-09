@@ -31,6 +31,16 @@ export function removePendingHiddenRoomEntity({
     };
 }
 
+export function getPendingHiddenRoomEntities({
+    pendingIds = [],
+    entities = []
+}) {
+    if (!pendingIds.length) return [];
+    return pendingIds
+        .map((entityId) => entities.find((entity) => entity.id === entityId))
+        .filter(Boolean);
+}
+
 export function removeHiddenRoomEntityReference(entities = [], entity) {
     const entityIndex = entities.findIndex((item) => item === entity);
     if (entityIndex < 0) return false;

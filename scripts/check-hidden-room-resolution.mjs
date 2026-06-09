@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     getHiddenRoomInteractionAccent,
+    getPendingHiddenRoomEntities,
     removeHiddenRoomEntityReference,
     removePendingHiddenRoomEntity,
     shouldClearHiddenRoomAfterInteraction
@@ -81,6 +82,23 @@ assert.equal(
     assert.deepEqual(result.pendingIds, ['node-1'], 'missing entity should leave pending ids unchanged');
     assert.equal(result.entities.length, 1, 'missing entity should leave entity list unchanged');
 }
+
+{
+    const first = { id: 'node-1' };
+    const second = { id: 'node-2' };
+    const result = getPendingHiddenRoomEntities({
+        pendingIds: ['node-2', 'missing-node', 'node-1'],
+        entities: [first, second]
+    });
+
+    assert.deepEqual(result, [second, first], 'pending hidden-room entities should follow pending id order and skip missing ids');
+}
+
+assert.deepEqual(
+    getPendingHiddenRoomEntities({ pendingIds: [], entities: [{ id: 'node-1' }] }),
+    [],
+    'empty pending id lists should return no pending hidden-room entities'
+);
 
 {
     const target = { id: 'marker' };
