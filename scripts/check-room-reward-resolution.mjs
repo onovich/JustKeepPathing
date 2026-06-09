@@ -16,6 +16,12 @@ assert.equal(
     'empty reward details should be skipped'
 );
 
+assert.equal(
+    appendRoomRewardDetails('Elite cleared.', ['Relic dropped.', 'Theme bonus.']),
+    'Elite cleared. Relic dropped. Theme bonus.',
+    'reward details should keep their append order'
+);
+
 {
     let updateCount = 0;
     const message = finalizeRoomRewardMessage({

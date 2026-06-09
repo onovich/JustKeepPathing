@@ -4525,11 +4525,11 @@ class GameController {
         window.pathDebugPanel?.render();
     }
 
-    finalizeHiddenRoomRewardResolution(sourceKey, room, message, anchorPos = null) {
+    finalizeHiddenRoomRewardResolution(sourceKey, room, message, anchorPos = null, details = []) {
         const themeChainMessage = this.applyThemeChainBonus(sourceKey, room, anchorPos);
         return finalizeRoomRewardMessage({
             message,
-            details: [themeChainMessage],
+            details: [...details, themeChainMessage],
             updateUI: () => GameState.updateUI()
         });
     }
@@ -5048,23 +5048,23 @@ class GameController {
             enemyMesh.position.clone().add(new THREE.Vector3(0, 0.45, 0)),
             room.displayName
         );
-        const themeChainMessage = this.applyThemeChainBonus('elite', room, enemyMesh.position.clone());
+        let summary = room.displayName + ' cleared and granted ' + bonusReward + ' bonus score.';
+        if (repair > 0) {
+            summary += ' Restored ' + repair + ' HP.';
+        }
+        summary = this.finalizeHiddenRoomRewardResolution(
+            'elite',
+            room,
+            summary,
+            enemyMesh.position.clone(),
+            [relicMessage]
+        );
         if (room.entity?.mesh) {
             this.engine.scene.remove(room.entity.mesh);
         }
         const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
         if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
         this.clearHiddenRoom(room);
-        let summary = room.displayName + ' cleared and granted ' + bonusReward + ' bonus score.';
-        if (repair > 0) {
-            summary += ' Restored ' + repair + ' HP.';
-        }
-        if (relicMessage) {
-            summary += ' ' + relicMessage;
-        }
-        if (themeChainMessage) {
-            summary += ' ' + themeChainMessage;
-        }
         await this.typeText(summary);
         await this.sleep(520);
         return summary;
