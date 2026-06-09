@@ -740,6 +740,12 @@ import {
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
 import {
+    calculateEffectiveSoundVolume,
+    clampAudioValue,
+    createSoundDistortionCurve,
+    midiToFrequency
+} from './src/logic/sound-audio-utils.mjs';
+import {
     cloneSoundConfig,
     sanitizeSoundConfig
 } from './src/logic/sound-config.mjs';
@@ -1111,32 +1117,12 @@ class SoundEngine {
         }
     }
 
-    getEffectiveVolume() {
-        return THREE.MathUtils.clamp(Math.pow(this.volume, 0.72) * this.outputGainBoost, 0, 4.8);
-    }
-
-    midiToFreq(note) {
-        return 440 * Math.pow(2, (note - 69) / 12);
-    }
-
-    createDistortionCurve(amount = 0) {
-        const k = Math.max(0, amount) * 220;
-        const nSamples = 44100;
-        const curve = new Float32Array(nSamples);
-        const deg = Math.PI / 180;
-        for (let i = 0; i < nSamples; i++) {
-            const x = i * 2 / nSamples - 1;
-            curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
-        }
-        return curve;
-    }
-
     createPanner(pan = 0) {
         const ctx = this.getContext();
         if (!ctx) return null;
         if (ctx.createStereoPanner) {
             const panner = ctx.createStereoPanner();
-            panner.pan.value = THREE.MathUtils.clamp(pan, -1, 1);
+            panner.pan.value = clampAudioValue(pan, -1, 1);
             return panner;
         }
         return null;
@@ -1160,8 +1146,8 @@ class SoundEngine {
         const hold = Math.max(0, config.hold);
         const release = Math.max(0.01, config.release);
         const totalDuration = Math.max(duration, attack + hold + release);
-        const effectiveVolume = this.getEffectiveVolume();
-        const baseGain = THREE.MathUtils.clamp(config.volume * volumeMul * effectiveVolume, 0, 1.8);
+        const effectiveVolume = calculateEffectiveSoundVolume(this.volume, this.outputGainBoost);
+        const baseGain = clampAudioValue(config.volume * volumeMul * effectiveVolume, 0, 1.8);
 
         const osc = ctx.createOscillator();
         osc.type = config.waveform;
@@ -1190,7 +1176,7 @@ class SoundEngine {
         let outNode = filter;
         if (config.distortion > 0.001) {
             const shaper = ctx.createWaveShaper();
-            shaper.curve = this.createDistortionCurve(config.distortion);
+            shaper.curve = createSoundDistortionCurve(config.distortion);
             shaper.oversample = '4x';
             filter.connect(shaper);
             outNode = shaper;
@@ -1374,8 +1360,8 @@ class SoundEngine {
             this.scheduleVoice(createOneShotSoundConfig({
                 waveform: 'triangle',
                 volume: config.volume * 0.72,
-                startFreq: this.midiToFreq(chordNote),
-                endFreq: this.midiToFreq(chordNote),
+                startFreq: midiToFrequency(chordNote),
+                endFreq: midiToFrequency(chordNote),
                 duration,
                 attack: config.attack,
                 hold: duration * 0.42,
@@ -1391,8 +1377,8 @@ class SoundEngine {
             this.scheduleVoice(createOneShotSoundConfig({
                 waveform: state.stepIndex % 2 === 0 ? 'square' : 'sine',
                 volume: config.volume * 0.46,
-                startFreq: this.midiToFreq(melodyNote + 12),
-                endFreq: this.midiToFreq(melodyNote + 12),
+                startFreq: midiToFrequency(melodyNote + 12),
+                endFreq: midiToFrequency(melodyNote + 12),
                 duration: duration * 0.78,
                 attack: Math.max(0.002, config.attack * 0.6),
                 hold: duration * 0.18,
