@@ -787,6 +787,10 @@ import {
     renderSoundSelectControl,
     renderSoundSliderControl
 } from './src/view/editors/sound-editor-controls.mjs';
+import {
+    applySoundEditorTransportState,
+    buildSoundEditorTransportState
+} from './src/view/editors/sound-editor-transport-ui.mjs';
 import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
@@ -7021,18 +7025,18 @@ class SoundEditor {
 
     updateTransportUi() {
         const def = SOUND_EVENT_DEFS[this.currentSoundKey];
-        const isContinuous = def?.type === 'loop' || def?.type === 'bgm';
-        const isCurrentActive = isContinuous && this.soundEngine.currentPreviewKey === this.currentSoundKey && this.soundEngine.isContinuousPreviewActive(this.currentSoundKey);
-        const isPaused = isCurrentActive && this.soundEngine.previewPaused;
-        const showPause = isCurrentActive && !isPaused;
-        this.previewButton.title = showPause ? 'Pause' : 'Play';
-        this.previewButton.setAttribute('aria-label', showPause ? 'Pause' : 'Play');
-        this.previewButton.innerHTML = showPause
-            ? '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"></path></svg>'
-            : '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="currentColor" aria-hidden="true"><path d="M8 6.5v11l9-5.5-9-5.5Z"></path></svg>';
-        this.stopPreviewButton.disabled = !isCurrentActive && !this.soundEngine.previewPaused;
-        this.stopPreviewButton.classList.toggle('opacity-40', this.stopPreviewButton.disabled);
-        this.stopPreviewButton.classList.toggle('cursor-not-allowed', this.stopPreviewButton.disabled);
+        const state = buildSoundEditorTransportState({
+            currentSoundKey: this.currentSoundKey,
+            def,
+            currentPreviewKey: this.soundEngine.currentPreviewKey,
+            isContinuousPreviewActive: this.soundEngine.isContinuousPreviewActive(this.currentSoundKey),
+            previewPaused: this.soundEngine.previewPaused
+        });
+        applySoundEditorTransportState({
+            previewButton: this.previewButton,
+            stopPreviewButton: this.stopPreviewButton,
+            state
+        });
     }
 
     populateSelect() {
