@@ -808,6 +808,7 @@ import {
 } from './src/view/editors/editor-dom.mjs';
 import { appendEditorLog } from './src/view/editors/editor-log.mjs';
 import {
+    applyModelEditorSelectionUiState,
     buildModelEditorSelectionControlState,
     buildModelEditorSelectionDisplayState,
     getSharedModelEditorSelectionValue
@@ -6480,19 +6481,6 @@ class ModelEditor {
             kind,
             canUndo: this.undoStack.length > 0
         });
-        this.colorPicker.disabled = controlState.colorDisabled;
-        this.patternColorPicker.disabled = controlState.patternDisabled;
-        this.patternSelect.disabled = controlState.patternDisabled;
-        this.patternScale.disabled = controlState.patternDisabled;
-        this.lineStyleSelect.disabled = controlState.lineDisabled;
-        this.lineWidth.disabled = controlState.lineDisabled;
-        this.colorPicker.classList.toggle('opacity-60', controlState.colorDisabled);
-        this.faceControls.classList.toggle('opacity-50', controlState.faceControlsInactive);
-        this.lineControls.classList.toggle('opacity-50', controlState.lineControlsInactive);
-        this.undoButton.disabled = controlState.undoDisabled;
-        this.undoButton.classList.toggle('opacity-50', controlState.undoDisabled);
-        this.undoButton.classList.toggle('cursor-not-allowed', controlState.undoDisabled);
-
         const sharedColor = this.getSharedSelectionValue((entry) => entry.color);
         const sharedPattern = kind === 'mesh'
             ? this.getSharedSelectionValue((entry) => entry.pattern)
@@ -6524,36 +6512,7 @@ class ModelEditor {
             defaultLineStyle: MODEL_EDITOR_DEFAULT_LINE_STYLE
         });
 
-        this.selectionStatus.innerText = displayState.selectionStatusText;
-        this.selectedTarget.innerText = displayState.selectedTargetText;
-        this.selectionKind.innerText = active
-            ? (kind === 'mesh' ? '当前选择类型：面' : '当前选择类型：边')
-            : '等待选择';
-        this.selectedType.innerText = displayState.selectedTypeText;
-        this.colorPicker.value = displayState.colorPickerValue;
-        this.colorValue.innerText = displayState.colorValueText;
-
-        if (!active) {
-            this.patternSelect.value = displayState.patternSelectValue;
-            this.patternColorPicker.value = displayState.patternColorPickerValue;
-            this.patternScale.value = displayState.patternScaleValue;
-            this.patternScaleValue.innerText = displayState.patternScaleText;
-            this.lineStyleSelect.value = displayState.lineStyleSelectValue;
-            this.lineWidth.value = displayState.lineWidthValue;
-            this.lineWidthValue.innerText = displayState.lineWidthText;
-            return;
-        }
-
-        if (kind === 'mesh') {
-            this.patternSelect.value = displayState.patternSelectValue;
-            this.patternColorPicker.value = displayState.patternColorPickerValue;
-            this.patternScale.value = displayState.patternScaleValue;
-            this.patternScaleValue.innerText = displayState.patternScaleText;
-        } else {
-            this.lineStyleSelect.value = displayState.lineStyleSelectValue;
-            this.lineWidth.value = displayState.lineWidthValue;
-            this.lineWidthValue.innerText = displayState.lineWidthText;
-        }
+        applyModelEditorSelectionUiState(this, { controlState, displayState });
     }
 
     log(message) {

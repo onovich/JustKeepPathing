@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+    applyModelEditorSelectionUiState,
     buildModelEditorSelectionControlState,
     buildModelEditorSelectionDisplayState,
     getSharedModelEditorSelectionValue
@@ -78,8 +79,11 @@ assert.deepEqual(
         defaultLineStyle: { style: 'solid', width: 2 }
     }),
     {
+        active: false,
+        kind: null,
         selectionStatusText: 'Nothing selected yet',
         selectedTargetText: 'No selection',
+        selectionKindText: '\u7b49\u5f85\u9009\u62e9',
         selectedTypeText: 'Waiting',
         colorPickerValue: '#22d3ee',
         colorValueText: '#22d3ee',
@@ -111,8 +115,11 @@ assert.deepEqual(
         defaultLineStyle: { style: 'solid', width: 2 }
     }),
     {
+        active: true,
+        kind: 'mesh',
         selectionStatusText: 'Selected 2 faces',
         selectedTargetText: 'Player / 2 targets',
+        selectionKindText: '\u5f53\u524d\u9009\u62e9\u7c7b\u578b\uff1a\u9762',
         selectedTypeText: 'Face x2',
         colorPickerValue: '#ff0000',
         colorValueText: '...',
@@ -140,8 +147,11 @@ assert.deepEqual(
         defaultLineStyle: { style: 'solid', width: 2 }
     }),
     {
+        active: true,
+        kind: 'line',
         selectionStatusText: 'Selected 1 line',
         selectedTargetText: 'Exit / outline',
+        selectionKindText: '\u5f53\u524d\u9009\u62e9\u7c7b\u578b\uff1a\u8fb9',
         selectedTypeText: 'Edge x1',
         colorPickerValue: '#f8fafc',
         colorValueText: '#f8fafc',
@@ -155,5 +165,121 @@ assert.deepEqual(
     },
     'line display state should expose selected line controls'
 );
+
+function createFakeElement(value = '') {
+    const classNames = new Set();
+    return {
+        disabled: false,
+        innerText: '',
+        value,
+        classList: {
+            toggle(className, force) {
+                if (force) classNames.add(className);
+                else classNames.delete(className);
+            },
+            contains(className) {
+                return classNames.has(className);
+            }
+        }
+    };
+}
+
+function createFakeSelectionRefs() {
+    return {
+        colorPicker: createFakeElement('#000000'),
+        patternColorPicker: createFakeElement('#000000'),
+        patternSelect: createFakeElement('hatch'),
+        patternScale: createFakeElement('14'),
+        patternScaleValue: createFakeElement(),
+        lineStyleSelect: createFakeElement('dashed'),
+        lineWidth: createFakeElement('5'),
+        lineWidthValue: createFakeElement(),
+        faceControls: createFakeElement(),
+        lineControls: createFakeElement(),
+        undoButton: createFakeElement(),
+        selectionStatus: createFakeElement(),
+        selectedTarget: createFakeElement(),
+        selectionKind: createFakeElement(),
+        selectedType: createFakeElement(),
+        colorValue: createFakeElement()
+    };
+}
+
+const idleRefs = createFakeSelectionRefs();
+applyModelEditorSelectionUiState(idleRefs, {
+    controlState: buildModelEditorSelectionControlState({ active: false, kind: null, canUndo: false }),
+    displayState: buildModelEditorSelectionDisplayState({
+        active: false,
+        selection: [],
+        defaultFacePattern: { pattern: 'none', patternColor: '#0f172a', patternScale: 8 },
+        defaultLineStyle: { style: 'solid', width: 2 }
+    })
+});
+
+assert.equal(idleRefs.colorPicker.disabled, true, 'idle color picker should be disabled');
+assert.equal(idleRefs.patternSelect.disabled, true, 'idle pattern select should be disabled');
+assert.equal(idleRefs.lineWidth.disabled, true, 'idle line width should be disabled');
+assert.equal(idleRefs.undoButton.disabled, true, 'idle undo should be disabled');
+assert.equal(idleRefs.colorPicker.classList.contains('opacity-60'), true, 'idle color picker should be dimmed');
+assert.equal(idleRefs.faceControls.classList.contains('opacity-50'), true, 'idle face controls should be dimmed');
+assert.equal(idleRefs.lineControls.classList.contains('opacity-50'), true, 'idle line controls should be dimmed');
+assert.equal(idleRefs.undoButton.classList.contains('cursor-not-allowed'), true, 'idle undo should look disabled');
+assert.equal(idleRefs.selectionStatus.innerText, 'Nothing selected yet', 'idle status text should be applied');
+assert.equal(idleRefs.selectionKind.innerText, '\u7b49\u5f85\u9009\u62e9', 'idle selection kind text should be applied');
+assert.equal(idleRefs.patternSelect.value, 'none', 'idle pattern select should reset');
+assert.equal(idleRefs.lineWidth.value, '2', 'idle line width should reset');
+
+const meshRefs = createFakeSelectionRefs();
+meshRefs.lineStyleSelect.value = 'keep-style';
+meshRefs.lineWidth.value = '5';
+applyModelEditorSelectionUiState(meshRefs, {
+    controlState: buildModelEditorSelectionControlState({ active: true, kind: 'mesh', canUndo: true }),
+    displayState: buildModelEditorSelectionDisplayState({
+        active: true,
+        kind: 'mesh',
+        selection: [{ assetKey: 'player', partKey: 'wing' }],
+        assetLabel: 'Player',
+        sharedColor: { mixed: false, value: '#ff0000' },
+        sharedPattern: { mixed: false, value: 'hatch' },
+        sharedPatternColor: { mixed: false, value: '#00ff00' },
+        sharedScale: { mixed: false, value: '10' },
+        defaultFacePattern: { pattern: 'none', patternColor: '#0f172a', patternScale: 8 },
+        defaultLineStyle: { style: 'solid', width: 2 }
+    })
+});
+
+assert.equal(meshRefs.colorPicker.disabled, false, 'mesh color picker should be enabled');
+assert.equal(meshRefs.patternSelect.disabled, false, 'mesh pattern select should be enabled');
+assert.equal(meshRefs.lineWidth.disabled, true, 'mesh line width should be disabled');
+assert.equal(meshRefs.undoButton.disabled, false, 'mesh undo should be enabled when undo exists');
+assert.equal(meshRefs.selectionKind.innerText, '\u5f53\u524d\u9009\u62e9\u7c7b\u578b\uff1a\u9762', 'mesh kind text should be applied');
+assert.equal(meshRefs.patternSelect.value, 'hatch', 'mesh pattern select should update');
+assert.equal(meshRefs.patternScaleValue.innerText, '10.0x', 'mesh pattern scale text should update');
+assert.equal(meshRefs.lineStyleSelect.value, 'keep-style', 'mesh apply should not overwrite line-only controls');
+assert.equal(meshRefs.lineWidth.value, '5', 'mesh apply should not overwrite line width');
+
+const lineRefs = createFakeSelectionRefs();
+lineRefs.patternSelect.value = 'keep-pattern';
+lineRefs.patternScale.value = '11';
+applyModelEditorSelectionUiState(lineRefs, {
+    controlState: buildModelEditorSelectionControlState({ active: true, kind: 'line', canUndo: false }),
+    displayState: buildModelEditorSelectionDisplayState({
+        active: true,
+        kind: 'line',
+        selection: [{ assetKey: 'exit', partKey: 'outline' }],
+        assetLabel: 'Exit',
+        sharedColor: { mixed: false, value: '#f8fafc' },
+        sharedStyle: { mixed: false, value: 'dashed' },
+        sharedWidth: { mixed: false, value: '3.5' },
+        defaultFacePattern: { pattern: 'none', patternColor: '#0f172a', patternScale: 8 },
+        defaultLineStyle: { style: 'solid', width: 2 }
+    })
+});
+
+assert.equal(lineRefs.patternSelect.value, 'keep-pattern', 'line apply should not overwrite face-only controls');
+assert.equal(lineRefs.patternScale.value, '11', 'line apply should not overwrite pattern scale');
+assert.equal(lineRefs.lineStyleSelect.value, 'dashed', 'line style should update');
+assert.equal(lineRefs.lineWidth.value, '3.5', 'line width should update');
+assert.equal(lineRefs.lineWidthValue.innerText, '3.5', 'line width text should update');
 
 console.log('model-editor-selection-ui checks passed');
