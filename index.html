@@ -780,6 +780,7 @@ import {
     getModelEditorDomRefs,
     getSoundEditorDomRefs
 } from './src/view/editors/editor-dom.mjs';
+import { appendEditorLog } from './src/view/editors/editor-log.mjs';
 import { buildModelEditorSelectionControlState } from './src/view/editors/model-editor-selection-ui.mjs';
 import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
@@ -6587,9 +6588,7 @@ class ModelEditor {
     }
 
     log(message) {
-        const stamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-        const lines = `${stamp} ${message}\n${this.logEl.innerText}`.trim().split('\n').slice(0, 10);
-        this.logEl.innerText = lines.join('\n');
+        appendEditorLog(this.logEl, message, { maxLines: 10 });
     }
 
     clearSelection(shouldLog = true) {
@@ -7080,9 +7079,7 @@ class SoundEditor {
     }
 
     log(message) {
-        const stamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-        const lines = `${stamp} ${message}\n${this.logEl.innerText}`.trim().split('\n').slice(0, 12);
-        this.logEl.innerText = lines.join('\n');
+        appendEditorLog(this.logEl, message, { maxLines: 12 });
     }
 
     setStatus(text) {

@@ -290,6 +290,11 @@ async function runSmoke() {
       document.getElementById('btn-collection-close')?.click();
 
       if (!settingsButton || !settingsPanel || !settingsHint || !riskSelect) throw new Error('Settings controls are missing.');
+      const modelLogMessage = 'browser-smoke-model-log';
+      const soundLogMessage = 'browser-smoke-sound-log';
+      window.modelEditor?.log(modelLogMessage);
+      window.soundEditor?.log(soundLogMessage);
+
       const result = {
         phase: window.GameState.phase,
         level: window.GameState.level,
@@ -356,7 +361,9 @@ async function runSmoke() {
           'previewButton',
           'stopPreviewButton',
           'closeButton'
-        ].every((key) => !!window.soundEditor?.[key])
+        ].every((key) => !!window.soundEditor?.[key]),
+        modelEditorLogUpdated: window.modelEditor?.logEl?.innerText?.includes(modelLogMessage) || false,
+        soundEditorLogUpdated: window.soundEditor?.logEl?.innerText?.includes(soundLogMessage) || false
       };
 
       if (!result.overlayHidden) throw new Error('Loading overlay is visible after startup.');
@@ -380,6 +387,7 @@ async function runSmoke() {
       if (!result.hasHudThemePill || !result.hasHudSupplyPill) throw new Error('HUD status pills did not render.');
       if (!result.hasSpeedUpgradeButton) throw new Error('HUD upgrade strip did not render.');
       if (!result.modelEditorDomRefsReady || !result.soundEditorDomRefsReady) throw new Error('Editor DOM refs did not initialize.');
+      if (!result.modelEditorLogUpdated || !result.soundEditorLogUpdated) throw new Error('Editor log helpers did not update DOM logs.');
       return result;
     }})()`;
 
