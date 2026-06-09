@@ -1,3 +1,25 @@
+export function countPathDebugRoutingStates(rooms = []) {
+    return rooms.reduce((acc, room) => {
+        const state = room.routingDebug?.state || 'pending';
+        acc[state] = (acc[state] || 0) + 1;
+        return acc;
+    }, {});
+}
+
+export function countReachablePathDebugRooms(rooms = []) {
+    return rooms.filter((room) => {
+        const state = room.routingDebug?.state;
+        return state === 'eligible' || state === 'selected';
+    }).length;
+}
+
+export function countBlockedPathDebugRooms(rooms = []) {
+    return rooms.filter((room) => {
+        const state = room.routingDebug?.state;
+        return state === 'path-missing' || state === 'room-unreachable' || state === 'exit-unreachable';
+    }).length;
+}
+
 export class PathDebugPanel {
     constructor({ gameState, getController = () => null }) {
         this.gameState = gameState;
@@ -130,11 +152,7 @@ export class PathDebugPanel {
             `merchant=${this.gameState.autoStrategy.merchant}`,
             `supply=${this.gameState.autoStrategy.supply}`
         ].join(' | ');
-        const roomStates = rooms.reduce((acc, room) => {
-            const state = room.routingDebug?.state || 'pending';
-            acc[state] = (acc[state] || 0) + 1;
-            return acc;
-        }, {});
+        const roomStates = countPathDebugRoutingStates(rooms);
         const stateLine = Object.entries(roomStates)
             .map(([state, count]) => `${this.getRoutingStateMeta(state).label}: ${count}`)
             .join(' | ') || 'No routing data yet';
@@ -213,14 +231,8 @@ export class PathDebugPanel {
         const rooms = this.getRooms();
         const threshold = this.gameState.getDiversionThreshold();
         const selectedRoom = rooms.find((room) => room.id === controller?.currentPathTarget) || null;
-        const reachableRooms = rooms.filter((room) => {
-            const state = room.routingDebug?.state;
-            return state === 'eligible' || state === 'selected';
-        }).length;
-        const blockedRooms = rooms.filter((room) => {
-            const state = room.routingDebug?.state;
-            return state === 'path-missing' || state === 'room-unreachable' || state === 'exit-unreachable';
-        }).length;
+        const reachableRooms = countReachablePathDebugRooms(rooms);
+        const blockedRooms = countBlockedPathDebugRooms(rooms);
 
         this.summaryEl.innerHTML = [
             this.renderSummaryCard('Diversion Threshold', this.formatNumber(threshold, 3), 'Current minimum score to take a detour.', 'text-amber-200'),
