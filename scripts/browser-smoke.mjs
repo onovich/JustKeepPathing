@@ -6,9 +6,25 @@ import { join, resolve } from 'node:path';
 
 const repoRoot = resolve(import.meta.dirname, '..');
 const smokeTimeoutMs = Number(process.env.JKP_SMOKE_TIMEOUT_MS || 18000);
+const collectionStorageFixture = Object.freeze({
+  eventRoomSeeds: Object.freeze(['repair_shrine']),
+  trialRoomSeeds: Object.freeze(['overclock_array']),
+  relics: Object.freeze(['pathfinder_lens']),
+  finaleBosses: Object.freeze(['ember_forge'])
+});
 
 function delay(ms) {
   return new Promise((resolveDelay) => setTimeout(resolveDelay, ms));
+}
+
+async function removeBrowserUserDataDir(userDataDir) {
+  await delay(750);
+  await rm(userDataDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 8,
+    retryDelay: 250
+  });
 }
 
 function onceReady(processHandle, matcher, timeoutMs, label) {
@@ -217,6 +233,15 @@ async function runSmoke() {
     await cdp.send('Runtime.enable', {}, sessionId);
     await cdp.send('Page.enable', {}, sessionId);
     await cdp.send('Log.enable', {}, sessionId);
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `
+        try {
+          window.localStorage.setItem('jkp-collection-v1', ${JSON.stringify(JSON.stringify(collectionStorageFixture))});
+        } catch (error) {
+          console.error('Failed to seed collection fixture', error);
+        }
+      `
+    }, sessionId);
 
     await cdp.send('Page.navigate', { url }, sessionId);
     await delay(1500);
@@ -251,6 +276,9 @@ async function runSmoke() {
         || overlayStyle.pointerEvents === 'none'
         || Number(overlayStyle.opacity) === 0
       );
+      const countFoundBadges = (selector) => Array.from(document.querySelectorAll(`${selector} article span`))
+        .filter((element) => element.innerText.trim() === 'Found')
+        .length;
 
       const canvas = document.getElementById('webgl-canvas');
       const collectionButton = document.getElementById('btn-collection');
@@ -348,6 +376,10 @@ async function runSmoke() {
         trialCards: document.querySelectorAll('#collection-trial-list article').length,
         relicCards: document.querySelectorAll('#collection-relic-list article').length,
         bossCards: document.querySelectorAll('#collection-boss-list article').length,
+        collectionFoundEventBadges: countFoundBadges('#collection-event-list'),
+        collectionFoundTrialBadges: countFoundBadges('#collection-trial-list'),
+        collectionFoundRelicBadges: countFoundBadges('#collection-relic-list'),
+        collectionFoundBossBadges: countFoundBadges('#collection-boss-list'),
         pathDebugModalClosed: pathDebugModal.classList.contains('hidden'),
         pathDebugSummaryCards,
         pathDebugContextText,
@@ -432,6 +464,11 @@ async function runSmoke() {
       if (result.canvasWidth <= 0 || result.canvasHeight <= 0) throw new Error('Canvas has no visible size.');
       if (result.collectionSummaryCards < 4) throw new Error('Collection summary cards did not render.');
       if (!result.collectionBadge.includes('/')) throw new Error('Collection badge did not render progress.');
+      if (!result.collectionBadge.startsWith('4/')) throw new Error('Collection fixture did not load persisted progress.');
+      if (result.collectionFoundEventBadges < 1) throw new Error('Collection event fixture did not render as Found.');
+      if (result.collectionFoundTrialBadges < 1) throw new Error('Collection trial fixture did not render as Found.');
+      if (result.collectionFoundRelicBadges < 1) throw new Error('Collection relic fixture did not render as Found.');
+      if (result.collectionFoundBossBadges < 1) throw new Error('Collection boss fixture did not render as Found.');
       if (!result.pathDebugModalClosed) throw new Error('Path debug modal did not close after smoke.');
       if (result.pathDebugSummaryCards < 4) throw new Error('Path debug summary cards did not render.');
       if (!result.pathDebugContextText.includes('Current target')) throw new Error('Path debug context did not render current target.');
@@ -491,8 +528,7 @@ async function runSmoke() {
     if (browser && !browser.killed) browser.kill();
     if (server && !server.killed) server.kill();
     if (userDataDir) {
-      await delay(250);
-      await rm(userDataDir, { recursive: true, force: true });
+      await removeBrowserUserDataDir(userDataDir);
     }
   }
 }

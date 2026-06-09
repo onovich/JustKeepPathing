@@ -37,7 +37,7 @@ For a real browser startup smoke, run:
 npm run smoke:browser
 ```
 
-It launches a temporary local static server and a headless Chrome-compatible browser, then checks page startup, WebGL canvas sizing, loading overlay state, header editor buttons, editor DOM refs/logging, model editor idle controls, sound editor metadata/controls/control state, model/sound editor command chrome, HUD status UI, the settings panel sync state, the collection panel, and the path debug panel.
+It launches a temporary local static server and a headless Chrome-compatible browser, then checks page startup, WebGL canvas sizing, loading overlay state, header editor buttons, editor DOM refs/logging, model editor idle controls, sound editor metadata/controls/control state, model/sound editor command chrome, HUD status UI, the settings panel sync state, the collection panel with persisted discoveries, and the path debug panel.
 
 To capture the current desktop viewport after startup, run:
 
