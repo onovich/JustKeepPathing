@@ -744,6 +744,12 @@ import {
     sanitizeSoundConfig
 } from './src/logic/sound-config.mjs';
 import {
+    readStoredSoundConfig,
+    readStoredSoundMasterVolume,
+    writeStoredSoundConfig,
+    writeStoredSoundMasterVolume
+} from './src/logic/sound-storage.mjs';
+import {
     EVENT_ROOM_SEEDS,
     FLOOR_THEME_DEFS,
     TRIAL_ROOM_SEEDS
@@ -759,7 +765,6 @@ import {
     MODEL_EDITOR_FACE_PATTERN_KEYS,
     MODEL_EDITOR_STORAGE_KEY,
     SOUND_EDITOR_MAX_TRACKS,
-    SOUND_EDITOR_STORAGE_KEY,
     SOUND_EVENT_DEFS,
     SOUND_WAVE_TYPES,
     createOneShotSoundConfig
@@ -1000,21 +1005,11 @@ class SoundEngine {
     }
 
     readStoredVolume() {
-        try {
-            const raw = window.localStorage.getItem('jkp-master-volume');
-            if (raw === null) return 0.9;
-            const parsed = Number(raw);
-            return Number.isFinite(parsed) ? THREE.MathUtils.clamp(parsed, 0, 1) : 0.9;
-        } catch {
-            return 0.9;
-        }
+        return readStoredSoundMasterVolume(window.localStorage);
     }
 
     setVolume(value) {
-        this.volume = THREE.MathUtils.clamp(value, 0, 1);
-        try {
-            window.localStorage.setItem('jkp-master-volume', String(this.volume));
-        } catch {}
+        this.volume = writeStoredSoundMasterVolume(window.localStorage, value);
     }
 
     getContext() {
@@ -1026,13 +1021,7 @@ class SoundEngine {
     }
 
     readStoredSoundConfig() {
-        try {
-            const raw = window.localStorage.getItem(SOUND_EDITOR_STORAGE_KEY);
-            if (!raw) return cloneSoundConfig();
-            return sanitizeSoundConfig(JSON.parse(raw));
-        } catch {
-            return cloneSoundConfig();
-        }
+        return readStoredSoundConfig(window.localStorage);
     }
 
     cloneSoundConfig(config = this.config) {
@@ -1040,10 +1029,7 @@ class SoundEngine {
     }
 
     saveSoundConfig(config) {
-        this.config = sanitizeSoundConfig(config);
-        try {
-            window.localStorage.setItem(SOUND_EDITOR_STORAGE_KEY, JSON.stringify(this.config));
-        } catch {}
+        this.config = writeStoredSoundConfig(window.localStorage, config);
         if (!this.config.sounds.bgm.enabled) this.bgmState.nextNoteTime = 0;
         else this.seedBgmState();
     }
