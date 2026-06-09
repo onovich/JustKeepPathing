@@ -278,6 +278,9 @@ async function runSmoke() {
       const soundEditorResetButton = document.getElementById('btn-sound-reset');
       const soundEditorSaveButton = document.getElementById('btn-sound-save');
       const soundEditorCloseButton = document.getElementById('btn-sound-close');
+      const soundEditorWaveformSelect = document.getElementById('snd-oneshot-waveform');
+      const soundEditorVolumeSlider = document.getElementById('snd-oneshot-volume');
+      const soundEditorVolumeValue = document.getElementById('snd-oneshot-volume-value');
       const hudSupplyMode = document.getElementById('ui-supply-mode');
       const hudRelicCard = document.getElementById('ui-relic-card');
       const hudThemePill = document.getElementById('ui-theme-pill');
@@ -336,6 +339,9 @@ async function runSmoke() {
         soundEditorStopHasIcon: !!soundEditorStopButton?.querySelector('svg path'),
         soundEditorCloseAria: soundEditorCloseButton?.getAttribute('aria-label') || '',
         soundEditorCloseHasIcon: !!soundEditorCloseButton?.querySelector('svg path'),
+        soundEditorControlsRendered: !!soundEditorWaveformSelect
+          && !!soundEditorVolumeSlider
+          && !!soundEditorVolumeValue?.innerText,
         hudSupplyModeText: hudSupplyMode?.innerText || '',
         hasHudRelicCard: !!hudRelicCard,
         hasHudThemePill: !!hudThemePill,
@@ -382,6 +388,7 @@ async function runSmoke() {
       if (result.soundEditorPreviewAria !== 'Play' || !result.soundEditorPreviewHasIcon) throw new Error('Sound editor preview button chrome did not initialize.');
       if (result.soundEditorStopAria !== 'Stop' || !result.soundEditorStopDisabled || !result.soundEditorStopHasIcon) throw new Error('Sound editor stop button chrome did not initialize.');
       if (result.soundEditorCloseAria !== 'Close' || !result.soundEditorCloseHasIcon) throw new Error('Sound editor close button chrome did not initialize.');
+      if (!result.soundEditorControlsRendered) throw new Error('Sound editor controls did not render.');
       if (!result.hudSupplyModeText) throw new Error('HUD supply card did not render.');
       if (!result.hasHudRelicCard) throw new Error('HUD relic card did not render.');
       if (!result.hasHudThemePill || !result.hasHudSupplyPill) throw new Error('HUD status pills did not render.');
