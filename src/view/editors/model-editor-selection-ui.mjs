@@ -78,6 +78,53 @@ export function buildModelEditorSelectionDisplayState({
     };
 }
 
+export function buildModelEditorSelectionUiState({
+    selection = [],
+    kind = selection.length > 0 ? selection[0]?.kind : null,
+    canUndo = false,
+    getEntry = (item) => item,
+    getAssetLabel = (assetKey) => assetKey,
+    defaultFacePattern = { pattern: 'none', patternColor: '#0f172a', patternScale: 8 },
+    defaultLineStyle = { style: 'solid', width: 2 }
+} = {}) {
+    const active = selection.length > 0;
+    const getSharedSelectionValue = (getter) => getSharedModelEditorSelectionValue(selection, getEntry, getter);
+    const sharedColor = getSharedSelectionValue((entry) => entry.color);
+    const sharedPattern = kind === 'mesh'
+        ? getSharedSelectionValue((entry) => entry.pattern)
+        : { mixed: false, value: defaultFacePattern.pattern };
+    const sharedPatternColor = kind === 'mesh'
+        ? getSharedSelectionValue((entry) => entry.patternColor)
+        : { mixed: false, value: defaultFacePattern.patternColor };
+    const sharedScale = kind === 'mesh'
+        ? getSharedSelectionValue((entry) => String(entry.patternScale))
+        : { mixed: false, value: String(defaultFacePattern.patternScale) };
+    const sharedStyle = kind === 'line'
+        ? getSharedSelectionValue((entry) => entry.style)
+        : { mixed: false, value: defaultLineStyle.style };
+    const sharedWidth = kind === 'line'
+        ? getSharedSelectionValue((entry) => String(entry.width))
+        : { mixed: false, value: String(defaultLineStyle.width) };
+
+    return {
+        controlState: buildModelEditorSelectionControlState({ active, kind, canUndo }),
+        displayState: buildModelEditorSelectionDisplayState({
+            active,
+            kind,
+            selection,
+            assetLabel: active ? getAssetLabel(selection[0].assetKey) : '',
+            sharedColor,
+            sharedPattern,
+            sharedPatternColor,
+            sharedScale,
+            sharedStyle,
+            sharedWidth,
+            defaultFacePattern,
+            defaultLineStyle
+        })
+    };
+}
+
 function setElementText(element, text) {
     if (element) element.innerText = text;
 }

@@ -3,6 +3,7 @@ import {
     applyModelEditorSelectionUiState,
     buildModelEditorSelectionControlState,
     buildModelEditorSelectionDisplayState,
+    buildModelEditorSelectionUiState,
     getSharedModelEditorSelectionValue
 } from '../src/view/editors/model-editor-selection-ui.mjs';
 
@@ -164,6 +165,130 @@ assert.deepEqual(
         lineWidthText: '3.5'
     },
     'line display state should expose selected line controls'
+);
+
+let idleEntryReads = 0;
+assert.deepEqual(
+    buildModelEditorSelectionUiState({
+        selection: [],
+        canUndo: false,
+        getEntry: () => {
+            idleEntryReads += 1;
+            return null;
+        },
+        defaultFacePattern: { pattern: 'none', patternColor: '#0f172a', patternScale: 8 },
+        defaultLineStyle: { style: 'solid', width: 2 }
+    }),
+    {
+        controlState: {
+            colorDisabled: true,
+            patternDisabled: true,
+            lineDisabled: true,
+            faceControlsInactive: true,
+            lineControlsInactive: true,
+            undoDisabled: true
+        },
+        displayState: {
+            active: false,
+            kind: null,
+            selectionStatusText: 'Nothing selected yet',
+            selectedTargetText: 'No selection',
+            selectionKindText: '\u7b49\u5f85\u9009\u62e9',
+            selectedTypeText: 'Waiting',
+            colorPickerValue: '#22d3ee',
+            colorValueText: '#22d3ee',
+            patternSelectValue: 'none',
+            patternColorPickerValue: '#0f172a',
+            patternScaleValue: '8',
+            patternScaleText: '8.0x',
+            lineStyleSelectValue: 'solid',
+            lineWidthValue: '2',
+            lineWidthText: '2.0'
+        }
+    },
+    'combined selection UI state should build idle control and display state'
+);
+assert.equal(idleEntryReads, 0, 'idle combined state should not read selection entries');
+
+assert.deepEqual(
+    buildModelEditorSelectionUiState({
+        selection: [
+            { key: 'face-a', kind: 'mesh', assetKey: 'player', partKey: 'wing' },
+            { key: 'face-b', kind: 'mesh', assetKey: 'player', partKey: 'nose' }
+        ],
+        canUndo: true,
+        getEntry: (item) => entries.get(item.key),
+        getAssetLabel: (assetKey) => ({ player: 'Player' })[assetKey] || assetKey,
+        defaultFacePattern: { pattern: 'none', patternColor: '#0f172a', patternScale: 8 },
+        defaultLineStyle: { style: 'solid', width: 2 }
+    }),
+    {
+        controlState: {
+            colorDisabled: false,
+            patternDisabled: false,
+            lineDisabled: true,
+            faceControlsInactive: false,
+            lineControlsInactive: true,
+            undoDisabled: false
+        },
+        displayState: {
+            active: true,
+            kind: 'mesh',
+            selectionStatusText: 'Selected 2 faces',
+            selectedTargetText: 'Player / 2 targets',
+            selectionKindText: '\u5f53\u524d\u9009\u62e9\u7c7b\u578b\uff1a\u9762',
+            selectedTypeText: 'Face x2',
+            colorPickerValue: '#ff0000',
+            colorValueText: '...',
+            patternSelectValue: '__mixed',
+            patternColorPickerValue: '#00ff00',
+            patternScaleValue: '8',
+            patternScaleText: '8.0x',
+            lineStyleSelectValue: 'solid',
+            lineWidthValue: '2',
+            lineWidthText: '2.0'
+        }
+    },
+    'combined selection UI state should derive mesh mixed display values'
+);
+
+assert.deepEqual(
+    buildModelEditorSelectionUiState({
+        selection: [{ key: 'edge-a', kind: 'line', assetKey: 'exit', partKey: 'outline' }],
+        canUndo: false,
+        getEntry: (item) => entries.get(item.key),
+        getAssetLabel: (assetKey) => ({ exit: 'Exit' })[assetKey] || assetKey,
+        defaultFacePattern: { pattern: 'none', patternColor: '#0f172a', patternScale: 8 },
+        defaultLineStyle: { style: 'solid', width: 2 }
+    }),
+    {
+        controlState: {
+            colorDisabled: false,
+            patternDisabled: true,
+            lineDisabled: false,
+            faceControlsInactive: true,
+            lineControlsInactive: false,
+            undoDisabled: true
+        },
+        displayState: {
+            active: true,
+            kind: 'line',
+            selectionStatusText: 'Selected 1 line',
+            selectedTargetText: 'Exit / outline',
+            selectionKindText: '\u5f53\u524d\u9009\u62e9\u7c7b\u578b\uff1a\u8fb9',
+            selectedTypeText: 'Edge x1',
+            colorPickerValue: '#f8fafc',
+            colorValueText: '#f8fafc',
+            patternSelectValue: 'none',
+            patternColorPickerValue: '#0f172a',
+            patternScaleValue: '8',
+            patternScaleText: '8.0x',
+            lineStyleSelectValue: 'dashed',
+            lineWidthValue: '3.5',
+            lineWidthText: '3.5'
+        }
+    },
+    'combined selection UI state should infer line kind from the selected item'
 );
 
 function createFakeElement(value = '') {

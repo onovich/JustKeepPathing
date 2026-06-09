@@ -809,9 +809,7 @@ import {
 import { appendEditorLog } from './src/view/editors/editor-log.mjs';
 import {
     applyModelEditorSelectionUiState,
-    buildModelEditorSelectionControlState,
-    buildModelEditorSelectionDisplayState,
-    getSharedModelEditorSelectionValue
+    buildModelEditorSelectionUiState
 } from './src/view/editors/model-editor-selection-ui.mjs';
 import { bindSoundEditorRenderedControls } from './src/view/editors/sound-editor-bindings.mjs';
 import { applySoundEditorControlValue } from './src/view/editors/sound-editor-control-state.mjs';
@@ -6443,14 +6441,6 @@ class ModelEditor {
             : getLineAppearanceEntry(part, item.index, item.defaultColor);
     }
 
-    getSharedSelectionValue(getter) {
-        return getSharedModelEditorSelectionValue(
-            this.selection,
-            (item) => this.getSelectionEntry(item),
-            getter
-        );
-    }
-
     pushUndoState(label) {
         this.undoStack.push({
             label,
@@ -6474,45 +6464,17 @@ class ModelEditor {
     }
 
     syncSelectionUi() {
-        const active = this.selection.length > 0;
-        const kind = this.getSelectionKind();
-        const controlState = buildModelEditorSelectionControlState({
-            active,
-            kind,
-            canUndo: this.undoStack.length > 0
-        });
-        const sharedColor = this.getSharedSelectionValue((entry) => entry.color);
-        const sharedPattern = kind === 'mesh'
-            ? this.getSharedSelectionValue((entry) => entry.pattern)
-            : { mixed: false, value: MODEL_EDITOR_DEFAULT_FACE_PATTERN.pattern };
-        const sharedPatternColor = kind === 'mesh'
-            ? this.getSharedSelectionValue((entry) => entry.patternColor)
-            : { mixed: false, value: MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor };
-        const sharedScale = kind === 'mesh'
-            ? this.getSharedSelectionValue((entry) => String(entry.patternScale))
-            : { mixed: false, value: String(MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale) };
-        const sharedStyle = kind === 'line'
-            ? this.getSharedSelectionValue((entry) => entry.style)
-            : { mixed: false, value: MODEL_EDITOR_DEFAULT_LINE_STYLE.style };
-        const sharedWidth = kind === 'line'
-            ? this.getSharedSelectionValue((entry) => String(entry.width))
-            : { mixed: false, value: String(MODEL_EDITOR_DEFAULT_LINE_STYLE.width) };
-        const displayState = buildModelEditorSelectionDisplayState({
-            active,
-            kind,
+        const selectionUiState = buildModelEditorSelectionUiState({
             selection: this.selection,
-            assetLabel: active ? this.getAssetLabel(this.selection[0].assetKey) : '',
-            sharedColor,
-            sharedPattern,
-            sharedPatternColor,
-            sharedScale,
-            sharedStyle,
-            sharedWidth,
+            kind: this.getSelectionKind(),
+            canUndo: this.undoStack.length > 0,
+            getEntry: (item) => this.getSelectionEntry(item),
+            getAssetLabel: (assetKey) => this.getAssetLabel(assetKey),
             defaultFacePattern: MODEL_EDITOR_DEFAULT_FACE_PATTERN,
             defaultLineStyle: MODEL_EDITOR_DEFAULT_LINE_STYLE
         });
 
-        applyModelEditorSelectionUiState(this, { controlState, displayState });
+        applyModelEditorSelectionUiState(this, selectionUiState);
     }
 
     log(message) {
