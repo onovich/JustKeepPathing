@@ -29,6 +29,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Model editor selection control-state calculation was extracted into `src/view/editors/model-editor-selection-ui.mjs`, with focused checks and browser smoke coverage for idle disabled controls.
 - Sound editor slider/select/checkbox markup helpers were extracted into `src/view/editors/sound-editor-controls.mjs`, with focused checks and browser smoke coverage for default one-shot controls.
 - Sound editor rendered-control event binding was extracted into `src/view/editors/sound-editor-bindings.mjs`, with focused checks and browser smoke coverage for range input updates.
+- Sound editor control-state mutation was extracted into `src/view/editors/sound-editor-control-state.mjs`, with focused checks for oneshot/loop/track/bgm/meta writes and browser smoke coverage for range and track-select updates.
 - Sound editor event select options and metadata labels were extracted into `src/view/editors/sound-editor-meta.mjs`, with focused checks and browser smoke coverage for select/type/usage/description rendering.
 - Sound editor Play/Pause/Stop transport UI state was extracted into `src/view/editors/sound-editor-transport-ui.mjs`, with focused checks and browser smoke coverage for initial transport state.
 - Hidden-room diversion scoring and small interaction-resolution helpers were extracted into `src/logic/hidden-room-routing.mjs` and `src/logic/hidden-room-resolution.mjs`, with focused check scripts.

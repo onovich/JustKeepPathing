@@ -306,6 +306,18 @@ async function runSmoke() {
         soundEditorVolumeSlider.value = soundEditorVolumeInputValue;
         soundEditorVolumeSlider.dispatchEvent(new Event('input', { bubbles: true }));
       }
+      const soundEditorVolumeValueAfterInput = soundEditorVolumeValue?.innerText || '';
+      const soundEditorWorkingVolumeAfterInput = Number(window.soundEditor?.workingConfig?.sounds?.[window.soundEditor?.currentSoundKey]?.volume);
+      const soundEditorTrackInputValue = '2';
+      if (soundEditorSelect) {
+        soundEditorSelect.value = 'footsteps';
+        soundEditorSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      const soundEditorTrackSelect = document.getElementById('snd-meta-trackIndex');
+      if (soundEditorTrackSelect) {
+        soundEditorTrackSelect.value = soundEditorTrackInputValue;
+        soundEditorTrackSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
 
       const result = {
         phase: window.GameState.phase,
@@ -356,8 +368,10 @@ async function runSmoke() {
         soundEditorControlsRendered: !!soundEditorWaveformSelect
           && !!soundEditorVolumeSlider
           && !!soundEditorVolumeValue?.innerText,
-        soundEditorVolumeValueAfterInput: soundEditorVolumeValue?.innerText || '',
-        soundEditorWorkingVolumeAfterInput: Number(window.soundEditor?.workingConfig?.sounds?.[window.soundEditor?.currentSoundKey]?.volume),
+        soundEditorVolumeValueAfterInput,
+        soundEditorWorkingVolumeAfterInput,
+        soundEditorTrackSelectValueAfterInput: soundEditorTrackSelect?.value || '',
+        soundEditorCurrentTrackIndexAfterInput: Number(window.soundEditor?.currentTrackIndex),
         hudSupplyModeText: hudSupplyMode?.innerText || '',
         hasHudRelicCard: !!hudRelicCard,
         hasHudThemePill: !!hudThemePill,
@@ -409,6 +423,8 @@ async function runSmoke() {
       if (!result.soundEditorControlsRendered) throw new Error('Sound editor controls did not render.');
       if (result.soundEditorVolumeValueAfterInput !== soundEditorVolumeInputValue) throw new Error('Sound editor range binding did not update the displayed value.');
       if (Math.abs(result.soundEditorWorkingVolumeAfterInput - Number(soundEditorVolumeInputValue)) > 0.001) throw new Error('Sound editor range binding did not update working config.');
+      if (result.soundEditorTrackSelectValueAfterInput !== soundEditorTrackInputValue) throw new Error('Sound editor track select did not render after switching to footsteps.');
+      if (result.soundEditorCurrentTrackIndexAfterInput !== Number(soundEditorTrackInputValue)) throw new Error('Sound editor track select did not update current track index.');
       if (!result.hudSupplyModeText) throw new Error('HUD supply card did not render.');
       if (!result.hasHudRelicCard) throw new Error('HUD relic card did not render.');
       if (!result.hasHudThemePill || !result.hasHudSupplyPill) throw new Error('HUD status pills did not render.');

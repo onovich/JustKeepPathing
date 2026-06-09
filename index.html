@@ -783,6 +783,7 @@ import {
 import { appendEditorLog } from './src/view/editors/editor-log.mjs';
 import { buildModelEditorSelectionControlState } from './src/view/editors/model-editor-selection-ui.mjs';
 import { bindSoundEditorRenderedControls } from './src/view/editors/sound-editor-bindings.mjs';
+import { applySoundEditorControlValue } from './src/view/editors/sound-editor-control-state.mjs';
 import {
     renderSoundCheckboxControl,
     renderSoundSelectControl,
@@ -7261,27 +7262,16 @@ class SoundEditor {
     }
 
     applyControlValue(el) {
-        const group = el.dataset.group;
-        const field = el.dataset.field;
-        if (!group || !field) return;
-        const rawValue = el.type === 'checkbox' ? el.checked : el.value;
+        const result = applySoundEditorControlValue({
+            workingConfig: this.workingConfig,
+            currentSoundKey: this.currentSoundKey,
+            currentTrackIndex: this.currentTrackIndex,
+            control: el
+        });
+        if (!result.hasControlTarget) return;
 
-        if (group === 'oneshot') {
-            this.workingConfig.sounds[this.currentSoundKey][field] = field === 'waveform' ? rawValue : Number(rawValue);
-        } else if (group === 'loop') {
-            this.workingConfig.sounds.footsteps[field] = Number(rawValue);
-        } else if (group === 'track') {
-            this.workingConfig.sounds.footsteps.tracks[this.currentTrackIndex][field] = el.type === 'checkbox'
-                ? rawValue
-                : (field === 'waveform' ? rawValue : Number(rawValue));
-        } else if (group === 'bgm') {
-            this.workingConfig.sounds.bgm[field] = el.type === 'checkbox'
-                ? rawValue
-                : (field === 'kernel' ? rawValue : Number(rawValue));
-        } else if (group === 'meta' && field === 'trackIndex') {
-            this.currentTrackIndex = Number(rawValue);
-        }
-
+        this.currentTrackIndex = result.currentTrackIndex;
+        this.workingConfig = result.workingConfig;
         this.workingConfig = sanitizeSoundConfig(this.workingConfig);
         this.setStatus('已修改未保存');
         if (this.soundEngine.currentPreviewKey === this.currentSoundKey && this.soundEngine.isContinuousPreviewActive(this.currentSoundKey)) {
