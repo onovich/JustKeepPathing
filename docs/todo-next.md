@@ -20,6 +20,7 @@ Updated 2026-06-09 after reviewing the current runtime state.
 - `CollectionPanel` and `PathDebugPanel` were extracted into `src/view/panels/` with explicit `GameState`/controller dependencies.
 - Hidden-room diversion scoring and small interaction-resolution helpers were extracted into `src/logic/hidden-room-routing.mjs` and `src/logic/hidden-room-resolution.mjs`, with focused check scripts.
 - Theme-chain bonus formulas were extracted into `src/logic/theme-chain-bonuses.mjs`, with focused checks and `GameController` still owning message/effect presentation.
+- Event, rest, merchant, trial, and elite room reward formulas were extracted into `src/logic/room-reward-calculations.mjs`, with focused checks.
 - `npm run smoke:screenshot` now captures a reusable local browser screenshot at `artifacts/screenshots/latest.png`.
 
 ## 1. Theme Chain And Relic Follow-Up
@@ -96,7 +97,7 @@ Goal:
 
 Recommended next extraction candidates:
 
-- remaining theme-chain and reward resolution helpers
+- remaining reward resolution side-effect helpers
 - remaining lightweight UI shells
 - collection/codex data helpers
 - model editor UI shell
