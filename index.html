@@ -735,6 +735,10 @@ import {
     calculateTrialRoomRewards
 } from './src/logic/room-reward-calculations.mjs';
 import {
+    buildEventStockpileSupplyPlan,
+    buildTrialSupplyRewardPlan
+} from './src/logic/room-reward-plans.mjs';
+import {
     EVENT_ROOM_SEEDS,
     FLOOR_THEME_DEFS,
     TRIAL_ROOM_SEEDS
@@ -4791,17 +4795,20 @@ class GameController {
                 message = label + ' boosted chest density and granted ' + eventRewards.chestScore + ' score.';
             }
         } else if (seed.effect === 'supply_stockpile') {
-            const firstSupply = supplyNeedState.neededType;
-            const priority = GameState.getSupplyPriority('event');
-            const secondSupply = priority.find((type) => type !== firstSupply) || firstSupply;
+            const stockpilePlan = buildEventStockpileSupplyPlan({
+                firstSupply: supplyNeedState.neededType,
+                priority: GameState.getSupplyPriority('event'),
+                chargeCount
+            });
+            const firstSupply = stockpilePlan.primary;
+            const secondSupply = stockpilePlan.secondary;
             const firstSupplyLabel = GameState.supplyDefs[firstSupply]?.label || 'supply';
             const secondSupplyLabel = GameState.supplyDefs[secondSupply]?.label || 'supply';
-            GameState.grantFloorSupply(firstSupply, 1);
-            if (chargeCount >= 2) {
-                GameState.grantFloorSupply(secondSupply, 1);
+            for (const supply of stockpilePlan.supplies) {
+                GameState.grantFloorSupply(supply.type, supply.amount);
             }
             GameState.addScore(eventRewards.stockpileScore);
-            message = chargeCount >= 2
+            message = stockpilePlan.grantsSecondSupply
                 ? label + ' granted 1 ' + firstSupplyLabel + ' and 1 ' + secondSupplyLabel + '.'
                 : label + ' granted 1 ' + firstSupplyLabel + ' and some score.';
         } else if (seed.effect === 'monster_density_boost') {
@@ -5018,10 +5025,18 @@ class GameController {
             const reduction = trialRewards.guardCacheReduction;
             GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
             GameState.floorBuff.incomingDamageMult *= Math.max(0.56, 1 - reduction);
-            if (chargeCount >= trialRewards.supplyThreshold) {
-                const supplyType = GameState.getSupportRoomNeedState('trial').neededType;
+            const supplyPlan = buildTrialSupplyRewardPlan({
+                effect: trialSeed.effect,
+                rewardTier: room.rewardTier,
+                chargeCount,
+                supplyThreshold: trialRewards.supplyThreshold,
+                neededType: GameState.getSupportRoomNeedState('trial').neededType,
+                mostNeededType: GameState.getMostNeededSupplyType()
+            });
+            if (supplyPlan) {
+                const supplyType = supplyPlan.type;
                 const supplyLabel = GameState.supplyDefs[supplyType]?.label || 'supply';
-                GameState.grantFloorSupply(supplyType, 1);
+                GameState.grantFloorSupply(supplyType, supplyPlan.amount);
                 room.trialBonusSupply = supplyType;
                 bonusText = ' Restored ' + heal + ' HP, reduced incoming damage, and added 1 ' + supplyLabel + '.';
             } else {
@@ -5038,24 +5053,35 @@ class GameController {
             const attackBonus = trialRewards.attackBonus;
             GameState.player.baseAtk += atkBoost;
             GameState.meta.nextFloorAttackBonus = Math.min(0.4, GameState.meta.nextFloorAttackBonus + attackBonus);
-            if (chargeCount >= trialRewards.supplyThreshold) {
-                const supplyLabel = GameState.supplyDefs.assault?.label || 'assault supply';
-                GameState.grantFloorSupply('assault', 1);
-                room.trialBonusSupply = 'assault';
+            const supplyPlan = buildTrialSupplyRewardPlan({
+                effect: trialSeed.effect,
+                rewardTier: room.rewardTier,
+                chargeCount,
+                supplyThreshold: trialRewards.supplyThreshold,
+                neededType: GameState.getSupportRoomNeedState('trial').neededType,
+                mostNeededType: GameState.getMostNeededSupplyType()
+            });
+            if (supplyPlan) {
+                const supplyLabel = GameState.supplyDefs[supplyPlan.type]?.label || 'assault supply';
+                GameState.grantFloorSupply(supplyPlan.type, supplyPlan.amount);
+                room.trialBonusSupply = supplyPlan.type;
                 bonusText = ' Attack +' + atkBoost + ', next-floor attack +' + Math.round(attackBonus * 100) + '%, and added 1 ' + supplyLabel + '.';
             } else {
                 room.trialBonusSupply = null;
                 bonusText = ' Attack +' + atkBoost + ' and next-floor attack +' + Math.round(attackBonus * 100) + '%.';
             }
         } else if (chargeCount >= trialRewards.supplyThreshold) {
-            const supplyType = trialSeed.effect === 'salvage_cache'
-                ? 'salvage'
-                : trialSeed.effect === 'assault_cache'
-                    ? 'assault'
-                    : room.rewardTier >= 4 ? 'assault' : GameState.getMostNeededSupplyType();
-            const supplyLabel = GameState.supplyDefs[supplyType]?.label || 'supply';
-            GameState.grantFloorSupply(supplyType, 1);
-            room.trialBonusSupply = supplyType;
+            const supplyPlan = buildTrialSupplyRewardPlan({
+                effect: trialSeed.effect,
+                rewardTier: room.rewardTier,
+                chargeCount,
+                supplyThreshold: trialRewards.supplyThreshold,
+                neededType: GameState.getSupportRoomNeedState('trial').neededType,
+                mostNeededType: GameState.getMostNeededSupplyType()
+            });
+            const supplyLabel = GameState.supplyDefs[supplyPlan.type]?.label || 'supply';
+            GameState.grantFloorSupply(supplyPlan.type, supplyPlan.amount);
+            room.trialBonusSupply = supplyPlan.type;
             bonusText = ' Added 1 ' + supplyLabel + '.';
         } else {
             const scoutBonus = trialRewards.fallbackScoutBonus;

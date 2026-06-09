@@ -35,7 +35,7 @@
   - maze scaling and reward formulas
   - hidden room roll rules
   - combat value calculations
-- Keep hidden-room route scoring, small resolution predicates, reward calculations, and theme-chain formulas in `src/logic/` modules. (Started: `hidden-room-routing.mjs`, `hidden-room-resolution.mjs`, `room-reward-calculations.mjs`, `theme-chain-bonuses.mjs`.)
+- Keep hidden-room route scoring, small resolution predicates, reward calculations/plans, and theme-chain formulas in `src/logic/` modules. (Started: `hidden-room-routing.mjs`, `hidden-room-resolution.mjs`, `room-reward-calculations.mjs`, `room-reward-plans.mjs`, `theme-chain-bonuses.mjs`.)
 - Extract shared state helpers into `src/logic/state/` or equivalent modules.
 - Preserve current runtime ordering to avoid subtle regressions in timers, audio, and rendering.
 
@@ -69,7 +69,7 @@
 
 ## Recommended Next Slices
 
-1. Continue extracting reward resolution side-effect helpers from `GameController`.
+1. Continue extracting reward resolution state-application helpers from `GameController`.
 2. Move remaining lightweight UI shells out of `index.html`.
 3. Isolate the sound runtime from the sound editor UI so live preview and in-game playback rules are easier to reason about.
 4. Split the wall-occlusion reveal code path into a dedicated rendering helper and verify it with browser smoke/screenshots before further visual tweaks.
