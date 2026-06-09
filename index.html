@@ -795,6 +795,14 @@ import {
     getRelicDef,
     pickRelicReward
 } from './src/data/relics.mjs';
+import {
+    COLLECTION_STORAGE_KEY,
+    buildCollectionProgress,
+    countFinaleBossThemes,
+    readStoredCollection,
+    sanitizeCollection,
+    writeStoredCollection
+} from './src/logic/collection-state.mjs';
 import { LoadingOverlay } from './src/view/loading-overlay.mjs';
 import {
     bindModelEditorHeaderButton,
@@ -865,45 +873,6 @@ function createBaseFloorBuff(overrides = {}) {
         incomingDamageMult: 1,
         bossRewardMult: 1,
         ...overrides
-    };
-}
-
-const COLLECTION_STORAGE_KEY = 'jkp-collection-v1';
-
-function sanitizeCollection(rawCollection) {
-    const safe = rawCollection && typeof rawCollection === 'object' ? rawCollection : {};
-    const eventRoomSeeds = Array.isArray(safe.eventRoomSeeds) ? safe.eventRoomSeeds : [];
-    const trialRoomSeeds = Array.isArray(safe.trialRoomSeeds) ? safe.trialRoomSeeds : [];
-    const relics = Array.isArray(safe.relics) ? safe.relics : [];
-    const finaleBosses = Array.isArray(safe.finaleBosses) ? safe.finaleBosses : [];
-
-    return {
-        eventRoomSeeds: [...new Set(eventRoomSeeds.filter((value) => typeof value === 'string' && value.trim()))],
-        trialRoomSeeds: [...new Set(trialRoomSeeds.filter((value) => typeof value === 'string' && value.trim()))],
-        relics: [...new Set(relics.filter((value) => typeof value === 'string' && value.trim()))],
-        finaleBosses: [...new Set(finaleBosses.filter((value) => typeof value === 'string' && value.trim()))]
-    };
-}
-
-function buildCollectionProgress() {
-    const finaleBossTotal = Object.values(FLOOR_THEME_DEFS).filter((theme) => theme?.finale?.bossMod?.name).length;
-    return {
-        eventRoomSeeds: {
-            found: GameState.collection.eventRoomSeeds.length,
-            total: EVENT_ROOM_SEEDS.length
-        },
-        trialRoomSeeds: {
-            found: GameState.collection.trialRoomSeeds.length,
-            total: TRIAL_ROOM_SEEDS.length
-        },
-        relics: {
-            found: GameState.collection.relics.length,
-            total: RELIC_DEFS.length
-        },
-        finaleBosses: {
-            found: GameState.collection.finaleBosses.length,
-            total: finaleBossTotal
-        }
     };
 }
 
@@ -1598,23 +1567,22 @@ const GameState = {
         return Math.floor(base * (this.supplyDefs[type]?.manualCostMult || 1));
     },
     loadCollection() {
-        try {
-            const raw = window.localStorage.getItem(this.collectionStorageKey);
-            this.collection = sanitizeCollection(raw ? JSON.parse(raw) : null);
-        } catch {
-            this.collection = sanitizeCollection(null);
-        }
+        this.collection = readStoredCollection(window.localStorage, this.collectionStorageKey);
         return this.collection;
     },
     saveCollection() {
-        try {
-            window.localStorage.setItem(this.collectionStorageKey, JSON.stringify(this.collection));
-        } catch {}
+        this.collection = writeStoredCollection(window.localStorage, this.collection, this.collectionStorageKey);
         this.updateUI();
         window.collectionPanel?.render();
     },
     getCollectionProgress() {
-        return buildCollectionProgress();
+        return buildCollectionProgress({
+            collection: this.collection,
+            eventSeedTotal: EVENT_ROOM_SEEDS.length,
+            trialSeedTotal: TRIAL_ROOM_SEEDS.length,
+            relicTotal: RELIC_DEFS.length,
+            finaleBossTotal: countFinaleBossThemes(FLOOR_THEME_DEFS)
+        });
     },
     discoverRoomSeed(type, seed) {
         const bucketKey = type === 'trial' ? 'trialRoomSeeds' : 'eventRoomSeeds';
