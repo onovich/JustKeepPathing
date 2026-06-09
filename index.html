@@ -746,7 +746,7 @@ import {
     buildMerchantRoomPurchasePlan,
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
-import { finalizeRoomRewardMessage } from './src/logic/room-reward-resolution.mjs';
+import { resolveHiddenRoomRewardMessage } from './src/logic/room-reward-resolution.mjs';
 import {
     buildBgmStepPlan,
     calculateBgmHumanizeOffset,
@@ -4513,10 +4513,15 @@ class GameController {
     }
 
     finalizeHiddenRoomRewardResolution(sourceKey, room, message, anchorPos = null, details = []) {
-        const themeChainMessage = this.applyThemeChainBonus(sourceKey, room, anchorPos);
-        return finalizeRoomRewardMessage({
+        return resolveHiddenRoomRewardMessage({
+            sourceKey,
+            room,
             message,
-            details: [...details, themeChainMessage],
+            anchorPos,
+            details,
+            applyThemeChainBonus: (resolvedSourceKey, resolvedRoom, resolvedAnchorPos) => (
+                this.applyThemeChainBonus(resolvedSourceKey, resolvedRoom, resolvedAnchorPos)
+            ),
             updateUI: () => GameState.updateUI()
         });
     }

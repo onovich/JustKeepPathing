@@ -16,3 +16,20 @@ export function finalizeRoomRewardMessage({
     updateUI();
     return resolved;
 }
+
+export function resolveHiddenRoomRewardMessage({
+    sourceKey,
+    room,
+    message,
+    anchorPos = null,
+    details = [],
+    applyThemeChainBonus = () => '',
+    updateUI = () => {}
+} = {}) {
+    const themeChainMessage = applyThemeChainBonus(sourceKey, room, anchorPos);
+    return finalizeRoomRewardMessage({
+        message,
+        details: [...details, themeChainMessage],
+        updateUI
+    });
+}
