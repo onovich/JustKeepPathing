@@ -780,6 +780,7 @@ import {
     getModelEditorDomRefs,
     getSoundEditorDomRefs
 } from './src/view/editors/editor-dom.mjs';
+import { buildModelEditorSelectionControlState } from './src/view/editors/model-editor-selection-ui.mjs';
 import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
@@ -6522,18 +6523,23 @@ class ModelEditor {
     syncSelectionUi() {
         const active = this.selection.length > 0;
         const kind = this.getSelectionKind();
-        this.colorPicker.disabled = !active;
-        this.patternColorPicker.disabled = !active || kind !== 'mesh';
-        this.patternSelect.disabled = !active || kind !== 'mesh';
-        this.patternScale.disabled = !active || kind !== 'mesh';
-        this.lineStyleSelect.disabled = !active || kind !== 'line';
-        this.lineWidth.disabled = !active || kind !== 'line';
-        this.colorPicker.classList.toggle('opacity-60', !active);
-        this.faceControls.classList.toggle('opacity-50', !active || kind !== 'mesh');
-        this.lineControls.classList.toggle('opacity-50', !active || kind !== 'line');
-        this.undoButton.disabled = this.undoStack.length === 0;
-        this.undoButton.classList.toggle('opacity-50', this.undoStack.length === 0);
-        this.undoButton.classList.toggle('cursor-not-allowed', this.undoStack.length === 0);
+        const controlState = buildModelEditorSelectionControlState({
+            active,
+            kind,
+            canUndo: this.undoStack.length > 0
+        });
+        this.colorPicker.disabled = controlState.colorDisabled;
+        this.patternColorPicker.disabled = controlState.patternDisabled;
+        this.patternSelect.disabled = controlState.patternDisabled;
+        this.patternScale.disabled = controlState.patternDisabled;
+        this.lineStyleSelect.disabled = controlState.lineDisabled;
+        this.lineWidth.disabled = controlState.lineDisabled;
+        this.colorPicker.classList.toggle('opacity-60', controlState.colorDisabled);
+        this.faceControls.classList.toggle('opacity-50', controlState.faceControlsInactive);
+        this.lineControls.classList.toggle('opacity-50', controlState.lineControlsInactive);
+        this.undoButton.disabled = controlState.undoDisabled;
+        this.undoButton.classList.toggle('opacity-50', controlState.undoDisabled);
+        this.undoButton.classList.toggle('cursor-not-allowed', controlState.undoDisabled);
 
         this.selectionStatus.innerText = active
             ? `Selected ${this.selection.length} ${kind === 'mesh' ? 'face' : 'line'}${this.selection.length > 1 ? 's' : ''}`

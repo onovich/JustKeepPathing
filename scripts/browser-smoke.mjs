@@ -269,6 +269,9 @@ async function runSmoke() {
       const modelEditorResetButton = document.getElementById('btn-editor-reset');
       const modelEditorSaveButton = document.getElementById('btn-editor-save');
       const modelEditorCloseButton = document.getElementById('btn-editor-close');
+      const modelEditorColorPicker = document.getElementById('editor-color-picker');
+      const modelEditorPatternSelect = document.getElementById('editor-face-pattern');
+      const modelEditorLineStyleSelect = document.getElementById('editor-line-style');
       const soundEditorPreviewButton = document.getElementById('btn-sound-preview');
       const soundEditorStopButton = document.getElementById('btn-sound-stop-preview');
       const soundEditorReadButton = document.getElementById('btn-sound-read');
@@ -312,6 +315,10 @@ async function runSmoke() {
         ],
         modelEditorCloseAria: modelEditorCloseButton?.getAttribute('aria-label') || '',
         modelEditorCloseHasIcon: !!modelEditorCloseButton?.querySelector('svg path'),
+        modelEditorIdleControlsDisabled: !!modelEditorColorPicker?.disabled
+          && !!modelEditorPatternSelect?.disabled
+          && !!modelEditorLineStyleSelect?.disabled
+          && !!modelEditorUndoButton?.disabled,
         soundEditorCommandLabels: [
           soundEditorReadButton?.innerText || '',
           soundEditorResetButton?.innerText || '',
@@ -363,6 +370,7 @@ async function runSmoke() {
       if (!result.modelEditorClosed || !result.soundEditorClosed) throw new Error('Editor modals should start closed.');
       if (result.modelEditorCommandLabels.join('|') !== 'Undo|Load|Reset|Save') throw new Error('Model editor command labels did not initialize.');
       if (result.modelEditorCloseAria !== 'Close' || !result.modelEditorCloseHasIcon) throw new Error('Model editor close button chrome did not initialize.');
+      if (!result.modelEditorIdleControlsDisabled) throw new Error('Model editor idle controls did not initialize disabled.');
       if (result.soundEditorCommandLabels.join('|') !== 'Load|Reset|Save') throw new Error('Sound editor command labels did not initialize.');
       if (result.soundEditorPreviewAria !== 'Play' || !result.soundEditorPreviewHasIcon) throw new Error('Sound editor preview button chrome did not initialize.');
       if (result.soundEditorStopAria !== 'Stop' || !result.soundEditorStopDisabled || !result.soundEditorStopHasIcon) throw new Error('Sound editor stop button chrome did not initialize.');
