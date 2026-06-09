@@ -264,6 +264,11 @@ async function runSmoke() {
       const soundEditorButton = document.getElementById('btn-sound-editor');
       const modelEditorModal = document.getElementById('editor-modal');
       const soundEditorModal = document.getElementById('sound-editor-modal');
+      const modelEditorUndoButton = document.getElementById('btn-editor-undo');
+      const modelEditorReadButton = document.getElementById('btn-editor-read');
+      const modelEditorResetButton = document.getElementById('btn-editor-reset');
+      const modelEditorSaveButton = document.getElementById('btn-editor-save');
+      const modelEditorCloseButton = document.getElementById('btn-editor-close');
       const hudSupplyMode = document.getElementById('ui-supply-mode');
       const hudRelicCard = document.getElementById('ui-relic-card');
       const hudThemePill = document.getElementById('ui-theme-pill');
@@ -293,6 +298,14 @@ async function runSmoke() {
         hasSoundEditorButton: !!soundEditorButton,
         modelEditorClosed: modelEditorModal?.classList.contains('hidden') || false,
         soundEditorClosed: soundEditorModal?.classList.contains('hidden') || false,
+        modelEditorCommandLabels: [
+          modelEditorUndoButton?.innerText || '',
+          modelEditorReadButton?.innerText || '',
+          modelEditorResetButton?.innerText || '',
+          modelEditorSaveButton?.innerText || ''
+        ],
+        modelEditorCloseAria: modelEditorCloseButton?.getAttribute('aria-label') || '',
+        modelEditorCloseHasIcon: !!modelEditorCloseButton?.querySelector('svg path'),
         hudSupplyModeText: hudSupplyMode?.innerText || '',
         hasHudRelicCard: !!hudRelicCard,
         hasHudThemePill: !!hudThemePill,
@@ -314,6 +327,8 @@ async function runSmoke() {
       if (!result.settingsRiskValue) throw new Error('Settings risk select did not sync.');
       if (!result.hasModelEditorButton || !result.hasSoundEditorButton) throw new Error('Header editor buttons did not render.');
       if (!result.modelEditorClosed || !result.soundEditorClosed) throw new Error('Editor modals should start closed.');
+      if (result.modelEditorCommandLabels.join('|') !== 'Undo|Load|Reset|Save') throw new Error('Model editor command labels did not initialize.');
+      if (result.modelEditorCloseAria !== 'Close' || !result.modelEditorCloseHasIcon) throw new Error('Model editor close button chrome did not initialize.');
       if (!result.hudSupplyModeText) throw new Error('HUD supply card did not render.');
       if (!result.hasHudRelicCard) throw new Error('HUD relic card did not render.');
       if (!result.hasHudThemePill || !result.hasHudSupplyPill) throw new Error('HUD status pills did not render.');

@@ -774,6 +774,7 @@ import {
     bindModelEditorHeaderButton,
     bindSoundEditorHeaderButton
 } from './src/view/header-actions.mjs';
+import { configureModelEditorHeaderButtons } from './src/view/editors/model-editor-chrome.mjs';
 import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
@@ -6315,14 +6316,13 @@ class ModelEditor {
     }
 
     setupHeaderButtons() {
-        this.undoButton.textContent = 'Undo';
-        this.readButton.textContent = 'Load';
-        this.resetButton.textContent = 'Reset';
-        this.saveButton.textContent = 'Save';
-        this.closeButton.className = 'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800';
-        this.closeButton.title = 'Close';
-        this.closeButton.setAttribute('aria-label', 'Close');
-        this.closeButton.innerHTML = '<svg viewBox="0 0 24 24" class="h-4.5 w-4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18"></path><path d="M18 6 6 18"></path></svg>';
+        configureModelEditorHeaderButtons({
+            undoButton: this.undoButton,
+            readButton: this.readButton,
+            resetButton: this.resetButton,
+            saveButton: this.saveButton,
+            closeButton: this.closeButton
+        });
     }
 
     bindUi() {
