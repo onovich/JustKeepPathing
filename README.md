@@ -29,7 +29,7 @@ npm run check
 ```
 
 It reads `index.html` as UTF-8, extracts the main module script, and checks that script separately. This avoids false failures caused by shell-side encoding mismatches when inspecting the big inline module directly.
-The same command also checks extracted `.mjs` modules such as `src/data/game-config.mjs`, `src/logic/hidden-room-routing.mjs`, `src/logic/room-reward-calculations.mjs`, `src/logic/room-reward-plans.mjs`, `src/logic/sound-audio-utils.mjs`, `src/logic/sound-config.mjs`, `src/logic/sound-storage.mjs`, `src/logic/theme-chain-bonuses.mjs`, `src/view/header-actions.mjs`, `src/view/hud-status-ui.mjs`, `src/view/loading-overlay.mjs`, `src/view/settings-panel.mjs`, `src/view/editors/editor-chrome.mjs`, `src/view/editors/editor-dom.mjs`, `src/view/editors/editor-log.mjs`, `src/view/editors/model-editor-chrome.mjs`, `src/view/editors/model-editor-selection-ui.mjs`, `src/view/editors/sound-editor-bindings.mjs`, `src/view/editors/sound-editor-control-state.mjs`, `src/view/editors/sound-editor-chrome.mjs`, `src/view/editors/sound-editor-controls.mjs`, `src/view/editors/sound-editor-meta.mjs`, `src/view/editors/sound-editor-transport-ui.mjs`, and `src/view/panels/collection-panel.mjs`.
+The same command also checks extracted `.mjs` modules such as `src/data/game-config.mjs`, `src/logic/hidden-room-routing.mjs`, `src/logic/room-reward-calculations.mjs`, `src/logic/room-reward-plans.mjs`, `src/logic/room-reward-resolution.mjs`, `src/logic/sound-audio-utils.mjs`, `src/logic/sound-config.mjs`, `src/logic/sound-storage.mjs`, `src/logic/theme-chain-bonuses.mjs`, `src/view/header-actions.mjs`, `src/view/hud-status-ui.mjs`, `src/view/loading-overlay.mjs`, `src/view/settings-panel.mjs`, `src/view/editors/editor-chrome.mjs`, `src/view/editors/editor-dom.mjs`, `src/view/editors/editor-log.mjs`, `src/view/editors/model-editor-chrome.mjs`, `src/view/editors/model-editor-selection-ui.mjs`, `src/view/editors/sound-editor-bindings.mjs`, `src/view/editors/sound-editor-control-state.mjs`, `src/view/editors/sound-editor-chrome.mjs`, `src/view/editors/sound-editor-controls.mjs`, `src/view/editors/sound-editor-meta.mjs`, `src/view/editors/sound-editor-transport-ui.mjs`, and `src/view/panels/collection-panel.mjs`.
 
 For a real browser startup smoke, run:
 
@@ -65,6 +65,7 @@ After pushing, enable GitHub Pages with **Source: GitHub Actions** in the reposi
 - Hidden room routing and resolution helpers: `src/logic/hidden-room-routing.mjs`, `src/logic/hidden-room-resolution.mjs`
 - Room reward calculations: `src/logic/room-reward-calculations.mjs`
 - Room reward side-effect and merchant purchase plans: `src/logic/room-reward-plans.mjs`
+- Room reward resolution message helpers: `src/logic/room-reward-resolution.mjs`
 - Theme-chain bonus plans: `src/logic/theme-chain-bonuses.mjs`
 - Maze progression rules: `src/logic/maze-progression.mjs`
 - Sound audio math, footstep timing, and BGM step-plan helpers: `src/logic/sound-audio-utils.mjs`

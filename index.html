@@ -739,6 +739,7 @@ import {
     buildMerchantRoomPurchasePlan,
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
+import { finalizeRoomRewardMessage } from './src/logic/room-reward-resolution.mjs';
 import {
     buildBgmStepPlan,
     calculateBgmHumanizeOffset,
@@ -4524,6 +4525,15 @@ class GameController {
         window.pathDebugPanel?.render();
     }
 
+    finalizeHiddenRoomRewardResolution(sourceKey, room, message, anchorPos = null) {
+        const themeChainMessage = this.applyThemeChainBonus(sourceKey, room, anchorPos);
+        return finalizeRoomRewardMessage({
+            message,
+            details: [themeChainMessage],
+            updateUI: () => GameState.updateUI()
+        });
+    }
+
     resolveEventRoomV2(room) {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
         const seed = room.eventSeed || {};
@@ -4626,12 +4636,7 @@ class GameController {
             message += ' Echo Engine preheated next-floor attack by ' + Math.round(attackBonus * 100) + '%.';
         }
 
-        const themeChainMessage = this.applyThemeChainBonus('event', room);
-        if (themeChainMessage) {
-            message += ' ' + themeChainMessage;
-        }
-        GameState.updateUI();
-        return message;
+        return this.finalizeHiddenRoomRewardResolution('event', room, message);
     }
 
     resolveRestRoom(room) {
@@ -4684,13 +4689,7 @@ class GameController {
             message += ' Added 1 ' + supplyLabel + '.';
         }
 
-        const themeChainMessage = this.applyThemeChainBonus('rest', room);
-        if (themeChainMessage) {
-            message += ' ' + themeChainMessage;
-        }
-
-        GameState.updateUI();
-        return message;
+        return this.finalizeHiddenRoomRewardResolution('rest', room, message);
     }
     resolveMerchantRoom(room) {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
@@ -4727,9 +4726,11 @@ class GameController {
         if (merchantPlan.shouldBuySupply) {
             GameState.score -= supplyPrice;
             GameState.grantFloorSupply(neededSupply, 1);
-            const themeChainMessage = this.applyThemeChainBonus('merchant', room);
-            GameState.updateUI();
-            return room.displayName + ' bought 1 ' + neededSupplyLabel + ' for ' + supplyPrice + ' score.' + (themeChainMessage ? ' ' + themeChainMessage : '');
+            return this.finalizeHiddenRoomRewardResolution(
+                'merchant',
+                room,
+                room.displayName + ' bought 1 ' + neededSupplyLabel + ' for ' + supplyPrice + ' score.'
+            );
         }
         const purchase = merchantPlan.purchase;
         if (!purchase) {
@@ -4739,9 +4740,11 @@ class GameController {
                 0.24,
                 GameState.meta.nextHiddenRoomBonus + merchantRewards.intelHiddenRoomBonus + supplyNeedState.shortfallSeverity * 0.02
             );
-            const themeChainMessage = this.applyThemeChainBonus('merchant', room);
-            GameState.updateUI();
-            return room.displayName + ' found no good deal, took intel instead, and improved next-floor hidden room odds.' + (themeChainMessage ? ' ' + themeChainMessage : '');
+            return this.finalizeHiddenRoomRewardResolution(
+                'merchant',
+                room,
+                room.displayName + ' found no good deal, took intel instead, and improved next-floor hidden room odds.'
+            );
         }
 
         const baseCost = purchase.baseCost;
@@ -4750,15 +4753,15 @@ class GameController {
         if (!bought) {
             const fallback = merchantRewards.failedDealFallback;
             GameState.addScore(fallback);
-            const themeChainMessage = this.applyThemeChainBonus('merchant', room);
-            GameState.updateUI();
-            return room.displayName + ' converted the failed deal into ' + fallback + ' score.' + (themeChainMessage ? ' ' + themeChainMessage : '');
+            return this.finalizeHiddenRoomRewardResolution(
+                'merchant',
+                room,
+                room.displayName + ' converted the failed deal into ' + fallback + ' score.'
+            );
         }
         if (rebate > 0) {
             GameState.score += rebate;
         }
-        const themeChainMessage = this.applyThemeChainBonus('merchant', room);
-        GameState.updateUI();
 
         const typeLabels = {
             atk: 'attack upgrade',
@@ -4766,7 +4769,11 @@ class GameController {
             chest: 'treasure module',
             size: 'maze expansion'
         };
-        return room.displayName + ' auto-purchased ' + (typeLabels[purchase.type] || 'supplies') + ' for ' + purchase.discountedCost + ' score.' + (themeChainMessage ? ' ' + themeChainMessage : '');
+        return this.finalizeHiddenRoomRewardResolution(
+            'merchant',
+            room,
+            room.displayName + ' auto-purchased ' + (typeLabels[purchase.type] || 'supplies') + ' for ' + purchase.discountedCost + ' score.'
+        );
     }
     resolveTrialRoomV2(room) {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
@@ -4861,13 +4868,11 @@ class GameController {
             bonusText = ' Added a small next-floor scouting bonus.';
         }
 
-        const themeChainMessage = this.applyThemeChainBonus('trial', room);
-        if (themeChainMessage) {
-            bonusText += ' ' + themeChainMessage;
-        }
-
-        GameState.updateUI();
-        return (trialSeed.label || room.displayName) + ' completed the trial and granted ' + bonusReward + ' score.' + bonusText;
+        return this.finalizeHiddenRoomRewardResolution(
+            'trial',
+            room,
+            (trialSeed.label || room.displayName) + ' completed the trial and granted ' + bonusReward + ' score.' + bonusText
+        );
     }
     clearHiddenRoom(room) {
         if (!room || room.cleared) return;
