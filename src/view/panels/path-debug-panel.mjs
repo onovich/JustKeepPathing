@@ -1,3 +1,6 @@
+const PATH_DEBUG_REACHABLE_STATES = new Set(['eligible', 'selected']);
+const PATH_DEBUG_BLOCKED_STATES = new Set(['path-missing', 'room-unreachable', 'exit-unreachable']);
+
 export function countPathDebugRoutingStates(rooms = []) {
     return rooms.reduce((acc, room) => {
         const state = room.routingDebug?.state || 'pending';
@@ -8,16 +11,26 @@ export function countPathDebugRoutingStates(rooms = []) {
 
 export function countReachablePathDebugRooms(rooms = []) {
     return rooms.filter((room) => {
-        const state = room.routingDebug?.state;
-        return state === 'eligible' || state === 'selected';
+        return getPathDebugRoomFlags(room).reachable;
     }).length;
 }
 
 export function countBlockedPathDebugRooms(rooms = []) {
     return rooms.filter((room) => {
         const state = room.routingDebug?.state;
-        return state === 'path-missing' || state === 'room-unreachable' || state === 'exit-unreachable';
+        return PATH_DEBUG_BLOCKED_STATES.has(state);
     }).length;
+}
+
+export function getPathDebugRoomFlags(room) {
+    const state = room?.routingDebug?.state;
+    return {
+        generated: !!room,
+        unlocked: !!room?.unlocked,
+        reachable: PATH_DEBUG_REACHABLE_STATES.has(state),
+        entered: !!room?.entered,
+        cleared: !!room?.cleared
+    };
 }
 
 export class PathDebugPanel {
@@ -178,6 +191,7 @@ export class PathDebugPanel {
     renderRoomCard(room, isSelected) {
         const debug = room.routingDebug || {};
         const stateMeta = this.getRoutingStateMeta(debug.state || 'pending');
+        const flags = getPathDebugRoomFlags(room);
         const roomAccent = {
             treasure: 'text-amber-200',
             event: 'text-cyan-200',
@@ -206,10 +220,11 @@ export class PathDebugPanel {
                             ${seedLabel ? ` | Variant: ${seedLabel}` : ''}
                         </div>
                         <div class="mt-3 flex flex-wrap gap-2">
-                            ${this.renderFlag('Generated', true, 'border-emerald-700/70 bg-emerald-500/10 text-emerald-200')}
-                            ${this.renderFlag('Unlocked', !!room.unlocked, 'border-cyan-700/70 bg-cyan-500/10 text-cyan-200')}
-                            ${this.renderFlag('Entered', !!room.entered, 'border-amber-700/70 bg-amber-500/10 text-amber-200')}
-                            ${this.renderFlag('Cleared', !!room.cleared, 'border-violet-700/70 bg-violet-500/10 text-violet-200')}
+                            ${this.renderFlag('Generated', flags.generated, 'border-emerald-700/70 bg-emerald-500/10 text-emerald-200')}
+                            ${this.renderFlag('Unlocked', flags.unlocked, 'border-cyan-700/70 bg-cyan-500/10 text-cyan-200')}
+                            ${this.renderFlag('Reachable', flags.reachable, 'border-teal-700/70 bg-teal-500/10 text-teal-200')}
+                            ${this.renderFlag('Entered', flags.entered, 'border-amber-700/70 bg-amber-500/10 text-amber-200')}
+                            ${this.renderFlag('Cleared', flags.cleared, 'border-violet-700/70 bg-violet-500/10 text-violet-200')}
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2 xl:w-[360px]">

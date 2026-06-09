@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import {
     countBlockedPathDebugRooms,
     countPathDebugRoutingStates,
-    countReachablePathDebugRooms
+    countReachablePathDebugRooms,
+    getPathDebugRoomFlags
 } from '../src/view/panels/path-debug-panel.mjs';
 
 const rooms = [
@@ -45,6 +46,52 @@ assert.deepEqual(
     countPathDebugRoutingStates([]),
     {},
     'empty room lists should produce no routing state counts'
+);
+
+assert.deepEqual(
+    getPathDebugRoomFlags({
+        unlocked: true,
+        entered: true,
+        cleared: false,
+        routingDebug: { state: 'selected' }
+    }),
+    {
+        generated: true,
+        unlocked: true,
+        reachable: true,
+        entered: true,
+        cleared: false
+    },
+    'selected generated rooms should expose generated, unlocked, reachable, and entered flags'
+);
+
+assert.deepEqual(
+    getPathDebugRoomFlags({
+        unlocked: false,
+        entered: false,
+        cleared: true,
+        routingDebug: { state: 'cleared' }
+    }),
+    {
+        generated: true,
+        unlocked: false,
+        reachable: false,
+        entered: false,
+        cleared: true
+    },
+    'cleared rooms should not be counted as currently reachable candidates'
+);
+
+assert.deepEqual(
+    getPathDebugRoomFlags(null),
+    {
+        generated: false,
+        unlocked: false,
+        reachable: false,
+        entered: false,
+        cleared: false
+    },
+    'missing room data should expose inactive path debug flags'
 );
 
 console.log('path-debug-panel checks passed');

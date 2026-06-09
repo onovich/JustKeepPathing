@@ -338,8 +338,9 @@ async function runSmoke() {
       const pathDebugSummaryCards = pathDebugSummary.children.length;
       const pathDebugContextText = pathDebugContext.innerText || '';
       const pathDebugRoomCountText = pathDebugRoomCount.innerText || '';
+      const pathDebugRoomListText = pathDebugRoomList.innerText || '';
       const pathDebugRoomCards = pathDebugRoomList.querySelectorAll('article').length;
-      const pathDebugRoomListHasContent = pathDebugRoomCards > 0 || pathDebugRoomList.innerText.includes('No hidden rooms');
+      const pathDebugRoomListHasContent = pathDebugRoomCards > 0 || pathDebugRoomListText.includes('No hidden rooms');
       document.getElementById('btn-path-debug-close')?.click();
       await waitFor(() => pathDebugModal.classList.contains('hidden'), 4000, 'path debug modal close');
 
@@ -384,6 +385,7 @@ async function runSmoke() {
         pathDebugSummaryCards,
         pathDebugContextText,
         pathDebugRoomCountText,
+        pathDebugRoomListText,
         pathDebugRoomCards,
         pathDebugRoomListHasContent,
         pathDebugHiddenRoomsKnown: Array.isArray(window.gameController?.hiddenRooms),
@@ -474,6 +476,13 @@ async function runSmoke() {
       if (!result.pathDebugContextText.includes('Current target')) throw new Error('Path debug context did not render current target.');
       if (!result.pathDebugRoomCountText.includes('room')) throw new Error('Path debug room count did not render.');
       if (!result.pathDebugRoomListHasContent) throw new Error('Path debug room list did not render content.');
+      if (result.pathDebugRoomCards > 0) {
+        for (const flagLabel of ['Generated', 'Reachable', 'Entered', 'Cleared']) {
+          if (!result.pathDebugRoomListText.includes(flagLabel)) {
+            throw new Error(`Path debug room flags did not render ${flagLabel}.`);
+          }
+        }
+      }
       if (!result.pathDebugHiddenRoomsKnown) throw new Error('Path debug controller hidden-room list is not available.');
       if (!result.settingsPanelHidden) throw new Error('Settings panel should start hidden.');
       if (result.settingsHintText.length < 8) throw new Error('Settings strategy hint did not render.');
