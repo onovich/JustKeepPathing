@@ -740,7 +740,10 @@ import {
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
 import {
+    calculateFootstepBaseInterval,
+    calculateFootstepSwingOffset,
     calculateEffectiveSoundVolume,
+    clampSoundPlaybackSpeed,
     clampAudioValue,
     createSoundDistortionCurve,
     midiToFrequency
@@ -1298,7 +1301,7 @@ class SoundEngine {
             this.movementState.nextStepTime = 0;
             return;
         }
-        this.movementState.speed = THREE.MathUtils.clamp(speed, 0.55, 2.4);
+        this.movementState.speed = clampSoundPlaybackSpeed(speed);
         if (!this.movementState.active) {
             this.movementState.active = true;
             this.movementState.stepIndex = 0;
@@ -1316,8 +1319,13 @@ class SoundEngine {
         }
         if (state.nextStepTime <= 0 || state.nextStepTime < ctx.currentTime - 0.4) state.nextStepTime = ctx.currentTime + 0.02;
 
-        const speedFactor = THREE.MathUtils.clamp(state.speed || 1, 0.55, 2.4);
-        const baseInterval = (60 / config.tempo) * config.stepBeats / (config.stride * speedFactor);
+        const speedFactor = clampSoundPlaybackSpeed(state.speed || 1);
+        const baseInterval = calculateFootstepBaseInterval({
+            tempo: config.tempo,
+            stepBeats: config.stepBeats,
+            stride: config.stride,
+            speed: state.speed
+        });
         const horizon = ctx.currentTime + 0.22;
         while (state.nextStepTime < horizon && (!state.until || state.nextStepTime < state.until)) {
             const accentMul = state.stepIndex % 2 === 0 ? config.accent : 1;
@@ -1331,7 +1339,11 @@ class SoundEngine {
                 });
             }
             state.stepIndex += 1;
-            const swing = state.stepIndex % 2 === 0 ? 0 : baseInterval * config.swing * 0.5;
+            const swing = calculateFootstepSwingOffset({
+                stepIndex: state.stepIndex,
+                baseInterval,
+                swing: config.swing
+            });
             state.nextStepTime += baseInterval + swing;
         }
     }
