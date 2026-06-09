@@ -32,6 +32,14 @@ export function getSoundEditorPreviewToggleAction(options = {}) {
     return 'preview';
 }
 
+export function shouldSyncSoundEditorPreviewConfig({
+    currentSoundKey,
+    currentPreviewKey = null,
+    isContinuousPreviewActive = false
+} = {}) {
+    return currentPreviewKey === currentSoundKey && isContinuousPreviewActive;
+}
+
 export function applySoundEditorTransportState({ previewButton, stopPreviewButton, state }) {
     previewButton.title = state.previewTitle;
     previewButton.setAttribute('aria-label', state.previewAriaLabel);

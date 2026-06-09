@@ -4,7 +4,8 @@ import {
     SOUND_EDITOR_PLAY_ICON_SVG,
     applySoundEditorTransportState,
     buildSoundEditorTransportState,
-    getSoundEditorPreviewToggleAction
+    getSoundEditorPreviewToggleAction,
+    shouldSyncSoundEditorPreviewConfig
 } from '../src/view/editors/sound-editor-transport-ui.mjs';
 
 function createButton() {
@@ -126,6 +127,36 @@ assert.equal(
     }),
     'preview',
     'inactive current sound should start a fresh preview'
+);
+
+assert.equal(
+    shouldSyncSoundEditorPreviewConfig({
+        currentSoundKey: 'footsteps',
+        currentPreviewKey: 'footsteps',
+        isContinuousPreviewActive: true
+    }),
+    true,
+    'matching active continuous preview should sync config edits'
+);
+
+assert.equal(
+    shouldSyncSoundEditorPreviewConfig({
+        currentSoundKey: 'footsteps',
+        currentPreviewKey: 'footsteps',
+        isContinuousPreviewActive: false
+    }),
+    false,
+    'matching inactive preview should not sync config edits'
+);
+
+assert.equal(
+    shouldSyncSoundEditorPreviewConfig({
+        currentSoundKey: 'bgm',
+        currentPreviewKey: 'footsteps',
+        isContinuousPreviewActive: true
+    }),
+    false,
+    'different preview key should not sync config edits'
 );
 
 {

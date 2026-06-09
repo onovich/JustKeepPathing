@@ -793,7 +793,8 @@ import {
 import {
     applySoundEditorTransportState,
     buildSoundEditorTransportState,
-    getSoundEditorPreviewToggleAction
+    getSoundEditorPreviewToggleAction,
+    shouldSyncSoundEditorPreviewConfig
 } from './src/view/editors/sound-editor-transport-ui.mjs';
 import {
     applySoundEditorMeta,
@@ -7264,7 +7265,11 @@ class SoundEditor {
         this.workingConfig = result.workingConfig;
         this.workingConfig = sanitizeSoundConfig(this.workingConfig);
         this.setStatus('已修改未保存');
-        if (this.soundEngine.currentPreviewKey === this.currentSoundKey && this.soundEngine.isContinuousPreviewActive(this.currentSoundKey)) {
+        if (shouldSyncSoundEditorPreviewConfig({
+            currentSoundKey: this.currentSoundKey,
+            currentPreviewKey: this.soundEngine.currentPreviewKey,
+            isContinuousPreviewActive: this.soundEngine.isContinuousPreviewActive(this.currentSoundKey)
+        })) {
             this.soundEngine.updatePreviewConfig(this.currentSoundKey, this.workingConfig);
         }
         this.updateTransportUi();
