@@ -7,6 +7,22 @@ export function formatSoundControlDisplay(value, step, unit = '') {
     return `${Number(value).toFixed(precision)}${unit}`;
 }
 
+export function formatSoundRangeControlValue(control) {
+    const id = String(control?.id || '');
+    const value = Number(control?.value);
+    const hasStep = !!control?.step;
+    const step = Number(control?.step);
+
+    if (id.includes('tempo')) return `${Math.round(value)} BPM`;
+    if (id.includes('startFreq') || id.includes('endFreq') || id.includes('filterCutoff')) return `${Math.round(value)}Hz`;
+    if (id.includes('attack') || id.includes('hold') || id.includes('release') || id.includes('duration') || id.includes('humanize')) return `${value.toFixed(hasStep && step < 0.01 ? 3 : 2)}s`;
+    if (id.includes('root')) return `${Math.round(value)} MIDI`;
+    if (id.includes('stepBeats')) return `${value.toFixed(3)} \u62cd`;
+    if (id.includes('stride') || id.includes('accent') || id.includes('noteLength')) return `${value.toFixed(2)}x`;
+    if (id.includes('detune')) return `${Math.round(value)}c`;
+    return value.toFixed(hasStep && step < 0.1 ? 2 : 1);
+}
+
 export function renderSoundSliderControl({
     label,
     field,

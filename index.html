@@ -785,6 +785,7 @@ import { buildModelEditorSelectionControlState } from './src/view/editors/model-
 import { bindSoundEditorRenderedControls } from './src/view/editors/sound-editor-bindings.mjs';
 import { applySoundEditorControlValue } from './src/view/editors/sound-editor-control-state.mjs';
 import {
+    formatSoundRangeControlValue,
     renderSoundCheckboxControl,
     renderSoundSelectControl,
     renderSoundSliderControl
@@ -7241,24 +7242,12 @@ class SoundEditor {
                 this.applyControlValue(el);
                 if (el.type === 'range') {
                     const valueEl = document.getElementById(`${el.id}-value`);
-                    if (valueEl) valueEl.innerText = this.formatControlValue(el);
+                    if (valueEl) valueEl.innerText = formatSoundRangeControlValue(el);
                 } else {
                     this.render();
                 }
             }
         });
-    }
-
-    formatControlValue(el) {
-        const value = Number(el.value);
-        if (el.id.includes('tempo')) return `${Math.round(value)} BPM`;
-        if (el.id.includes('startFreq') || el.id.includes('endFreq') || el.id.includes('filterCutoff')) return `${Math.round(value)}Hz`;
-        if (el.id.includes('attack') || el.id.includes('hold') || el.id.includes('release') || el.id.includes('duration') || el.id.includes('humanize')) return `${value.toFixed( el.step && Number(el.step) < 0.01 ? 3 : 2 )}s`;
-        if (el.id.includes('root')) return `${Math.round(value)} MIDI`;
-        if (el.id.includes('stepBeats')) return `${value.toFixed(3)} 拍`;
-        if (el.id.includes('stride') || el.id.includes('accent') || el.id.includes('noteLength')) return `${value.toFixed(2)}x`;
-        if (el.id.includes('detune')) return `${Math.round(value)}c`;
-        return value.toFixed(el.step && Number(el.step) < 0.1 ? 2 : 1);
     }
 
     applyControlValue(el) {

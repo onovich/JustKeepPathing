@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     formatSoundControlDisplay,
+    formatSoundRangeControlValue,
     getSoundControlId,
     renderSoundCheckboxControl,
     renderSoundSelectControl,
@@ -11,6 +12,14 @@ assert.equal(getSoundControlId('oneshot', 'volume'), 'snd-oneshot-volume');
 assert.equal(formatSoundControlDisplay(0.237, 0.005, ''), '0.24');
 assert.equal(formatSoundControlDisplay(88.4, 1, 'Hz'), '88Hz');
 assert.equal(formatSoundControlDisplay(1.24, 0.1, 'x'), '1.2x');
+assert.equal(formatSoundRangeControlValue({ id: 'snd-bgm-tempo', value: '91.6', step: '1' }), '92 BPM');
+assert.equal(formatSoundRangeControlValue({ id: 'snd-track-filterCutoff', value: '1588.4', step: '10' }), '1588Hz');
+assert.equal(formatSoundRangeControlValue({ id: 'snd-track-attack', value: '0.0123', step: '0.001' }), '0.012s');
+assert.equal(formatSoundRangeControlValue({ id: 'snd-bgm-root', value: '44.6', step: '1' }), '45 MIDI');
+assert.equal(formatSoundRangeControlValue({ id: 'snd-loop-stepBeats', value: '0.375', step: '0.125' }), '0.375 \u62cd');
+assert.equal(formatSoundRangeControlValue({ id: 'snd-bgm-noteLength', value: '0.875', step: '0.01' }), '0.88x');
+assert.equal(formatSoundRangeControlValue({ id: 'snd-bgm-detune', value: '8.6', step: '1' }), '9c');
+assert.equal(formatSoundRangeControlValue({ id: 'snd-oneshot-volume', value: '0.314', step: '0.01' }), '0.31');
 
 {
     const markup = renderSoundSliderControl({
