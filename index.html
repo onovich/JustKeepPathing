@@ -736,6 +736,7 @@ import {
 } from './src/logic/room-reward-calculations.mjs';
 import {
     buildEventStockpileSupplyPlan,
+    buildMerchantRoomPurchasePlan,
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
 import {
@@ -4913,54 +4914,31 @@ class GameController {
         const budgetState = GameState.getMerchantBudgetState(discount, neededSupply);
         const supplyPrice = budgetState.discountedSupplyCost;
         const merchantMode = GameState.autoStrategy.merchant;
-        const shouldPrioritizeSupply = merchantMode === 'supplies'
-            ? (supplyNeedState.restockUrgency >= 0.36 || supplyNeedState.totalSupply <= 2 || supplyNeedState.usedSupplyThisFloor)
-            : merchantMode === 'save'
-                ? ((supplyNeedState.missingPreferred || supplyNeedState.totalSupply <= 1) && budgetState.canAffordSupply)
-                : (supplyNeedState.restockUrgency >= 0.56 || supplyNeedState.missingPreferred || supplyNeedState.preferredMissing);
-        if (shouldPrioritizeSupply && budgetState.canAffordSupply) {
+        const merchantPlan = buildMerchantRoomPurchasePlan({
+            rewardTier: room.rewardTier,
+            merchantMode,
+            hpRatio,
+            maze: GameState.maze,
+            isMazeSizeMaxed: GameState.isMazeSizeMaxed(),
+            upgradeCosts: {
+                atk: GameState.costs.atk(),
+                hp: GameState.costs.hp(),
+                chest: GameState.costs.chest(),
+                size: GameState.costs.size()
+            },
+            discount,
+            budgetState,
+            score: GameState.score,
+            supplyNeedState
+        });
+        if (merchantPlan.shouldBuySupply) {
             GameState.score -= supplyPrice;
             GameState.grantFloorSupply(neededSupply, 1);
             const themeChainMessage = this.applyThemeChainBonus('merchant', room);
             GameState.updateUI();
             return room.displayName + ' bought 1 ' + neededSupplyLabel + ' for ' + supplyPrice + ' score.' + (themeChainMessage ? ' ' + themeChainMessage : '');
         }
-        const candidateTypes = ['atk', 'hp', 'chest', 'size'];
-        if (GameState.isMazeSizeMaxed()) {
-            const sizeIndex = candidateTypes.indexOf('size');
-            if (sizeIndex > -1) candidateTypes.splice(sizeIndex, 1);
-        }
-
-        const pickWeight = (type) => {
-            if (type === 'hp') return hpRatio < 0.55 ? 100 : hpRatio < 0.82 ? 60 : merchantMode === 'power' ? 20 : 18;
-            if (type === 'atk') return merchantMode === 'power' ? 94 + room.rewardTier * 8 : 74 + room.rewardTier * 6;
-            if (type === 'chest') return merchantMode === 'save' ? 42 + GameState.maze.lvChest * 2 : 52 + GameState.maze.lvChest * 4;
-            if (type === 'size') return merchantMode === 'power'
-                ? (GameState.maze.lvSize < 3 ? 92 : 48)
-                : GameState.maze.lvSize < 3 ? 78 : 42;
-            return 30;
-        };
-
-        const sortedCandidates = candidateTypes
-            .map((type) => ({
-                type,
-                baseCost: GameState.costs[type](),
-                discountedCost: Math.max(1, Math.floor(GameState.costs[type]() * discount)),
-                weight: pickWeight(type)
-                    + (type === budgetState.cheapestUpgrade?.type ? 10 : 0)
-                    + (merchantMode === 'supplies' && type === 'chest' ? 4 : 0)
-                    + (merchantMode === 'save' && type === 'hp' ? (hpRatio < 0.72 ? 8 : 3) : 0)
-            }))
-            .sort((a, b) => b.weight - a.weight);
-
-        const purchase = sortedCandidates.find((candidate) => {
-            if (GameState.score < candidate.discountedCost) return false;
-            if (merchantMode === 'save') {
-                const reserve = Math.max(0, Math.floor(Math.min(GameState.costs.atk(), GameState.costs.hp()) * 0.35));
-                return (GameState.score - candidate.discountedCost) >= reserve || candidate.type === 'hp';
-            }
-            return true;
-        });
+        const purchase = merchantPlan.purchase;
         if (!purchase) {
             const consolation = merchantRewards.consolation;
             GameState.addScore(consolation);

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     buildEventStockpileSupplyPlan,
+    buildMerchantRoomPurchasePlan,
     buildTrialSupplyRewardPlan
 } from '../src/logic/room-reward-plans.mjs';
 
@@ -91,6 +92,58 @@ assert.equal(
     }),
     null,
     'trial supply plan should be empty below threshold'
+);
+
+const merchantSupplyPlan = buildMerchantRoomPurchasePlan({
+    rewardTier: 2,
+    merchantMode: 'supplies',
+    hpRatio: 0.9,
+    maze: { lvChest: 3, lvSize: 2 },
+    upgradeCosts: { atk: 100, hp: 80, chest: 70, size: 60 },
+    discount: 0.76,
+    budgetState: {
+        canAffordSupply: true,
+        cheapestUpgrade: { type: 'size' }
+    },
+    score: 1000,
+    supplyNeedState: {
+        restockUrgency: 0.4,
+        totalSupply: 2,
+        usedSupplyThisFloor: false,
+        missingPreferred: false,
+        preferredMissing: false
+    }
+});
+assert.equal(merchantSupplyPlan.shouldBuySupply, true, 'merchant supplies mode should prioritize affordable supply restock');
+assert.equal(merchantSupplyPlan.purchase.type, 'size', 'merchant upgrade plan should preserve cheapest-upgrade weight bias');
+
+const merchantSavePlan = buildMerchantRoomPurchasePlan({
+    rewardTier: 1,
+    merchantMode: 'save',
+    hpRatio: 0.9,
+    maze: { lvChest: 1, lvSize: 3 },
+    upgradeCosts: { atk: 100, hp: 80, chest: 70, size: 60 },
+    discount: 0.8,
+    budgetState: {
+        canAffordSupply: false,
+        cheapestUpgrade: { type: 'chest' }
+    },
+    score: 70,
+    supplyNeedState: {
+        restockUrgency: 0.1,
+        totalSupply: 4,
+        usedSupplyThisFloor: false,
+        missingPreferred: false,
+        preferredMissing: false
+    }
+});
+assert.equal(merchantSavePlan.shouldBuySupply, false, 'merchant save mode should not buy unaffordable supply');
+assert.equal(merchantSavePlan.reserve, 28, 'merchant save mode should preserve the current reserve formula');
+assert.equal(merchantSavePlan.purchase.type, 'hp', 'merchant save mode should allow HP upgrade even when reserve blocks other picks');
+assert.deepEqual(
+    merchantSavePlan.upgradeCandidates.map((candidate) => candidate.type),
+    ['atk', 'chest', 'size', 'hp'],
+    'merchant upgrade candidates should preserve weight sorting'
 );
 
 console.log('room-reward-plans checks passed');

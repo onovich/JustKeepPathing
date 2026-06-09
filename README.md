@@ -64,7 +64,7 @@ After pushing, enable GitHub Pages with **Source: GitHub Actions** in the reposi
 - Hidden room runtime rules: `src/logic/hidden-rooms.mjs`
 - Hidden room routing and resolution helpers: `src/logic/hidden-room-routing.mjs`, `src/logic/hidden-room-resolution.mjs`
 - Room reward calculations: `src/logic/room-reward-calculations.mjs`
-- Room reward side-effect plans: `src/logic/room-reward-plans.mjs`
+- Room reward side-effect and merchant purchase plans: `src/logic/room-reward-plans.mjs`
 - Theme-chain bonus plans: `src/logic/theme-chain-bonuses.mjs`
 - Maze progression rules: `src/logic/maze-progression.mjs`
 - Loading overlay: `src/view/loading-overlay.mjs`
