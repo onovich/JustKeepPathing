@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     getHiddenRoomInteractionAccent,
+    removeHiddenRoomEntityReference,
     removePendingHiddenRoomEntity,
     shouldClearHiddenRoomAfterInteraction
 } from '../src/logic/hidden-room-resolution.mjs';
@@ -79,6 +80,22 @@ assert.equal(
 
     assert.deepEqual(result.pendingIds, ['node-1'], 'missing entity should leave pending ids unchanged');
     assert.equal(result.entities.length, 1, 'missing entity should leave entity list unchanged');
+}
+
+{
+    const target = { id: 'marker' };
+    const sameId = { id: 'marker' };
+    const entities = [sameId, target];
+
+    assert.equal(removeHiddenRoomEntityReference(entities, target), true, 'hidden room entity reference should be removed');
+    assert.deepEqual(entities, [sameId], 'hidden room entity removal should use object reference, not id');
+}
+
+{
+    const entities = [{ id: 'marker' }];
+
+    assert.equal(removeHiddenRoomEntityReference(entities, { id: 'marker' }), false, 'missing reference should not be removed');
+    assert.equal(entities.length, 1, 'missing reference should leave entity array unchanged');
 }
 
 console.log('hidden-room-resolution checks passed');

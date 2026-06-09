@@ -30,3 +30,10 @@ export function removePendingHiddenRoomEntity({
         entities: entities.filter((item) => item !== entity)
     };
 }
+
+export function removeHiddenRoomEntityReference(entities = [], entity) {
+    const entityIndex = entities.findIndex((item) => item === entity);
+    if (entityIndex < 0) return false;
+    entities.splice(entityIndex, 1);
+    return true;
+}
