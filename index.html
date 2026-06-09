@@ -807,7 +807,11 @@ import {
     getSoundEditorDomRefs
 } from './src/view/editors/editor-dom.mjs';
 import { appendEditorLog } from './src/view/editors/editor-log.mjs';
-import { buildModelEditorSelectionControlState } from './src/view/editors/model-editor-selection-ui.mjs';
+import {
+    buildModelEditorSelectionControlState,
+    buildModelEditorSelectionDisplayState,
+    getSharedModelEditorSelectionValue
+} from './src/view/editors/model-editor-selection-ui.mjs';
 import { bindSoundEditorRenderedControls } from './src/view/editors/sound-editor-bindings.mjs';
 import { applySoundEditorControlValue } from './src/view/editors/sound-editor-control-state.mjs';
 import {
@@ -6439,10 +6443,11 @@ class ModelEditor {
     }
 
     getSharedSelectionValue(getter) {
-        if (this.selection.length === 0) return { mixed: false, value: null };
-        const firstValue = getter(this.getSelectionEntry(this.selection[0]));
-        const mixed = this.selection.some((item) => getter(this.getSelectionEntry(item)) !== firstValue);
-        return { mixed, value: firstValue };
+        return getSharedModelEditorSelectionValue(
+            this.selection,
+            (item) => this.getSelectionEntry(item),
+            getter
+        );
     }
 
     pushUndoState(label) {
@@ -6488,48 +6493,66 @@ class ModelEditor {
         this.undoButton.classList.toggle('opacity-50', controlState.undoDisabled);
         this.undoButton.classList.toggle('cursor-not-allowed', controlState.undoDisabled);
 
-        this.selectionStatus.innerText = active
-            ? `Selected ${this.selection.length} ${kind === 'mesh' ? 'face' : 'line'}${this.selection.length > 1 ? 's' : ''}`
-            : 'Nothing selected yet';
-        this.selectedTarget.innerText = active
-            ? `${this.getAssetLabel(this.selection[0].assetKey)} / ${this.selection.length === 1 ? this.selection[0].partKey : `${this.selection.length} targets`}`
-            : 'No selection';
+        const sharedColor = this.getSharedSelectionValue((entry) => entry.color);
+        const sharedPattern = kind === 'mesh'
+            ? this.getSharedSelectionValue((entry) => entry.pattern)
+            : { mixed: false, value: MODEL_EDITOR_DEFAULT_FACE_PATTERN.pattern };
+        const sharedPatternColor = kind === 'mesh'
+            ? this.getSharedSelectionValue((entry) => entry.patternColor)
+            : { mixed: false, value: MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor };
+        const sharedScale = kind === 'mesh'
+            ? this.getSharedSelectionValue((entry) => String(entry.patternScale))
+            : { mixed: false, value: String(MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale) };
+        const sharedStyle = kind === 'line'
+            ? this.getSharedSelectionValue((entry) => entry.style)
+            : { mixed: false, value: MODEL_EDITOR_DEFAULT_LINE_STYLE.style };
+        const sharedWidth = kind === 'line'
+            ? this.getSharedSelectionValue((entry) => String(entry.width))
+            : { mixed: false, value: String(MODEL_EDITOR_DEFAULT_LINE_STYLE.width) };
+        const displayState = buildModelEditorSelectionDisplayState({
+            active,
+            kind,
+            selection: this.selection,
+            assetLabel: active ? this.getAssetLabel(this.selection[0].assetKey) : '',
+            sharedColor,
+            sharedPattern,
+            sharedPatternColor,
+            sharedScale,
+            sharedStyle,
+            sharedWidth,
+            defaultFacePattern: MODEL_EDITOR_DEFAULT_FACE_PATTERN,
+            defaultLineStyle: MODEL_EDITOR_DEFAULT_LINE_STYLE
+        });
+
+        this.selectionStatus.innerText = displayState.selectionStatusText;
+        this.selectedTarget.innerText = displayState.selectedTargetText;
         this.selectionKind.innerText = active
             ? (kind === 'mesh' ? '当前选择类型：面' : '当前选择类型：边')
             : '等待选择';
-        this.selectedType.innerText = active
-            ? (kind === 'mesh' ? `Face x${this.selection.length}` : `Edge x${this.selection.length}`)
-            : 'Waiting';
-        const sharedColor = this.getSharedSelectionValue((entry) => entry.color);
-        const color = active ? sharedColor.value : '#22d3ee';
-        this.colorPicker.value = color;
-        this.colorValue.innerText = active && sharedColor.mixed ? '...' : color;
+        this.selectedType.innerText = displayState.selectedTypeText;
+        this.colorPicker.value = displayState.colorPickerValue;
+        this.colorValue.innerText = displayState.colorValueText;
 
         if (!active) {
-            this.patternSelect.value = 'none';
-            this.patternColorPicker.value = MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor;
-            this.patternScale.value = String(MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale);
-            this.patternScaleValue.innerText = `${MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale.toFixed(1)}x`;
-            this.lineStyleSelect.value = 'solid';
-            this.lineWidth.value = String(MODEL_EDITOR_DEFAULT_LINE_STYLE.width);
-            this.lineWidthValue.innerText = MODEL_EDITOR_DEFAULT_LINE_STYLE.width.toFixed(1);
+            this.patternSelect.value = displayState.patternSelectValue;
+            this.patternColorPicker.value = displayState.patternColorPickerValue;
+            this.patternScale.value = displayState.patternScaleValue;
+            this.patternScaleValue.innerText = displayState.patternScaleText;
+            this.lineStyleSelect.value = displayState.lineStyleSelectValue;
+            this.lineWidth.value = displayState.lineWidthValue;
+            this.lineWidthValue.innerText = displayState.lineWidthText;
             return;
         }
 
         if (kind === 'mesh') {
-            const sharedPattern = this.getSharedSelectionValue((entry) => entry.pattern);
-            const sharedPatternColor = this.getSharedSelectionValue((entry) => entry.patternColor);
-            const sharedScale = this.getSharedSelectionValue((entry) => String(entry.patternScale));
-            this.patternSelect.value = sharedPattern.mixed ? '__mixed' : sharedPattern.value;
-            this.patternColorPicker.value = sharedPatternColor.value;
-            this.patternScale.value = sharedScale.value;
-            this.patternScaleValue.innerText = sharedScale.mixed ? '...' : `${Number(sharedScale.value).toFixed(1)}x`;
+            this.patternSelect.value = displayState.patternSelectValue;
+            this.patternColorPicker.value = displayState.patternColorPickerValue;
+            this.patternScale.value = displayState.patternScaleValue;
+            this.patternScaleValue.innerText = displayState.patternScaleText;
         } else {
-            const sharedStyle = this.getSharedSelectionValue((entry) => entry.style);
-            const sharedWidth = this.getSharedSelectionValue((entry) => String(entry.width));
-            this.lineStyleSelect.value = sharedStyle.mixed ? '__mixed' : sharedStyle.value;
-            this.lineWidth.value = sharedWidth.value;
-            this.lineWidthValue.innerText = sharedWidth.mixed ? '...' : Number(sharedWidth.value).toFixed(1);
+            this.lineStyleSelect.value = displayState.lineStyleSelectValue;
+            this.lineWidth.value = displayState.lineWidthValue;
+            this.lineWidthValue.innerText = displayState.lineWidthText;
         }
     }
 

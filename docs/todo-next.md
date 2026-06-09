@@ -26,7 +26,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Shared editor chrome and sound editor transport button chrome were extracted into `src/view/editors/editor-chrome.mjs` and `src/view/editors/sound-editor-chrome.mjs`, with focused checks and browser smoke coverage for preview/stop/read/reset/save/close startup state.
 - Model/sound editor DOM id maps were extracted into `src/view/editors/editor-dom.mjs`, with focused checks and browser smoke coverage for editor instance refs.
 - Shared editor log formatting/writing was extracted into `src/view/editors/editor-log.mjs`, with focused checks and browser smoke coverage for model/sound editor log DOM updates.
-- Model editor selection control-state calculation was extracted into `src/view/editors/model-editor-selection-ui.mjs`, with focused checks and browser smoke coverage for idle disabled controls.
+- Model editor selection control/display-state calculation was extracted into `src/view/editors/model-editor-selection-ui.mjs`, with focused checks and browser smoke coverage for idle disabled controls.
 - Sound editor slider/select/checkbox markup and live range display formatting were extracted into `src/view/editors/sound-editor-controls.mjs`, with focused checks and browser smoke coverage for default one-shot controls.
 - Sound editor rendered-control event binding was extracted into `src/view/editors/sound-editor-bindings.mjs`, with focused checks and browser smoke coverage for range input updates.
 - Sound editor control-state mutation was extracted into `src/view/editors/sound-editor-control-state.mjs`, with focused checks for oneshot/loop/track/bgm/meta writes and browser smoke coverage for range and track-select updates.
