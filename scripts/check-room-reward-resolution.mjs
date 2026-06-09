@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
     appendRoomRewardDetails,
     finalizeRoomRewardMessage,
+    resolveEchoEngineEventBonus,
     resolveHiddenRoomRewardMessage
 } from '../src/logic/room-reward-resolution.mjs';
 
@@ -99,5 +100,48 @@ assert.equal(
         'hidden room reward finalization should surface theme-chain text even without a base message'
     );
 }
+
+assert.deepEqual(
+    resolveEchoEngineEventBonus({
+        hasEchoEngine: false,
+        currentNextFloorAttackBonus: 0.12,
+        attackBonus: 0.08
+    }),
+    {
+        applied: false,
+        nextFloorAttackBonus: 0.12,
+        message: ''
+    },
+    'Echo Engine event bonus should leave next-floor attack untouched when the relic is missing'
+);
+
+assert.deepEqual(
+    resolveEchoEngineEventBonus({
+        hasEchoEngine: true,
+        currentNextFloorAttackBonus: 0.12,
+        attackBonus: 0.08
+    }),
+    {
+        applied: true,
+        nextFloorAttackBonus: 0.2,
+        message: 'Echo Engine preheated next-floor attack by 8%.'
+    },
+    'Echo Engine event bonus should append visible text and add the calculated attack bonus'
+);
+
+assert.deepEqual(
+    resolveEchoEngineEventBonus({
+        hasEchoEngine: true,
+        currentNextFloorAttackBonus: 0.3,
+        attackBonus: 0.08,
+        cap: 0.32
+    }),
+    {
+        applied: true,
+        nextFloorAttackBonus: 0.32,
+        message: 'Echo Engine preheated next-floor attack by 8%.'
+    },
+    'Echo Engine event bonus should preserve the current cap'
+);
 
 console.log('room-reward-resolution checks passed');

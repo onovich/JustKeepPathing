@@ -33,3 +33,27 @@ export function resolveHiddenRoomRewardMessage({
         updateUI
     });
 }
+
+export function resolveEchoEngineEventBonus({
+    hasEchoEngine = false,
+    currentNextFloorAttackBonus = 0,
+    attackBonus = 0,
+    cap = 0.32
+} = {}) {
+    const current = Number.isFinite(currentNextFloorAttackBonus) ? currentNextFloorAttackBonus : 0;
+    if (!hasEchoEngine) {
+        return {
+            applied: false,
+            nextFloorAttackBonus: current,
+            message: ''
+        };
+    }
+
+    const bonus = Number.isFinite(attackBonus) ? attackBonus : 0;
+    const nextFloorAttackBonus = Math.min(cap, current + bonus);
+    return {
+        applied: true,
+        nextFloorAttackBonus,
+        message: 'Echo Engine preheated next-floor attack by ' + Math.round(bonus * 100) + '%.'
+    };
+}

@@ -746,7 +746,10 @@ import {
     buildMerchantRoomPurchasePlan,
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
-import { resolveHiddenRoomRewardMessage } from './src/logic/room-reward-resolution.mjs';
+import {
+    resolveEchoEngineEventBonus,
+    resolveHiddenRoomRewardMessage
+} from './src/logic/room-reward-resolution.mjs';
 import {
     buildBgmStepPlan,
     calculateBgmHumanizeOffset,
@@ -4623,9 +4626,13 @@ class GameController {
         }
 
         if (GameState.hasRunRelic('echo_engine')) {
-            const attackBonus = eventRewards.echoEngineAttackBonus;
-            GameState.meta.nextFloorAttackBonus = Math.min(0.32, GameState.meta.nextFloorAttackBonus + attackBonus);
-            message += ' Echo Engine preheated next-floor attack by ' + Math.round(attackBonus * 100) + '%.';
+            const echoBonus = resolveEchoEngineEventBonus({
+                hasEchoEngine: true,
+                currentNextFloorAttackBonus: GameState.meta.nextFloorAttackBonus,
+                attackBonus: eventRewards.echoEngineAttackBonus
+            });
+            GameState.meta.nextFloorAttackBonus = echoBonus.nextFloorAttackBonus;
+            if (echoBonus.message) message += ' ' + echoBonus.message;
         }
 
         return this.finalizeHiddenRoomRewardResolution('event', room, message);

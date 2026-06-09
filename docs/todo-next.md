@@ -41,6 +41,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Event, rest, merchant, trial, and elite room reward formulas were extracted into `src/logic/room-reward-calculations.mjs`, with focused checks.
 - Event stockpile, trial supply rewards, and merchant purchase decisions were extracted into `src/logic/room-reward-plans.mjs`, with focused checks.
 - Event/rest/merchant/trial/elite/treasure reward resolution now shares `src/logic/room-reward-resolution.mjs` hidden-room reward finalization, with focused checks for theme-chain routing, detail order, empty base messages, and UI refresh callbacks.
+- Echo Engine event-room next-floor attack bonus capping and visible text are now routed through `src/logic/room-reward-resolution.mjs`, with focused checks.
 - `npm run smoke:screenshot` now captures a reusable local browser screenshot at `artifacts/screenshots/latest.png`.
 - `npm run verify:refactor` now runs check, browser smoke, and screenshot smoke with compact success output for lower-noise refactor turns.
 - Loading overlay progress/snapshot and delayed-generation reveal checks were extracted into `src/view/loading-overlay.mjs`, with focused checks and browser smoke coverage for delayed text reveal/cleanup.
@@ -55,7 +56,7 @@ Goal:
 Outstanding work:
 
 - audit `event`, `trial`, `merchant`, `rest`, `treasure`, and `elite` room completion paths for consistent `applyThemeChainBonus(...)` calls and visible result text
-- verify `Echo Engine` always hooks into the final event resolution path, not a stale or bypassed path
+- add runtime coverage for the `Echo Engine` final event path once event-room fixtures become deterministic enough for smoke
 - remove or consolidate any remaining duplicate elite/boss reward-roll paths so premium rewards cannot double-apply or silently miss
 
 Acceptance:
