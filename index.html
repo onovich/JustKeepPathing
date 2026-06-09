@@ -236,7 +236,7 @@
     </style>
 </head>
 <body class="flex flex-col h-[100dvh] w-screen md:flex-row">
-    <div id="app-loading-overlay" class="loading-overlay fixed inset-0 z-[85] flex items-center justify-center px-6">
+    <div id="app-loading-overlay" class="loading-overlay hidden-overlay fixed inset-0 z-[85] flex items-center justify-center px-6">
         <div class="w-full max-w-md rounded-3xl border border-slate-700/80 bg-slate-950/88 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-md">
             <div class="text-[11px] font-black uppercase tracking-[0.28em] text-cyan-300">Loading</div>
             <h2 id="app-loading-title" class="mt-3 text-2xl font-black text-slate-50">正在生成迷宫</h2>
@@ -400,43 +400,43 @@
             <div id="upgrade-strip" class="space-y-3">
                 <button id="btn-up-speed" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-blue-300 flex items-center gap-2">走得更快 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">自动走路会更快</div>
+                        <div class="font-bold text-blue-300 flex items-center gap-2">升级移动速度 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">提高自动寻路移动速度</div>
                     </div>
                     <div class="text-right"><div id="cost-speed" class="text-yellow-400 font-bold text-sm">10</div></div>
                 </button>
                 <button id="btn-up-atk" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-red-400 flex items-center gap-2">打得更疼 <span id="val-atk" class="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">Lv.1</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">每次攻击伤害更高</div>
+                        <div class="font-bold text-red-400 flex items-center gap-2">升级攻击力 <span id="val-atk" class="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">提高每次攻击造成的伤害</div>
                     </div>
                     <div class="text-right"><div id="cost-atk" class="text-yellow-400 font-bold text-sm">20</div></div>
                 </button>
                 <button id="btn-up-hp" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-green-400 flex items-center gap-2">更抗揍 <span id="val-hp" class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800/50">Lv.1</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">血量上限更高</div>
+                        <div class="font-bold text-green-400 flex items-center gap-2">升级生命值 <span id="val-hp" class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">提高生命值上限</div>
                     </div>
                     <div class="text-right"><div id="cost-hp" class="text-yellow-400 font-bold text-sm">20</div></div>
                 </button>
                 <button id="btn-up-chest" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-yellow-300 flex items-center gap-2">更多宝箱 <span id="val-chest" class="text-[10px] bg-yellow-950 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-800/50">Lv.1</span></div>
-                        <div class="text-[10px] text-slate-500 mt-0.5">地图里更容易刷宝箱</div>
+                        <div class="font-bold text-yellow-300 flex items-center gap-2">升级宝箱密度 <span id="val-chest" class="text-[10px] bg-yellow-950 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-800/50">Lv.1</span></div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">提高地图中的宝箱出现率</div>
                     </div>
                     <div class="text-right"><div id="cost-chest" class="text-yellow-400 font-bold text-sm">50</div></div>
                 </button>
                 <button id="btn-up-size" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-cyan-300 flex items-center gap-2">迷宫更大 <span id="val-size" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">11x11</span></div>
-                        <div id="desc-size" class="text-[10px] text-slate-500 mt-0.5">地图会变大，怪和宝箱也会更多</div>
+                        <div class="font-bold text-cyan-300 flex items-center gap-2">升级迷宫规模 <span id="val-size" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">11x11</span></div>
+                        <div id="desc-size" class="text-[10px] text-slate-500 mt-0.5">增大迷宫规模并提升整体产出</div>
                     </div>
                     <div class="text-right"><div id="cost-size" class="text-yellow-400 font-bold text-sm">40</div></div>
                 </button>
                 <button id="btn-up-monster" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
                     <div>
-                        <div class="font-bold text-purple-400 flex items-center gap-2">更多怪和 Boss <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
-                        <div id="desc-monster" class="text-[10px] text-slate-500 mt-0.5">怪物更容易出现，升到 Lv.4 解锁 Boss</div>
+                        <div class="font-bold text-purple-400 flex items-center gap-2">升级怪物与Boss密度 <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
+                        <div id="desc-monster" class="text-[10px] text-slate-500 mt-0.5">提高怪物出现率，并逐步解锁Boss</div>
                     </div>
                     <div class="text-right"><div id="cost-monster" class="text-yellow-400 font-bold text-sm">100</div></div>
                 </button>
@@ -2040,6 +2040,9 @@ const GameState = {
     updateUI() {
         document.getElementById('ui-level').innerText = this.level;
         document.getElementById('rpg-p-lv').innerText = this.player.lvAtk + this.player.lvHp + this.player.lvSpeed;
+        if (this.phase !== 'GENERATING') {
+            window.loadingOverlay?.hide(0);
+        }
 
         const statusSpan = document.getElementById('ui-status');
         const statusBox = document.getElementById('ui-status-box');
@@ -2227,47 +2230,61 @@ function initializeUpgradeStripUi() {
     strip.innerHTML = `
         <button id="btn-up-speed" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
             <div>
-                <div class="font-bold text-blue-300 flex items-center gap-2">走得更快 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span></div>
-                <div class="text-[10px] text-slate-500 mt-0.5">自动走路会更快</div>
+                <div class="font-bold text-blue-300 flex items-center gap-2">升级移动速度 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span></div>
+                <div class="text-[10px] text-slate-500 mt-0.5">提高自动寻路移动速度</div>
             </div>
             <div class="text-right"><div id="cost-speed" class="text-yellow-400 font-bold text-sm">10</div></div>
         </button>
         <button id="btn-up-atk" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
             <div>
-                <div class="font-bold text-red-400 flex items-center gap-2">打得更疼 <span id="val-atk" class="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">Lv.1</span></div>
-                <div class="text-[10px] text-slate-500 mt-0.5">每次攻击伤害更高</div>
+                <div class="font-bold text-red-400 flex items-center gap-2">升级攻击力 <span id="val-atk" class="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">Lv.1</span></div>
+                <div class="text-[10px] text-slate-500 mt-0.5">提高每次攻击造成的伤害</div>
             </div>
             <div class="text-right"><div id="cost-atk" class="text-yellow-400 font-bold text-sm">20</div></div>
         </button>
         <button id="btn-up-hp" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
             <div>
-                <div class="font-bold text-green-400 flex items-center gap-2">更抗揍 <span id="val-hp" class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800/50">Lv.1</span></div>
-                <div class="text-[10px] text-slate-500 mt-0.5">血量上限更高</div>
+                <div class="font-bold text-green-400 flex items-center gap-2">升级生命值 <span id="val-hp" class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800/50">Lv.1</span></div>
+                <div class="text-[10px] text-slate-500 mt-0.5">提高生命值上限</div>
             </div>
             <div class="text-right"><div id="cost-hp" class="text-yellow-400 font-bold text-sm">20</div></div>
         </button>
         <button id="btn-up-chest" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
             <div>
-                <div class="font-bold text-yellow-300 flex items-center gap-2">更多宝箱 <span id="val-chest" class="text-[10px] bg-yellow-950 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-800/50">Lv.1</span></div>
-                <div class="text-[10px] text-slate-500 mt-0.5">地图里更容易刷宝箱</div>
+                <div class="font-bold text-yellow-300 flex items-center gap-2">升级宝箱密度 <span id="val-chest" class="text-[10px] bg-yellow-950 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-800/50">Lv.1</span></div>
+                <div class="text-[10px] text-slate-500 mt-0.5">提高地图中的宝箱出现率</div>
             </div>
             <div class="text-right"><div id="cost-chest" class="text-yellow-400 font-bold text-sm">50</div></div>
         </button>
         <button id="btn-up-size" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
             <div>
-                <div class="font-bold text-cyan-300 flex items-center gap-2">迷宫更大 <span id="val-size" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">11x11</span></div>
-                <div id="desc-size" class="text-[10px] text-slate-500 mt-0.5">地图会变大，怪和宝箱也会更多</div>
+                <div class="font-bold text-cyan-300 flex items-center gap-2">升级迷宫规模 <span id="val-size" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">11x11</span></div>
+                <div id="desc-size" class="text-[10px] text-slate-500 mt-0.5">增大迷宫规模并提升整体产出</div>
             </div>
             <div class="text-right"><div id="cost-size" class="text-yellow-400 font-bold text-sm">40</div></div>
         </button>
         <button id="btn-up-monster" class="upgrade-btn w-full bg-slate-800 hover:bg-slate-700 rounded-xl p-3 text-left border-2 border-slate-700 flex justify-between items-center">
             <div>
-                <div class="font-bold text-purple-400 flex items-center gap-2">更多怪和 Boss <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
-                <div id="desc-monster" class="text-[10px] text-slate-500 mt-0.5">怪物更容易出现，升到 Lv.4 解锁 Boss</div>
+                <div class="font-bold text-purple-400 flex items-center gap-2">升级怪物与Boss密度 <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span></div>
+                <div id="desc-monster" class="text-[10px] text-slate-500 mt-0.5">提高怪物出现率，并逐步解锁Boss</div>
             </div>
             <div class="text-right"><div id="cost-monster" class="text-yellow-400 font-bold text-sm">100</div></div>
         </button>
     `;
+    const setUpgradeCopy = (buttonId, titleHtml, detailText) => {
+        const button = strip.querySelector(`#${buttonId}`);
+        if (!button) return;
+        const titleEl = button.querySelector('div > div');
+        const detailEl = button.querySelector('div > div:nth-child(2)');
+        if (titleEl) titleEl.innerHTML = titleHtml;
+        if (detailEl) detailEl.innerText = detailText;
+    };
+    setUpgradeCopy('btn-up-speed', '升级移动速度 <span id="val-speed" class="text-[10px] bg-blue-950 text-blue-300 px-1.5 py-0.5 rounded border border-blue-800/50">Lv.1</span>', '提高自动寻路移动速度');
+    setUpgradeCopy('btn-up-atk', '升级攻击力 <span id="val-atk" class="text-[10px] bg-red-950 text-red-300 px-1.5 py-0.5 rounded border border-red-800/50">Lv.1</span>', '提高每次攻击造成的伤害');
+    setUpgradeCopy('btn-up-hp', '升级生命值 <span id="val-hp" class="text-[10px] bg-green-950 text-green-300 px-1.5 py-0.5 rounded border border-green-800/50">Lv.1</span>', '提高生命值上限');
+    setUpgradeCopy('btn-up-chest', '升级宝箱密度 <span id="val-chest" class="text-[10px] bg-yellow-950 text-yellow-300 px-1.5 py-0.5 rounded border border-yellow-800/50">Lv.1</span>', '提高地图中的宝箱出现率');
+    setUpgradeCopy('btn-up-size', '升级迷宫规模 <span id="val-size" class="text-[10px] bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/50">11x11</span>', '增大迷宫规模并提升整体产出');
+    setUpgradeCopy('btn-up-monster', '升级怪物与Boss密度 <span id="val-monster" class="text-[10px] bg-purple-950 text-purple-300 px-1.5 py-0.5 rounded border border-purple-800/50">Lv.1</span>', '提高怪物出现率，并逐步解锁Boss');
     if (!document.getElementById('ui-mobile-dock-spacer')) {
         const spacer = document.createElement('div');
         spacer.id = 'ui-mobile-dock-spacer';
@@ -3607,6 +3624,15 @@ class GameController {
         this.generationTargetCount = 0;
         this.generationVisitedCount = 0;
         this.generationProgress = 0;
+        this.generationLoadingVisible = false;
+        this.generationLoadingDelayTimer = null;
+        this.generationWatchdog = null;
+        this.generationLoadingSnapshot = {
+            title: '正在生成迷宫',
+            detail: '请稍等，正在准备本层布局与事件。',
+            progress: 0.04,
+            stage: '准备中'
+        };
 
         initializeSupplyCardUi();
         initializeUpgradeStripUi();
@@ -3632,12 +3658,41 @@ class GameController {
 
     setGenerationLoading(progress, detail, stage = '生成中', title = '正在生成迷宫') {
         this.generationProgress = Math.max(0, Math.min(1, progress));
-        window.loadingOverlay?.show({
+        this.generationLoadingSnapshot = {
             title,
             detail,
             progress: this.generationProgress,
             stage
-        });
+        };
+        if (!this.generationLoadingVisible) return;
+        window.loadingOverlay?.show(this.generationLoadingSnapshot);
+    }
+
+    scheduleGenerationLoading() {
+        if (this.generationLoadingDelayTimer) {
+            clearTimeout(this.generationLoadingDelayTimer);
+        }
+        this.generationLoadingVisible = false;
+        window.loadingOverlay?.hide(0);
+        this.generationLoadingDelayTimer = setTimeout(() => {
+            this.generationLoadingDelayTimer = null;
+            if (this.selfTestActive || GameState.phase !== 'GENERATING') return;
+            this.generationLoadingVisible = true;
+            window.loadingOverlay?.show(this.generationLoadingSnapshot);
+        }, 3000);
+    }
+
+    clearGenerationLoadingState(hideDelay = 0) {
+        if (this.generationLoadingDelayTimer) {
+            clearTimeout(this.generationLoadingDelayTimer);
+            this.generationLoadingDelayTimer = null;
+        }
+        if (this.generationWatchdog) {
+            clearTimeout(this.generationWatchdog);
+            this.generationWatchdog = null;
+        }
+        this.generationLoadingVisible = false;
+        window.loadingOverlay?.hide(hideDelay);
     }
 
     sleep(ms) {
@@ -4284,27 +4339,6 @@ class GameController {
             counterSpinSpeed: 1.55,
             spinGroup: built.group,
             counterSpinGroup: adornment
-        };
-    }
-
-    buildEliteArchetype(room) {
-        const base = this.pickEnemyArchetype();
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
-        return {
-            ...base,
-            id: `${base.id}-elite-${room.id}`,
-            name: `${base.name}·精英`,
-            baseHp: Math.floor(base.baseHp * 1.52),
-            baseAtk: Math.floor(base.baseAtk * 1.26),
-            reward: Math.floor(base.reward * (1.55 + rewardProfile.scoreMult * 0.35)),
-            scale: (base.scale || 1) * 1.12,
-            hoverAmplitude: base.hoverAmplitude * 1.08,
-            hoverSpeed: Math.max(1.5, base.hoverSpeed * 0.94),
-            intro: `${room.displayName}里的 ${base.name} 发起封锁，战斗开始！`,
-            attackVerb: `精英${base.attackVerb}`,
-            elite: true,
-            hiddenRoomId: room.id,
-            hiddenRoomRewardTier: room.rewardTier
         };
     }
 
@@ -5194,66 +5228,6 @@ class GameController {
         await this.sleep(90);
     }
 
-    async resolveHiddenRoomInteraction(room, entityObj) {
-        if (!room || room.cleared) return;
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
-        if (room.typeKey === 'event' && room.eventSeed) {
-            GameState.discoverRoomSeed('event', room.eventSeed);
-        } else if (room.typeKey === 'trial' && room.trialSeed) {
-            GameState.discoverRoomSeed('trial', room.trialSeed);
-        }
-        const worldPos = entityObj?.mesh?.position || this.engine.playerObj.position;
-        let message = `${room.displayName}被清空。`;
-
-        if (room.typeKey === 'treasure') {
-            room.entered = true;
-            this.revealTreasureRoomCaches(room);
-            if (entityObj && !this.engine.entities.includes(entityObj)) {
-                this.engine.entities.push(entityObj);
-            }
-            window.soundEngine?.chest();
-            message = room.pendingCacheIds?.length
-                ? `${room.displayName}展开了，自动开始回收室内宝物。`
-                : `${room.displayName}打开了，但里面已经空了。`;
-        } else if (room.typeKey === 'event') {
-            room.entered = true;
-            this.revealEventRoomNodes(room);
-            if (entityObj && !this.engine.entities.includes(entityObj)) {
-                this.engine.entities.push(entityObj);
-            }
-            window.soundEngine?.upgrade();
-            message = room.pendingEventNodeIds?.length
-                ? `${room.displayName}开始共振，先扫清室内回响节点。`
-                : this.resolveEventRoomV2(room);
-        }
-
-        if (entityObj?.mesh && room.typeKey !== 'treasure' && room.typeKey !== 'event') {
-            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.8, y: 1.8, z: 1.8 }, 0.2, Easing.easeOutQuad, () => {
-                this.engine.scene.remove(entityObj.mesh);
-            });
-        } else if (entityObj?.mesh && (room.typeKey === 'treasure' || room.typeKey === 'event')) {
-            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.15, y: 1.15, z: 1.15 }, 0.18, Easing.easeOutQuad, () => {
-                this.engine.tweens.add(entityObj.mesh.scale, { x: 0.7, y: 0.7, z: 0.7 }, 0.28, Easing.easeOutBack);
-            });
-        }
-        this.engine.spawnBurst(worldPos, room.typeKey === 'event' ? 0xc084fc : 0xfacc15, 24, 1.8);
-        this.engine.addFloatingText(room.displayName, worldPos, room.typeKey === 'event' ? '#c084fc' : '#facc15', true);
-        if ((room.typeKey === 'event' && !(room.pendingEventNodeIds?.length > 0))
-            || (room.typeKey !== 'event' && !(room.pendingCacheIds?.length > 0))) {
-            if (room.typeKey === 'treasure' && entityObj?.mesh) {
-                this.engine.scene.remove(entityObj.mesh);
-            }
-            if (room.typeKey === 'event' && entityObj?.mesh) {
-                this.engine.scene.remove(entityObj.mesh);
-            }
-            const markerIdx = this.engine.entities.findIndex((entity) => entity === entityObj);
-            if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
-            this.clearHiddenRoom(room);
-        }
-        await this.sleep(120);
-        this.engine.addFloatingText(message, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.3, 0)), '#e2e8f0');
-    }
-
     async resolveHiddenCachePickup(room, entityObj) {
         if (!room || room.cleared || !entityObj) return;
         const reward = Math.floor((entityObj.reward || Math.max(10, 16 * GameState.level)) * (GameState.floorBuff?.chestRewardMult || 1));
@@ -5343,80 +5317,6 @@ class GameController {
             this.engine.addFloatingText(`${entityObj.supportData?.label || '增幅装置'}已拆除`, room.eliteEntity.mesh.position, '#7dd3fc');
         }
         await this.sleep(90);
-    }
-
-    async resolveHiddenRoomInteraction(room, entityObj) {
-        if (!room || room.cleared) return;
-        const worldPos = entityObj?.mesh?.position || this.engine.playerObj.position;
-        let message = `${room.displayName}已处理。`;
-        const accentColor = room.typeKey === 'event'
-            ? 0xc084fc
-            : room.typeKey === 'elite'
-                ? 0x38bdf8
-                : 0xfacc15;
-        const accentTextColor = room.typeKey === 'event'
-            ? '#c084fc'
-            : room.typeKey === 'elite'
-                ? '#38bdf8'
-                : '#facc15';
-
-        if (room.typeKey === 'treasure') {
-            room.entered = true;
-            this.revealTreasureRoomCaches(room);
-            if (entityObj && !this.engine.entities.includes(entityObj)) {
-                this.engine.entities.push(entityObj);
-            }
-            window.soundEngine?.chest();
-            message = room.pendingCacheIds?.length
-                ? `${room.displayName}打开了，先把里面的藏品清完。`
-                : `${room.displayName}打开了，但里面已经被搬空。`;
-        } else if (room.typeKey === 'event') {
-            room.entered = true;
-            this.revealEventRoomNodes(room);
-            if (entityObj && !this.engine.entities.includes(entityObj)) {
-                this.engine.entities.push(entityObj);
-            }
-            window.soundEngine?.upgrade();
-            message = room.pendingEventNodeIds?.length
-                ? `${room.displayName}开始共振，先扫清里面的异象节点。`
-                : this.resolveEventRoomV2(room);
-        } else if (room.typeKey === 'elite') {
-            room.entered = true;
-            this.revealEliteRoomEncounter(room);
-            if (entityObj && !this.engine.entities.includes(entityObj)) {
-                this.engine.entities.push(entityObj);
-            }
-            window.soundEngine?.upgrade();
-            const eliteLabel = room.eliteVariant?.label || room.displayName;
-            message = room.pendingEliteNodeIds?.length
-                ? `${eliteLabel}已经苏醒，先拆掉里面的增幅装置。`
-                : `${eliteLabel}已经打开，精英现身了。`;
-        }
-
-        if (entityObj?.mesh && room.typeKey !== 'treasure' && room.typeKey !== 'event' && room.typeKey !== 'elite') {
-            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.8, y: 1.8, z: 1.8 }, 0.2, Easing.easeOutQuad, () => {
-                this.engine.scene.remove(entityObj.mesh);
-            });
-        } else if (entityObj?.mesh && (room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'elite')) {
-            this.engine.tweens.add(entityObj.mesh.scale, { x: 1.15, y: 1.15, z: 1.15 }, 0.18, Easing.easeOutQuad, () => {
-                const targetScale = room.typeKey === 'elite' ? 0.62 : 0.7;
-                this.engine.tweens.add(entityObj.mesh.scale, { x: targetScale, y: targetScale, z: targetScale }, 0.28, Easing.easeOutBack);
-            });
-        }
-        this.engine.spawnBurst(worldPos, accentColor, 24, 1.8);
-        this.engine.addFloatingText(room.displayName, worldPos, accentTextColor, true);
-        const shouldClearAfterInteraction = (room.typeKey === 'treasure' && !(room.pendingCacheIds?.length > 0))
-            || (room.typeKey === 'event' && !(room.pendingEventNodeIds?.length > 0));
-        if (shouldClearAfterInteraction) {
-            if ((room.typeKey === 'treasure' || room.typeKey === 'event') && entityObj?.mesh) {
-                this.engine.scene.remove(entityObj.mesh);
-            }
-            const markerIdx = this.engine.entities.findIndex((entity) => entity === entityObj);
-            if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
-            this.clearHiddenRoom(room);
-        }
-        await this.sleep(120);
-        this.engine.addFloatingText(message, this.engine.playerObj.position.clone().add(new THREE.Vector3(0, 0.3, 0)), '#e2e8f0');
     }
 
     async resolveHiddenEliteRoomClear(room, enemyMesh) {
@@ -5629,9 +5529,13 @@ class GameController {
         }
         if ((result.status === 'overflow' || result.status === 'duplicate' || result.status === 'empty-pool') && result.bonusScore > 0) {
             this.engine.addFloatingText(`+核心残响 ${result.bonusScore}`, anchorPos, '#facc15', true);
-            return result.status === 'duplicate'
-                ? `这枚核心你已经拿过了，转化成了 ${result.bonusScore} 魂能。`
-                : `核心槽已经装满，额外掉落转化成了 ${result.bonusScore} 魂能。`;
+            if (result.status === 'duplicate') {
+                return `这枚核心你已经拿过了，转化成了 ${result.bonusScore} 魂能。`;
+            }
+            if (result.status === 'empty-pool') {
+                return `当前核心池没有新的可用核心，额外掉落转化成了 ${result.bonusScore} 魂能。`;
+            }
+            return `核心槽已经装满，额外掉落转化成了 ${result.bonusScore} 魂能。`;
         }
         return '';
     }
@@ -5689,6 +5593,11 @@ class GameController {
 
     async resolveHiddenRoomInteraction(room, entityObj) {
         if (!room || room.cleared) return;
+        if (room.typeKey === 'event' && room.eventSeed) {
+            GameState.discoverRoomSeed('event', room.eventSeed);
+        } else if (room.typeKey === 'trial' && room.trialSeed) {
+            GameState.discoverRoomSeed('trial', room.trialSeed);
+        }
         const worldPos = entityObj?.mesh?.position || this.engine.playerObj.position;
         let message = `${room.displayName}已处理。`;
         const accentColor = room.typeKey === 'event'
@@ -5784,6 +5693,12 @@ class GameController {
             || room.typeKey === 'rest'
             || room.typeKey === 'merchant';
         if (shouldClearAfterInteraction) {
+            if (room.typeKey === 'treasure') {
+                const themeChainMessage = this.applyThemeChainBonus('treasure', room, worldPos);
+                if (themeChainMessage) {
+                    message += ' ' + themeChainMessage;
+                }
+            }
             if ((room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'trial' || room.typeKey === 'rest' || room.typeKey === 'merchant') && entityObj?.mesh) {
                 this.engine.scene.remove(entityObj.mesh);
             }
@@ -5798,7 +5713,7 @@ class GameController {
     runOcclusionSelfTest(mode = 'player') {
         this.selfTestActive = true;
         clearInterval(this.genInterval);
-        window.loadingOverlay?.hide(0);
+        this.clearGenerationLoadingState(0);
         clearTimeout(this.combatUiHideTimer);
         this.hideCombatUI();
         this.path = [];
@@ -5842,6 +5757,17 @@ class GameController {
     startLevel() {
         if (this.selfTestActive) return;
         GameState.phase = 'GENERATING';
+        this.scheduleGenerationLoading();
+        if (this.generationWatchdog) clearTimeout(this.generationWatchdog);
+        this.generationWatchdog = setTimeout(() => {
+            if (GameState.phase === 'GENERATING') {
+                this.setGenerationLoading(
+                    Math.max(this.generationProgress, 0.92),
+                    '本层生成比平时更慢一点，仍在继续准备，请稍等。',
+                    '生成较慢'
+                );
+            }
+        }, 8000);
         this.setGenerationLoading(0.04, '正在准备本层主题、补给和迷宫尺寸。', '准备中');
         GameState.player.currentHp = GameState.player.baseHp;
         GameState.resetFloorStats();
@@ -6122,6 +6048,10 @@ class GameController {
     }
 
     finishGeneration() {
+        if (this.generationWatchdog) {
+            clearTimeout(this.generationWatchdog);
+            this.generationWatchdog = null;
+        }
         this.setGenerationLoading(0.84, '正在安放隐藏房间与分支内容。', '布置房间');
         this.digWall(this.grid[this.endPos.r][this.endPos.c]);
         const openCells = [];
@@ -6188,7 +6118,7 @@ class GameController {
             this.refreshExplorationPath();
             this.exploreNext();
             this.setGenerationLoading(1, '本层准备完成。', '开始推进');
-            window.loadingOverlay?.hide(180);
+            this.clearGenerationLoadingState(180);
         });
     }
 
@@ -6456,14 +6386,17 @@ class GameController {
                 await this.sleep(420);
             }
             const reflexShieldTriggered = !!GameState.floorRuntime?.reflexShieldReady;
-            let damageMult = GameState.floorBuff?.incomingDamageMult || 1;
+            const incomingDamageMult = GameState.floorBuff?.incomingDamageMult || 1;
+            const attackRoll = 0.82 + Math.random() * 0.38;
+            const enemyDamageBeforeReflex = Math.floor(profile.atk * attackRoll * incomingDamageMult * (bossAttackPrep.attackMult || 1));
+            let enemyDamage = enemyDamageBeforeReflex;
             let reflexShieldMessage = '';
             if (reflexShieldTriggered) {
                 GameState.floorRuntime.reflexShieldReady = false;
-                damageMult *= 0.38;
-                reflexShieldMessage = 'Reflex Shield absorbed most of the hit.';
+                enemyDamage = Math.floor(enemyDamageBeforeReflex * 0.38);
+                const preventedDamage = Math.max(0, enemyDamageBeforeReflex - enemyDamage);
+                reflexShieldMessage = `反射护盾挡下 ${preventedDamage} 点伤害，本次只承受 ${enemyDamage} 点。`;
             }
-            const enemyDamage = Math.floor(profile.atk * (0.82 + Math.random() * 0.38) * damageMult * (bossAttackPrep.attackMult || 1));
             const enemyOrigPos = enemyMesh.position.clone();
             const enemyDashPos = enemyOrigPos.clone().sub(dir.clone().multiplyScalar(dashDist));
 
@@ -6489,7 +6422,7 @@ class GameController {
                 await this.typeText(reflexShieldMessage);
                 await this.sleep(420);
             }
-            await this.typeText(`璀﹀憡锛佺帺瀹舵崯澶变簡 ${enemyDamage} 鐐圭敓鍛藉€硷紒`);
+            await this.typeText(`警告！玩家损失了 ${enemyDamage} 点生命值！`);
             await this.sleep(700);
         }
 

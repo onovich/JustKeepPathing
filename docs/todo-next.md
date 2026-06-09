@@ -1,103 +1,55 @@
 # JustKeepPathing Next TODO
 
-This file captures the next safe implementation slices after the current hidden-room, relic, and theme systems landed.
+Updated 2026-06-09 after reviewing the current runtime state.
 
-## 1. Support Room Automation Polish
+## Already Landed
 
-Goal:
+- Support-room automation now uses floor supplies, HP pressure, and auto-strategy settings for `rest` and `merchant` room appetite.
+- Event/trial seed expansion is present in runtime data and handlers:
+  - event: `repair_dock`
+  - event: `supply_depot`
+  - trial: `breach_charge`
+  - trial: `guard_cache`
+- The read-only collection/codex surface exists and persists discovered event seeds, trial seeds, relics, and finale bosses.
+- The stale duplicate hidden-room interaction definitions and duplicate elite builder definition were removed from `index.html`; the surviving interaction path records event/trial seed discoveries.
+- Empty treasure-room completion now still routes through `applyThemeChainBonus('treasure', ...)`, so salvage-theme treasure bonuses are not skipped when no cache nodes remain.
+- `Reflex Shield` combat text now reports how much damage was blocked and how much damage was actually taken.
+- Empty relic-pool rewards now explain that no new core is available instead of saying the core slots are full.
 
-- make `rest` and `merchant` rooms feel more intentional in unattended play
-- keep the room decision fully automatic
-- tie the decision more strongly to floor supplies
-
-Implementation notes:
-
-- continue using the existing floor-supply inventory and auto-strategy settings
-- weight `rest` room priority by:
-  - current HP ratio
-  - whether the current floor already consumed a supply
-  - whether the most-needed supply is out of stock
-- weight `merchant` room priority by:
-  - current score relative to discounted upgrade cost
-  - supply shortage severity
-  - player strategy: `power` / `supplies` / `save`
-- keep all outcomes choice-free and immediate
-
-Acceptance:
-
-- low-HP runs noticeably prefer `rest` rooms
-- supply-starved runs noticeably prefer `merchant` rooms when score allows
-- unattended play never pauses for a decision prompt
-
-## 2. Event And Trial Seed Expansion
-
-Goal:
-
-- deepen run variety without adding new UI complexity
-- make special rooms produce more memorable “run stories”
-
-Recommended next seeds:
-
-- event: `repair_dock`
-  - heal now
-  - reduce incoming damage for the rest of the floor
-  - optionally grant one needed floor supply on stronger rolls
-- event: `supply_depot`
-  - grant one or two floor supplies based on charge count
-  - bias the supply type by current floor archetype and shortage
-- trial: `breach_charge`
-  - grant immediate attack
-  - also preheat next-floor attack
-  - high roll grants `assault` supply
-- trial: `guard_cache`
-  - heal now
-  - reduce incoming damage for the rest of the floor
-  - high roll grants one needed floor supply
-
-Implementation caution:
-
-- `index.html` still contains duplicate method definitions in some areas
-- when wiring new room effects, verify which definition is actually the last effective one before editing
-
-Acceptance:
-
-- at least 2 new event seeds and 2 new trial seeds appear in the runtime pool
-- each new seed changes either supply state, current-floor survival, or next-floor momentum
-- the autopather’s special-room appetite reflects the new seed value
-
-## 3. Theme Chain And Relic Follow-Up
+## 1. Theme Chain And Relic Follow-Up
 
 Goal:
 
 - finish the cross-system glue between special rooms, theme chains, and run relics
+- keep all bonus text and collection/relic state routed through one obvious runtime path
 
 Outstanding work:
 
-- make sure `event`, `trial`, `merchant`, `rest`, and `elite` all consistently route through theme-chain bonus text and effect application
-- make sure `Echo Engine` always hooks into the intended event resolution path
-- make the `Reflex Shield` combat message explicit when damage is reduced
-- remove duplicate reward-roll paths so elite rewards are handled in one place
+- audit `event`, `trial`, `merchant`, `rest`, `treasure`, and `elite` room completion paths for consistent `applyThemeChainBonus(...)` calls and visible result text
+- verify `Echo Engine` always hooks into the final event resolution path, not a stale or bypassed path
+- remove or consolidate any remaining duplicate elite/boss reward-roll paths so premium rewards cannot double-apply or silently miss
 
 Acceptance:
 
 - no room type silently applies theme-chain effects without surfacing them in text
 - chained bonuses update runtime state and UI consistently
-- consecutive elite / event reward flows do not double-apply or silently miss
+- consecutive elite/event reward flows do not double-apply or silently miss
+- collection discoveries still update after event/trial room entry
 
-## 4. Hidden Room Routing Debug Pass
+## 2. Hidden Room Routing Debug Pass
 
 Goal:
 
-- make future room-balance work easier to tune
+- make room-balance work explainable instead of guesswork
 
 Recommended instrumentation:
 
-- log or expose per-room values for:
+- expose per-room values in the existing path debug panel:
   - `accessScore`
   - detour cost
-  - gate state
+  - gate state and progress
   - final diversion score after strategy modifiers
-- capture whether the room was:
+- capture whether each room was:
   - generated
   - reachable
   - entered
@@ -106,23 +58,46 @@ Recommended instrumentation:
 Acceptance:
 
 - we can explain why the autopather took or skipped a special room on a given floor
-- balancing room appetite no longer depends on guesswork
+- balancing room appetite no longer depends on reading scattered runtime state by hand
 
-## 5. Pre-Prestige Progression Groundwork
+## 3. Browser Smoke Coverage
 
 Goal:
 
-- prepare for the next layer after run content without building full prestige yet
+- protect the playable baseline while `index.html` is still the canonical entry point
 
 Recommended slice:
 
-- add a persistent codex/collection surface for:
-  - discovered room seeds
-  - discovered relics
-  - discovered finale bosses
-- keep it read-only at first
+- add a local smoke workflow that can load `http://127.0.0.1:5173/`, wait for the game scene, and fail on console errors
+- include a focused collection smoke:
+  - open the collection panel
+  - verify counts render
+  - seed a localStorage discovery fixture if needed
+- include a generation-overlay smoke:
+  - confirm the loading overlay is hidden on normal startup
+  - confirm delayed generation text appears only for slow generation
 
 Acceptance:
 
-- the player can see long-term collection progress even before prestige systems ship
-- run variety immediately contributes to a visible meta goal
+- `npm run check` still stays fast and local
+- browser smoke can be run manually before risky UI/render changes
+- the smoke does not require a production build step
+
+## 4. Refactor Follow-Up
+
+Goal:
+
+- keep reducing `index.html` without changing gameplay feel or static-host deployment
+
+Recommended next extraction candidates:
+
+- special-room scoring and resolution helpers
+- collection/codex data helpers
+- loading overlay controller
+- path debug panel formatting
+
+Acceptance:
+
+- extracted modules stay dependency-light and static-host friendly
+- runtime ordering stays stable
+- `index.html` remains playable after each slice
