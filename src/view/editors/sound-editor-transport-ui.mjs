@@ -25,6 +25,13 @@ export function buildSoundEditorTransportState({
     };
 }
 
+export function getSoundEditorPreviewToggleAction(options = {}) {
+    const state = buildSoundEditorTransportState(options);
+    if (state.isCurrentActive && !state.isPaused) return 'pause';
+    if (state.isCurrentActive && state.isPaused) return 'resume';
+    return 'preview';
+}
+
 export function applySoundEditorTransportState({ previewButton, stopPreviewButton, state }) {
     previewButton.title = state.previewTitle;
     previewButton.setAttribute('aria-label', state.previewAriaLabel);

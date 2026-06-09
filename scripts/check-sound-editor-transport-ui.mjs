@@ -3,7 +3,8 @@ import {
     SOUND_EDITOR_PAUSE_ICON_SVG,
     SOUND_EDITOR_PLAY_ICON_SVG,
     applySoundEditorTransportState,
-    buildSoundEditorTransportState
+    buildSoundEditorTransportState,
+    getSoundEditorPreviewToggleAction
 } from '../src/view/editors/sound-editor-transport-ui.mjs';
 
 function createButton() {
@@ -77,6 +78,54 @@ assert.equal(
     }).previewTitle,
     'Play',
     'paused continuous transport should show play'
+);
+
+assert.equal(
+    getSoundEditorPreviewToggleAction({
+        currentSoundKey: 'upgrade',
+        def: { type: 'oneshot' },
+        currentPreviewKey: null,
+        isContinuousPreviewActive: false,
+        previewPaused: false
+    }),
+    'preview',
+    'one-shot toggle should always start a preview'
+);
+
+assert.equal(
+    getSoundEditorPreviewToggleAction({
+        currentSoundKey: 'footsteps',
+        def: { type: 'loop' },
+        currentPreviewKey: 'footsteps',
+        isContinuousPreviewActive: true,
+        previewPaused: false
+    }),
+    'pause',
+    'active continuous toggle should pause'
+);
+
+assert.equal(
+    getSoundEditorPreviewToggleAction({
+        currentSoundKey: 'footsteps',
+        def: { type: 'loop' },
+        currentPreviewKey: 'footsteps',
+        isContinuousPreviewActive: true,
+        previewPaused: true
+    }),
+    'resume',
+    'paused continuous toggle should resume'
+);
+
+assert.equal(
+    getSoundEditorPreviewToggleAction({
+        currentSoundKey: 'bgm',
+        def: { type: 'bgm' },
+        currentPreviewKey: 'footsteps',
+        isContinuousPreviewActive: false,
+        previewPaused: true
+    }),
+    'preview',
+    'inactive current sound should start a fresh preview'
 );
 
 {

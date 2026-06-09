@@ -792,7 +792,8 @@ import {
 } from './src/view/editors/sound-editor-controls.mjs';
 import {
     applySoundEditorTransportState,
-    buildSoundEditorTransportState
+    buildSoundEditorTransportState,
+    getSoundEditorPreviewToggleAction
 } from './src/view/editors/sound-editor-transport-ui.mjs';
 import {
     applySoundEditorMeta,
@@ -7272,15 +7273,20 @@ class SoundEditor {
     async handlePreviewToggle() {
         await this.soundEngine.unlock();
         const def = this.getCurrentSoundDef();
-        const isContinuous = def.type === 'loop' || def.type === 'bgm';
-        const isCurrentActive = isContinuous && this.soundEngine.currentPreviewKey === this.currentSoundKey && this.soundEngine.isContinuousPreviewActive(this.currentSoundKey);
+        const action = getSoundEditorPreviewToggleAction({
+            currentSoundKey: this.currentSoundKey,
+            def,
+            currentPreviewKey: this.soundEngine.currentPreviewKey,
+            isContinuousPreviewActive: this.soundEngine.isContinuousPreviewActive(this.currentSoundKey),
+            previewPaused: this.soundEngine.previewPaused
+        });
 
-        if (isCurrentActive && !this.soundEngine.previewPaused) {
+        if (action === 'pause') {
             this.pausePreview();
             return;
         }
 
-        if (isCurrentActive && this.soundEngine.previewPaused) {
+        if (action === 'resume') {
             this.soundEngine.resumePreview();
             this.setStatus('试听中');
             this.updateTransportUi();
