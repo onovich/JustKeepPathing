@@ -17,6 +17,7 @@ Updated 2026-06-09 after reviewing the current runtime state.
 - Empty relic-pool rewards now explain that no new core is available instead of saying the core slots are full.
 - A dependency-free browser smoke now launches a temporary static server and headless Chrome to verify startup, canvas sizing, loading overlay state, and the collection panel.
 - `LoadingOverlay` was extracted into `src/view/loading-overlay.mjs`.
+- The settings/strategy panel was extracted into `src/view/settings-panel.mjs`, with focused hint text checks.
 - `CollectionPanel` and `PathDebugPanel` were extracted into `src/view/panels/` with explicit `GameState`/controller dependencies.
 - Hidden-room diversion scoring and small interaction-resolution helpers were extracted into `src/logic/hidden-room-routing.mjs` and `src/logic/hidden-room-resolution.mjs`, with focused check scripts.
 - Theme-chain bonus formulas were extracted into `src/logic/theme-chain-bonuses.mjs`, with focused checks and `GameController` still owning message/effect presentation.

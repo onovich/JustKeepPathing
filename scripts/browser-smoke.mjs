@@ -222,7 +222,7 @@ async function runSmoke() {
     await delay(1500);
 
     const expression = `(${async function browserSmoke() {
-      const waitFor = (predicate, timeoutMs = 12000) => new Promise((resolve, reject) => {
+      const waitFor = (predicate, timeoutMs = 12000, label = 'app readiness') => new Promise((resolve, reject) => {
         const started = performance.now();
         const tick = () => {
           try {
@@ -232,7 +232,7 @@ async function runSmoke() {
             }
           } catch {}
           if (performance.now() - started > timeoutMs) {
-            reject(new Error('Timed out waiting for app readiness.'));
+            reject(new Error(`Timed out waiting for ${label}.`));
             return;
           }
           setTimeout(tick, 100);
@@ -240,7 +240,7 @@ async function runSmoke() {
         tick();
       });
 
-      await waitFor(() => window.gameController && window.engine && window.GameState && document.querySelector('#webgl-canvas'));
+      await waitFor(() => window.gameController && window.engine && window.GameState && document.querySelector('#webgl-canvas'), 12000, 'app readiness');
       await new Promise((resolve) => setTimeout(resolve, 900));
 
       const overlay = document.getElementById('app-loading-overlay');
@@ -256,11 +256,17 @@ async function runSmoke() {
       const collectionButton = document.getElementById('btn-collection');
       const collectionModal = document.getElementById('collection-modal');
       const collectionBadge = document.getElementById('collection-count-badge');
+      const settingsButton = document.getElementById('btn-settings');
+      const settingsPanel = document.getElementById('settings-panel');
+      const settingsHint = document.getElementById('settings-strategy-hint');
+      const riskSelect = document.getElementById('select-strategy-risk');
 
       if (!collectionButton || !collectionModal) throw new Error('Collection controls are missing.');
       collectionButton.click();
-      await waitFor(() => !collectionModal.classList.contains('hidden'), 4000);
+      await waitFor(() => !collectionModal.classList.contains('hidden'), 4000, 'collection modal');
+      document.getElementById('btn-collection-close')?.click();
 
+      if (!settingsButton || !settingsPanel || !settingsHint || !riskSelect) throw new Error('Settings controls are missing.');
       const result = {
         phase: window.GameState.phase,
         level: window.GameState.level,
@@ -271,6 +277,9 @@ async function runSmoke() {
         trialCards: document.querySelectorAll('#collection-trial-list article').length,
         relicCards: document.querySelectorAll('#collection-relic-list article').length,
         bossCards: document.querySelectorAll('#collection-boss-list article').length,
+        settingsPanelHidden: settingsPanel.classList.contains('hidden'),
+        settingsRiskValue: riskSelect.value,
+        settingsHintText: settingsHint.innerText || '',
         overlayHidden,
         canvasWidth: canvas?.clientWidth || 0,
         canvasHeight: canvas?.clientHeight || 0,
@@ -278,12 +287,13 @@ async function runSmoke() {
         hasEngine: !!window.engine
       };
 
-      document.getElementById('btn-collection-close')?.click();
-
       if (!result.overlayHidden) throw new Error('Loading overlay is visible after startup.');
       if (result.canvasWidth <= 0 || result.canvasHeight <= 0) throw new Error('Canvas has no visible size.');
       if (result.collectionSummaryCards < 4) throw new Error('Collection summary cards did not render.');
       if (!result.collectionBadge.includes('/')) throw new Error('Collection badge did not render progress.');
+      if (!result.settingsPanelHidden) throw new Error('Settings panel should start hidden.');
+      if (result.settingsHintText.length < 8) throw new Error('Settings strategy hint did not render.');
+      if (!result.settingsRiskValue) throw new Error('Settings risk select did not sync.');
       return result;
     }})()`;
 

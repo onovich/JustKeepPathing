@@ -770,6 +770,7 @@ import {
     pickRelicReward
 } from './src/data/relics.mjs';
 import { LoadingOverlay } from './src/view/loading-overlay.mjs';
+import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
 import { PathDebugPanel } from './src/view/panels/path-debug-panel.mjs';
 
@@ -7535,92 +7536,9 @@ window.onload = () => {
     const unlockAudio = () => window.soundEngine.unlock();
     window.addEventListener('pointerdown', unlockAudio, { passive: true });
     window.addEventListener('keydown', unlockAudio);
-    const settingsButton = document.getElementById('btn-settings');
-    const settingsPanel = document.getElementById('settings-panel');
-    const volumeSlider = document.getElementById('slider-volume');
-    const volumeValue = document.getElementById('val-volume');
-    const riskSelect = document.getElementById('select-strategy-risk');
-    const restSelect = document.getElementById('select-strategy-rest');
-    const merchantSelect = document.getElementById('select-strategy-merchant');
-    const supplySelect = document.getElementById('select-strategy-supply');
-    const strategyHint = document.getElementById('settings-strategy-hint');
-
-    const syncVolumeUI = () => {
-        const percent = Math.round(window.soundEngine.volume * 100);
-        volumeSlider.value = String(percent);
-        volumeValue.innerText = `${percent}%`;
-    };
-
-    const buildStrategyHint = () => {
-        const riskLabel = ({
-            cautious: '会更少绕高风险密室',
-            balanced: '会按正常收益判断绕路',
-            greedy: '会更愿意为了高收益绕路'
-        })[GameState.autoStrategy.risk] || '会按正常收益判断绕路';
-        const restLabel = ({
-            emergency: '休整密室只在危险时优先',
-            balanced: '休整密室保持正常优先级',
-            prefer: '休整密室会更积极去补状态'
-        })[GameState.autoStrategy.rest] || '休整密室保持正常优先级';
-        const merchantLabel = ({
-            power: '商贩更偏向买升级',
-            supplies: '商贩更偏向补层补给',
-            save: '商贩会更克制地花钱'
-        })[GameState.autoStrategy.merchant] || '商贩更偏向买升级';
-        const supplyLabel = ({
-            balanced: '挂机倾向会自动保持均衡',
-            combat: '挂机倾向会更偏向战斗推进',
-            loot: '挂机倾向会更偏向资源回收',
-            explore: '挂机倾向会更偏向密室探索'
-        })[GameState.autoStrategy.supply] || '挂机倾向会自动保持均衡';
-        strategyHint.innerText = `${riskLabel}；${restLabel}；${merchantLabel}；${supplyLabel}。`;
-    };
-
-    const syncStrategyUI = () => {
-        riskSelect.value = GameState.autoStrategy.risk;
-        restSelect.value = GameState.autoStrategy.rest;
-        merchantSelect.value = GameState.autoStrategy.merchant;
-        supplySelect.value = GameState.autoStrategy.supply;
-        buildStrategyHint();
-    };
-
-    const updateStrategy = async (patch) => {
-        await window.soundEngine.unlock();
-        GameState.setAutoStrategy(patch);
-        syncStrategyUI();
-        window.soundEngine.beep({ freq: 420, slideTo: 560, duration: 0.07, volume: 0.03, type: 'triangle' });
-    };
-
-    settingsButton.addEventListener('click', async (event) => {
-        event.stopPropagation();
-        await window.soundEngine.unlock();
-        settingsPanel.classList.toggle('hidden');
-    });
-
-    settingsPanel.addEventListener('click', (event) => {
-        event.stopPropagation();
-    });
-
-    document.addEventListener('click', () => {
-        settingsPanel.classList.add('hidden');
-    });
-
-    volumeSlider.addEventListener('input', async () => {
-        await window.soundEngine.unlock();
-        window.soundEngine.setVolume(Number(volumeSlider.value) / 100);
-        syncVolumeUI();
-        window.soundEngine.beep({ freq: 520, slideTo: 700, duration: 0.08, volume: 0.035, type: 'triangle' });
-    });
-
-    riskSelect.addEventListener('change', async () => updateStrategy({ risk: riskSelect.value }));
-    restSelect.addEventListener('change', async () => updateStrategy({ rest: restSelect.value }));
-    merchantSelect.addEventListener('change', async () => updateStrategy({ merchant: merchantSelect.value }));
-    supplySelect.addEventListener('change', async () => updateStrategy({ supply: supplySelect.value }));
-
     GameState.loadCollection();
     GameState.loadAutoStrategy();
-    syncVolumeUI();
-    syncStrategyUI();
+    initializeSettingsPanel({ gameState: GameState, soundEngine: window.soundEngine });
     window.engine = new VisualEngine();
     window.modelEditor = new ModelEditor(window.engine);
     window.soundEditor = new SoundEditor(window.soundEngine);
