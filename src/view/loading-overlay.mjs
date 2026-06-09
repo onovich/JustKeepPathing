@@ -1,3 +1,28 @@
+export const DEFAULT_LOADING_PROGRESS = 0.04;
+export const GENERATION_LOADING_DELAY_MS = 3000;
+
+export function clampLoadingProgress(progress, minimum = DEFAULT_LOADING_PROGRESS) {
+    return Math.max(minimum, Math.min(1, Number.isFinite(progress) ? progress : minimum));
+}
+
+export function buildLoadingOverlaySnapshot({
+    title,
+    detail,
+    progress = DEFAULT_LOADING_PROGRESS,
+    stage
+} = {}) {
+    return {
+        title,
+        detail,
+        progress: clampLoadingProgress(progress),
+        stage
+    };
+}
+
+export function shouldRevealGenerationLoading({ phase, selfTestActive = false } = {}) {
+    return phase === 'GENERATING' && !selfTestActive;
+}
+
 export class LoadingOverlay {
     constructor() {
         this.root = document.getElementById('app-loading-overlay');
@@ -20,7 +45,7 @@ export class LoadingOverlay {
             clearTimeout(this.hideTimer);
             this.hideTimer = null;
         }
-        const clamped = Math.max(0.04, Math.min(1, progress));
+        const clamped = clampLoadingProgress(progress);
         this.root.classList.remove('hidden-overlay');
         if (this.titleEl) this.titleEl.innerText = title;
         if (this.detailEl) this.detailEl.innerText = detail;

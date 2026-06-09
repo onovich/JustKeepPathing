@@ -804,7 +804,12 @@ import {
     sanitizeCollection,
     writeStoredCollection
 } from './src/logic/collection-state.mjs';
-import { LoadingOverlay } from './src/view/loading-overlay.mjs';
+import {
+    GENERATION_LOADING_DELAY_MS,
+    LoadingOverlay,
+    buildLoadingOverlaySnapshot,
+    shouldRevealGenerationLoading
+} from './src/view/loading-overlay.mjs';
 import {
     bindModelEditorHeaderButton,
     bindSoundEditorHeaderButton
@@ -3389,18 +3394,18 @@ class GameController {
     }
 
     setGenerationLoading(progress, detail, stage = '生成中', title = '正在生成迷宫') {
-        this.generationProgress = Math.max(0, Math.min(1, progress));
-        this.generationLoadingSnapshot = {
+        this.generationLoadingSnapshot = buildLoadingOverlaySnapshot({
             title,
             detail,
-            progress: this.generationProgress,
+            progress,
             stage
-        };
+        });
+        this.generationProgress = this.generationLoadingSnapshot.progress;
         if (!this.generationLoadingVisible) return;
         window.loadingOverlay?.show(this.generationLoadingSnapshot);
     }
 
-    scheduleGenerationLoading() {
+    scheduleGenerationLoading(delayMs = GENERATION_LOADING_DELAY_MS) {
         if (this.generationLoadingDelayTimer) {
             clearTimeout(this.generationLoadingDelayTimer);
         }
@@ -3408,10 +3413,10 @@ class GameController {
         window.loadingOverlay?.hide(0);
         this.generationLoadingDelayTimer = setTimeout(() => {
             this.generationLoadingDelayTimer = null;
-            if (this.selfTestActive || GameState.phase !== 'GENERATING') return;
+            if (!shouldRevealGenerationLoading({ selfTestActive: this.selfTestActive, phase: GameState.phase })) return;
             this.generationLoadingVisible = true;
             window.loadingOverlay?.show(this.generationLoadingSnapshot);
-        }, 3000);
+        }, Math.max(0, delayMs));
     }
 
     clearGenerationLoadingState(hideDelay = 0) {

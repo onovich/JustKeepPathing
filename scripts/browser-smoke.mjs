@@ -276,6 +276,49 @@ async function runSmoke() {
         || overlayStyle.pointerEvents === 'none'
         || Number(overlayStyle.opacity) === 0
       );
+      const overlayTitle = document.getElementById('app-loading-title');
+      const overlayDetail = document.getElementById('app-loading-detail');
+      const overlayStage = document.getElementById('app-loading-stage');
+      const generationOverlayTitle = 'Delayed generation smoke';
+      const generationOverlayDetail = 'Slow generation text appears after delay.';
+      const generationOverlayStage = 'Smoke slow path';
+      let generationOverlayHiddenBeforeDelay = false;
+      let generationOverlayShownAfterDelay = false;
+      let generationOverlayText = '';
+      let generationOverlayHiddenAfterClear = false;
+      if (!overlay || !overlayTitle || !overlayDetail || !overlayStage || !window.gameController?.scheduleGenerationLoading) {
+        throw new Error('Generation loading overlay controls are missing.');
+      }
+      const savedPhase = window.GameState.phase;
+      const savedSelfTestActive = window.gameController.selfTestActive;
+      const savedGenerationVisible = window.gameController.generationLoadingVisible;
+      const savedGenerationProgress = window.gameController.generationProgress;
+      const savedGenerationSnapshot = { ...window.gameController.generationLoadingSnapshot };
+      try {
+        window.gameController.selfTestActive = false;
+        window.GameState.phase = 'GENERATING';
+        window.gameController.setGenerationLoading(0.37, generationOverlayDetail, generationOverlayStage, generationOverlayTitle);
+        window.gameController.scheduleGenerationLoading(120);
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        generationOverlayHiddenBeforeDelay = overlay.classList.contains('hidden-overlay');
+        await waitFor(() => !overlay.classList.contains('hidden-overlay'), 1000, 'delayed generation overlay');
+        generationOverlayShownAfterDelay = !overlay.classList.contains('hidden-overlay');
+        generationOverlayText = [
+          overlayTitle.textContent || overlayTitle.innerText || '',
+          overlayDetail.textContent || overlayDetail.innerText || '',
+          overlayStage.textContent || overlayStage.innerText || ''
+        ].join(' | ');
+        window.gameController.clearGenerationLoadingState(0);
+        await waitFor(() => overlay.classList.contains('hidden-overlay'), 1000, 'generation overlay cleanup');
+        generationOverlayHiddenAfterClear = overlay.classList.contains('hidden-overlay');
+      } finally {
+        window.gameController.clearGenerationLoadingState?.(0);
+        window.GameState.phase = savedPhase;
+        window.gameController.selfTestActive = savedSelfTestActive;
+        window.gameController.generationLoadingVisible = savedGenerationVisible;
+        window.gameController.generationProgress = savedGenerationProgress;
+        window.gameController.generationLoadingSnapshot = savedGenerationSnapshot;
+      }
       const countFoundBadges = (selector) => Array.from(document.querySelectorAll(`${selector} article span`))
         .filter((element) => element.innerText.trim() === 'Found')
         .length;
@@ -438,6 +481,10 @@ async function runSmoke() {
         hasHudSupplyPill: !!hudSupplyPill,
         hasSpeedUpgradeButton: !!speedUpgradeButton,
         overlayHidden,
+        generationOverlayHiddenBeforeDelay,
+        generationOverlayShownAfterDelay,
+        generationOverlayText,
+        generationOverlayHiddenAfterClear,
         canvasWidth: canvas?.clientWidth || 0,
         canvasHeight: canvas?.clientHeight || 0,
         hasController: !!window.gameController,
@@ -463,6 +510,12 @@ async function runSmoke() {
       };
 
       if (!result.overlayHidden) throw new Error('Loading overlay is visible after startup.');
+      if (!result.generationOverlayHiddenBeforeDelay) throw new Error('Generation overlay appeared before its delay.');
+      if (!result.generationOverlayShownAfterDelay) throw new Error('Generation overlay did not appear after its delay.');
+      if (!result.generationOverlayText.includes(generationOverlayTitle) || !result.generationOverlayText.includes(generationOverlayDetail)) {
+        throw new Error(`Generation overlay delayed text did not render: ${result.generationOverlayText}`);
+      }
+      if (!result.generationOverlayHiddenAfterClear) throw new Error('Generation overlay did not hide after cleanup.');
       if (result.canvasWidth <= 0 || result.canvasHeight <= 0) throw new Error('Canvas has no visible size.');
       if (result.collectionSummaryCards < 4) throw new Error('Collection summary cards did not render.');
       if (!result.collectionBadge.includes('/')) throw new Error('Collection badge did not render progress.');
