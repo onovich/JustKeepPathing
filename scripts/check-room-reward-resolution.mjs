@@ -22,6 +22,12 @@ assert.equal(
     'reward details should keep their append order'
 );
 
+assert.equal(
+    appendRoomRewardDetails('', ['Theme bonus.']),
+    'Theme bonus.',
+    'reward details should work without a base message'
+);
+
 {
     let updateCount = 0;
     const message = finalizeRoomRewardMessage({

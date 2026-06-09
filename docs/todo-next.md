@@ -39,7 +39,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Theme-chain bonus formulas were extracted into `src/logic/theme-chain-bonuses.mjs`, with focused checks and `GameController` still owning message/effect presentation.
 - Event, rest, merchant, trial, and elite room reward formulas were extracted into `src/logic/room-reward-calculations.mjs`, with focused checks.
 - Event stockpile, trial supply rewards, and merchant purchase decisions were extracted into `src/logic/room-reward-plans.mjs`, with focused checks.
-- Event/rest/merchant/trial/elite reward resolution now shares `src/logic/room-reward-resolution.mjs` message finalization, with focused checks for theme-chain detail appending, detail order, and UI refresh callbacks.
+- Event/rest/merchant/trial/elite/treasure reward resolution now shares `src/logic/room-reward-resolution.mjs` message finalization, with focused checks for theme-chain detail appending, detail order, empty base messages, and UI refresh callbacks.
 - `npm run smoke:screenshot` now captures a reusable local browser screenshot at `artifacts/screenshots/latest.png`.
 
 ## 1. Theme Chain And Relic Follow-Up

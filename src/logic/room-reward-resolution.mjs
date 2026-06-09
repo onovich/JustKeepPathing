@@ -1,7 +1,8 @@
 export function appendRoomRewardDetails(message, details = []) {
     let resolved = message;
     for (const detail of details) {
-        if (detail) resolved += ' ' + detail;
+        if (!detail) continue;
+        resolved = resolved ? resolved + ' ' + detail : detail;
     }
     return resolved;
 }

@@ -4958,9 +4958,10 @@ class GameController {
             const markerIdx = this.engine.entities.findIndex((entity) => entity === room.entity);
             if (markerIdx > -1) this.engine.entities.splice(markerIdx, 1);
             this.clearHiddenRoom(room);
-            const themeChainMessage = this.applyThemeChainBonus(
+            const themeChainMessage = this.finalizeHiddenRoomRewardResolution(
                 'treasure',
                 room,
+                '',
                 entityObj?.mesh?.position?.clone() || this.engine.playerObj.position.clone()
             );
             if (themeChainMessage) {
@@ -5383,10 +5384,7 @@ class GameController {
         const shouldClearAfterInteraction = shouldClearHiddenRoomAfterInteraction(room);
         if (shouldClearAfterInteraction) {
             if (room.typeKey === 'treasure') {
-                const themeChainMessage = this.applyThemeChainBonus('treasure', room, worldPos);
-                if (themeChainMessage) {
-                    message += ' ' + themeChainMessage;
-                }
+                message = this.finalizeHiddenRoomRewardResolution('treasure', room, message, worldPos);
             }
             if ((room.typeKey === 'treasure' || room.typeKey === 'event' || room.typeKey === 'trial' || room.typeKey === 'rest' || room.typeKey === 'merchant') && entityObj?.mesh) {
                 this.engine.scene.remove(entityObj.mesh);
