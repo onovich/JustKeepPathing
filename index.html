@@ -728,7 +728,10 @@ import {
     removePendingHiddenRoomEntity,
     shouldClearHiddenRoomAfterInteraction
 } from './src/logic/hidden-room-resolution.mjs';
-import { calculateHiddenRoomDiversionScore } from './src/logic/hidden-room-routing.mjs';
+import {
+    buildHiddenRoomRoutingDebug,
+    calculateHiddenRoomDiversionScore
+} from './src/logic/hidden-room-routing.mjs';
 import { buildThemeChainBonusPlan } from './src/logic/theme-chain-bonuses.mjs';
 import {
     calculateEliteRoomClearRewards,
@@ -4429,11 +4432,11 @@ class GameController {
 
         for (const room of this.hiddenRooms) {
             if (room.cleared) {
-                room.routingDebug = { state: 'cleared', threshold, baseAccessScore: room.accessScore };
+                room.routingDebug = buildHiddenRoomRoutingDebug({ room, state: 'cleared', threshold });
                 continue;
             }
             if (!room.unlocked) {
-                room.routingDebug = { state: 'locked', threshold, baseAccessScore: room.accessScore };
+                room.routingDebug = buildHiddenRoomRoutingDebug({ room, state: 'locked', threshold });
                 continue;
             }
             const objective = this.getHiddenRoomObjectiveCell(room);
@@ -4446,32 +4449,34 @@ class GameController {
                 allowedHiddenRoomId: room.id
             });
             if (!Array.isArray(pathToRoom) || !Array.isArray(pathRoomToExit)) {
-                room.routingDebug = {
+                room.routingDebug = buildHiddenRoomRoutingDebug({
+                    room,
                     state: 'path-missing',
-                    threshold,
-                    baseAccessScore: room.accessScore
-                };
+                    threshold
+                });
                 continue;
             }
             if (this.playerPos.c !== objective.c || this.playerPos.r !== objective.r) {
                 if (pathToRoom.length === 0) {
-                    room.routingDebug = {
+                    room.routingDebug = buildHiddenRoomRoutingDebug({
+                        room,
                         state: 'room-unreachable',
                         threshold,
-                        baseAccessScore: room.accessScore,
-                        objective
-                    };
+                        extras: { objective }
+                    });
                     continue;
                 }
             }
             if (pathRoomToExit.length === 0 && (objective.c !== this.endPos.c || objective.r !== this.endPos.r)) {
-                room.routingDebug = {
+                room.routingDebug = buildHiddenRoomRoutingDebug({
+                    room,
                     state: 'exit-unreachable',
                     threshold,
-                    baseAccessScore: room.accessScore,
-                    objective,
-                    pathToRoomLength: pathToRoom.length
-                };
+                    extras: {
+                        objective,
+                        pathToRoomLength: pathToRoom.length
+                    }
+                });
                 continue;
             }
 
@@ -4483,17 +4488,19 @@ class GameController {
                 restNeedState,
                 merchantNeedState
             });
-            room.routingDebug = {
+            room.routingDebug = buildHiddenRoomRoutingDebug({
+                room,
                 state: score >= threshold ? 'eligible' : 'below-threshold',
                 threshold,
-                baseAccessScore: room.accessScore,
-                finalScore: score,
-                detourExtra,
-                pathToRoomLength: pathToRoom.length,
-                pathRoomToExitLength: pathRoomToExit.length,
-                objective,
-                targetType: room.typeKey
-            };
+                extras: {
+                    finalScore: score,
+                    detourExtra,
+                    pathToRoomLength: pathToRoom.length,
+                    pathRoomToExitLength: pathRoomToExit.length,
+                    objective,
+                    targetType: room.typeKey
+                }
+            });
 
             if (score >= threshold && (!best || score > best.score)) {
                 best = { room, score, path: pathToRoom };

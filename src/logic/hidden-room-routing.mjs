@@ -2,6 +2,20 @@ function getHpRatio(gameState) {
     return gameState.player.currentHp / Math.max(1, gameState.player.baseHp);
 }
 
+export function buildHiddenRoomRoutingDebug({
+    room,
+    state,
+    threshold,
+    extras = {}
+}) {
+    return {
+        state,
+        threshold,
+        baseAccessScore: room?.accessScore,
+        ...extras
+    };
+}
+
 export function calculateHiddenRoomDiversionScore({
     room,
     detourExtra = 0,

@@ -35,7 +35,7 @@
   - maze scaling and reward formulas
   - hidden room roll rules
   - combat value calculations
-- Keep hidden-room route scoring, small resolution predicates, reward calculations/plans/resolution helpers, merchant purchase decisions, sound audio/timing/BGM step-plan/config/storage helpers, and theme-chain formulas in `src/logic/` modules. (Started: `hidden-room-routing.mjs`, `hidden-room-resolution.mjs`, `room-reward-calculations.mjs`, `room-reward-plans.mjs`, `room-reward-resolution.mjs`, `sound-audio-utils.mjs`, `sound-config.mjs`, `sound-storage.mjs`, `theme-chain-bonuses.mjs`.)
+- Keep hidden-room route scoring/debug assembly, small resolution predicates, reward calculations/plans/resolution helpers, merchant purchase decisions, sound audio/timing/BGM step-plan/config/storage helpers, and theme-chain formulas in `src/logic/` modules. (Started: `hidden-room-routing.mjs`, `hidden-room-resolution.mjs`, `room-reward-calculations.mjs`, `room-reward-plans.mjs`, `room-reward-resolution.mjs`, `sound-audio-utils.mjs`, `sound-config.mjs`, `sound-storage.mjs`, `theme-chain-bonuses.mjs`.)
 - Extract shared state helpers into `src/logic/state/` or equivalent modules.
 - Preserve current runtime ordering to avoid subtle regressions in timers, audio, and rendering.
 

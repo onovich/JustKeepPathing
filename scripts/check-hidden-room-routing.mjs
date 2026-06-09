@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { calculateHiddenRoomDiversionScore } from '../src/logic/hidden-room-routing.mjs';
+import {
+    buildHiddenRoomRoutingDebug,
+    calculateHiddenRoomDiversionScore
+} from '../src/logic/hidden-room-routing.mjs';
 
 function makeGameState({
     hp = 100,
@@ -44,6 +47,42 @@ function makeGameState({
 function expectClose(actual, expected, message) {
     assert.equal(Number(actual.toFixed(6)), Number(expected.toFixed(6)), message);
 }
+
+assert.deepEqual(
+    buildHiddenRoomRoutingDebug({
+        room: { accessScore: 0.42 },
+        state: 'locked',
+        threshold: 0.66
+    }),
+    {
+        state: 'locked',
+        threshold: 0.66,
+        baseAccessScore: 0.42
+    },
+    'routing debug helper should preserve the shared debug fields'
+);
+
+assert.deepEqual(
+    buildHiddenRoomRoutingDebug({
+        room: { accessScore: 0.5 },
+        state: 'eligible',
+        threshold: 0.6,
+        extras: {
+            finalScore: 0.72,
+            detourExtra: 3,
+            targetType: 'event'
+        }
+    }),
+    {
+        state: 'eligible',
+        threshold: 0.6,
+        baseAccessScore: 0.5,
+        finalScore: 0.72,
+        detourExtra: 3,
+        targetType: 'event'
+    },
+    'routing debug helper should append path scoring details'
+);
 
 const trialRoom = {
     typeKey: 'trial',
