@@ -782,6 +782,7 @@ import {
 } from './src/view/editors/editor-dom.mjs';
 import { appendEditorLog } from './src/view/editors/editor-log.mjs';
 import { buildModelEditorSelectionControlState } from './src/view/editors/model-editor-selection-ui.mjs';
+import { bindSoundEditorRenderedControls } from './src/view/editors/sound-editor-bindings.mjs';
 import {
     renderSoundCheckboxControl,
     renderSoundSelectControl,
@@ -7233,8 +7234,9 @@ class SoundEditor {
     }
 
     bindRenderedControls() {
-        this.controlsEl.querySelectorAll('input, select').forEach((el) => {
-            const handler = () => {
+        bindSoundEditorRenderedControls({
+            controlsEl: this.controlsEl,
+            onControlEvent: (el) => {
                 this.applyControlValue(el);
                 if (el.type === 'range') {
                     const valueEl = document.getElementById(`${el.id}-value`);
@@ -7242,8 +7244,7 @@ class SoundEditor {
                 } else {
                     this.render();
                 }
-            };
-            el.addEventListener(el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input', handler);
+            }
         });
     }
 

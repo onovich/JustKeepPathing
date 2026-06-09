@@ -226,7 +226,7 @@ export function buildHiddenRoomPlan({
             : weightedPick(
                 eligibleTypes.map(({ typeKey: value, def }) => ({
                     value,
-                    weight: Math.max(1, (floorWeights[typeKey] || def.baseWeight || 1))
+                    weight: Math.max(1, (floorWeights[value] || def.baseWeight || 1))
                 })),
                 random
             );

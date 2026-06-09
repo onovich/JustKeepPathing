@@ -1,6 +1,6 @@
 # JustKeepPathing Next TODO
 
-Updated 2026-06-09 after reviewing the current runtime state.
+Updated 2026-06-10 after reviewing the current runtime state.
 
 ## Already Landed
 
@@ -15,6 +15,7 @@ Updated 2026-06-09 after reviewing the current runtime state.
 - Empty treasure-room completion now still routes through `applyThemeChainBonus('treasure', ...)`, so salvage-theme treasure bonuses are not skipped when no cache nodes remain.
 - `Reflex Shield` combat text now reports how much damage was blocked and how much damage was actually taken.
 - Empty relic-pool rewards now explain that no new core is available instead of saying the core slots are full.
+- Hidden room plan generation no longer reads the selected type key before initialization, and `npm run check` now exercises `buildHiddenRoomPlan(...)` directly.
 - A dependency-free browser smoke now launches a temporary static server and headless Chrome to verify startup, canvas sizing, loading overlay state, and the collection panel.
 - HUD status UI initialization was extracted into `src/view/hud-status-ui.mjs`, and browser smoke now verifies HUD supply/relic/pill/upgrade nodes.
 - `LoadingOverlay` was extracted into `src/view/loading-overlay.mjs`.
@@ -27,6 +28,7 @@ Updated 2026-06-09 after reviewing the current runtime state.
 - Shared editor log formatting/writing was extracted into `src/view/editors/editor-log.mjs`, with focused checks and browser smoke coverage for model/sound editor log DOM updates.
 - Model editor selection control-state calculation was extracted into `src/view/editors/model-editor-selection-ui.mjs`, with focused checks and browser smoke coverage for idle disabled controls.
 - Sound editor slider/select/checkbox markup helpers were extracted into `src/view/editors/sound-editor-controls.mjs`, with focused checks and browser smoke coverage for default one-shot controls.
+- Sound editor rendered-control event binding was extracted into `src/view/editors/sound-editor-bindings.mjs`, with focused checks and browser smoke coverage for range input updates.
 - Sound editor event select options and metadata labels were extracted into `src/view/editors/sound-editor-meta.mjs`, with focused checks and browser smoke coverage for select/type/usage/description rendering.
 - Sound editor Play/Pause/Stop transport UI state was extracted into `src/view/editors/sound-editor-transport-ui.mjs`, with focused checks and browser smoke coverage for initial transport state.
 - Hidden-room diversion scoring and small interaction-resolution helpers were extracted into `src/logic/hidden-room-routing.mjs` and `src/logic/hidden-room-resolution.mjs`, with focused check scripts.
