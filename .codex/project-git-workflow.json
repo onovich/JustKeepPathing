@@ -1,0 +1,18 @@
+﻿{
+    "schemaVersion":  1,
+    "initializedMarker":  "codex-project-git-workflow: initialized",
+    "initializedAt":  "2026-06-09 20:44:01 +08:00",
+    "projectName":  "JustKeepPathing",
+    "repoRoot":  "D:/WebProjects/JustKeepPathing",
+    "safeDirectory":  "D:/WebProjects/JustKeepPathing",
+    "statusCommand":  "git -c safe.directory=D:/WebProjects/JustKeepPathing status --short --branch",
+    "validationCommands":  [
+                               "npm run check",
+                               "npm run smoke:browser"
+                           ],
+    "stagingPolicy":  "ask each time",
+    "commitCommand":  "",
+    "pushCommand":  "git -c safe.directory=D:/WebProjects/JustKeepPathing push -u origin HEAD",
+    "docsRequirement":  "",
+    "forbiddenCommands":  ""
+}

@@ -19,6 +19,8 @@ Updated 2026-06-09 after reviewing the current runtime state.
 - `LoadingOverlay` was extracted into `src/view/loading-overlay.mjs`.
 - `CollectionPanel` and `PathDebugPanel` were extracted into `src/view/panels/` with explicit `GameState`/controller dependencies.
 - Hidden-room diversion scoring and small interaction-resolution helpers were extracted into `src/logic/hidden-room-routing.mjs` and `src/logic/hidden-room-resolution.mjs`, with focused check scripts.
+- Theme-chain bonus formulas were extracted into `src/logic/theme-chain-bonuses.mjs`, with focused checks and `GameController` still owning message/effect presentation.
+- `npm run smoke:screenshot` now captures a reusable local browser screenshot at `artifacts/screenshots/latest.png`.
 
 ## 1. Theme Chain And Relic Follow-Up
 
@@ -78,6 +80,7 @@ Recommended slice:
 - include a path-debug smoke:
   - open the path debug panel
   - verify summary cards render after a floor is generated
+- optionally archive screenshots from `npm run smoke:screenshot` before visual-risky refactors
 
 Acceptance:
 

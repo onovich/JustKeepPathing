@@ -35,7 +35,7 @@
   - maze scaling and reward formulas
   - hidden room roll rules
   - combat value calculations
-- Keep hidden-room route scoring and small resolution predicates in `src/logic/` modules. (Started: `hidden-room-routing.mjs`, `hidden-room-resolution.mjs`.)
+- Keep hidden-room route scoring, small resolution predicates, and theme-chain formulas in `src/logic/` modules. (Started: `hidden-room-routing.mjs`, `hidden-room-resolution.mjs`, `theme-chain-bonuses.mjs`.)
 - Extract shared state helpers into `src/logic/state/` or equivalent modules.
 - Preserve current runtime ordering to avoid subtle regressions in timers, audio, and rendering.
 
@@ -65,6 +65,7 @@
   - mobile layout
   - wall occlusion reveal
   - looping audio/editor interactions
+- Use `npm run smoke:screenshot` when a visual checkpoint is needed without retyping the browser/CDP setup.
 
 ## Recommended Next Slices
 

@@ -726,6 +726,7 @@ import {
     shouldClearHiddenRoomAfterInteraction
 } from './src/logic/hidden-room-resolution.mjs';
 import { calculateHiddenRoomDiversionScore } from './src/logic/hidden-room-routing.mjs';
+import { buildThemeChainBonusPlan } from './src/logic/theme-chain-bonuses.mjs';
 import {
     EVENT_ROOM_SEEDS,
     FLOOR_THEME_DEFS,
@@ -5409,37 +5410,44 @@ class GameController {
         const rewardTier = Math.max(1, room?.rewardTier || 1);
         const accent = this.floorPlan?.theme?.accentColor || '#e2e8f0';
         if (!themeKey || !sourceKey || !room) return '';
+        const plan = buildThemeChainBonusPlan({
+            themeKey,
+            sourceKey,
+            rewardTier,
+            level: GameState.level,
+            playerBaseHp: GameState.player.baseHp
+        });
 
         let message = '';
-        if (themeKey === 'ember_forge' && ['event', 'elite', 'trial'].includes(sourceKey)) {
-            const attackBonus = Math.min(0.18, 0.04 + rewardTier * 0.015);
-            GameState.meta.nextFloorAttackBonus = Math.min(0.42, GameState.meta.nextFloorAttackBonus + attackBonus);
-            if (sourceKey === 'elite' && rewardTier >= 3) {
-                GameState.grantFloorSupply('assault', 1);
+        if (plan?.kind === 'ember_forge') {
+            const attackBonus = plan.attackBonus;
+            GameState.meta.nextFloorAttackBonus = Math.min(plan.nextFloorAttackBonusCap, GameState.meta.nextFloorAttackBonus + attackBonus);
+            if (plan.supplyType) {
+                GameState.grantFloorSupply(plan.supplyType, plan.supplyCount);
                 message = `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%，并补了 1 份${GameState.supplyDefs.assault?.label || '战备补给'}。`;
             } else {
                 message = `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%。`;
             }
-        } else if (themeKey === 'salvage_reaches' && ['treasure', 'merchant', 'rest'].includes(sourceKey)) {
-            const salvageBonus = Math.floor((16 + rewardTier * 7) * GameState.level * 0.72);
+        } else if (plan?.kind === 'salvage_reaches') {
+            const salvageBonus = plan.scoreBonus;
             GameState.addScore(salvageBonus);
-            GameState.grantFloorSupply('salvage', 1);
+            GameState.grantFloorSupply(plan.supplyType, plan.supplyCount);
             message = `回收浪潮又卷出 ${salvageBonus} 魂能，并补了 1 份${GameState.supplyDefs.salvage?.label || '探宝补给'}。`;
-        } else if (themeKey === 'signal_warrens' && ['event', 'trial'].includes(sourceKey)) {
-            const hiddenBonus = 0.03 + rewardTier * 0.012;
-            GameState.meta.nextHiddenRoomBonus = Math.min(0.38, GameState.meta.nextHiddenRoomBonus + hiddenBonus);
-            if (sourceKey === 'event' || rewardTier >= 3) {
-                GameState.grantFloorSupply('scout', 1);
+        } else if (plan?.kind === 'signal_warrens') {
+            const hiddenBonus = plan.hiddenRoomBonus;
+            GameState.meta.nextHiddenRoomBonus = Math.min(plan.nextHiddenRoomBonusCap, GameState.meta.nextHiddenRoomBonus + hiddenBonus);
+            if (plan.supplyType) {
+                GameState.grantFloorSupply(plan.supplyType, plan.supplyCount);
                 message = `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%，并补了 1 份${GameState.supplyDefs.scout?.label || '侦测补给'}。`;
             } else {
                 message = `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%。`;
             }
-        } else if (themeKey === 'quarantine_vault' && ['rest', 'elite'].includes(sourceKey)) {
-            const damageReduction = Math.min(0.2, 0.06 + rewardTier * 0.02);
-            const repair = Math.max(8, Math.floor(GameState.player.baseHp * (0.04 + rewardTier * 0.012)));
-            GameState.floorBuff.incomingDamageMult *= Math.max(0.58, 1 - damageReduction);
+        } else if (plan?.kind === 'quarantine_vault') {
+            const damageReduction = plan.damageReduction;
+            const repair = plan.repair;
+            GameState.floorBuff.incomingDamageMult *= Math.max(plan.incomingDamageFloor, 1 - damageReduction);
             GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
-            if (sourceKey === 'elite') {
+            if (plan.refreshReflexShield) {
                 GameState.floorRuntime.reflexShieldReady = true;
                 message = `封锁协议稳住了机体，立刻修复 ${repair} 点护盾，并重新挂上一次反射护盾。`;
             } else {
