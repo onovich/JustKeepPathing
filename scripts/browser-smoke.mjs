@@ -264,6 +264,10 @@ async function runSmoke() {
       const soundEditorButton = document.getElementById('btn-sound-editor');
       const modelEditorModal = document.getElementById('editor-modal');
       const soundEditorModal = document.getElementById('sound-editor-modal');
+      const soundEditorSelect = document.getElementById('sound-asset-select');
+      const soundEditorType = document.getElementById('sound-editor-type');
+      const soundEditorUsage = document.getElementById('sound-editor-usage');
+      const soundEditorDescription = document.getElementById('sound-editor-description');
       const modelEditorUndoButton = document.getElementById('btn-editor-undo');
       const modelEditorReadButton = document.getElementById('btn-editor-read');
       const modelEditorResetButton = document.getElementById('btn-editor-reset');
@@ -315,6 +319,11 @@ async function runSmoke() {
         hasSoundEditorButton: !!soundEditorButton,
         modelEditorClosed: modelEditorModal?.classList.contains('hidden') || false,
         soundEditorClosed: soundEditorModal?.classList.contains('hidden') || false,
+        soundEditorSelectValue: soundEditorSelect?.value || '',
+        soundEditorOptionCount: soundEditorSelect?.options?.length || 0,
+        soundEditorTypeText: soundEditorType?.innerText || '',
+        soundEditorUsageText: soundEditorUsage?.innerText || '',
+        soundEditorDescriptionText: soundEditorDescription?.innerText || '',
         modelEditorCommandLabels: [
           modelEditorUndoButton?.innerText || '',
           modelEditorReadButton?.innerText || '',
@@ -381,6 +390,8 @@ async function runSmoke() {
       if (!result.settingsRiskValue) throw new Error('Settings risk select did not sync.');
       if (!result.hasModelEditorButton || !result.hasSoundEditorButton) throw new Error('Header editor buttons did not render.');
       if (!result.modelEditorClosed || !result.soundEditorClosed) throw new Error('Editor modals should start closed.');
+      if (!result.soundEditorSelectValue || result.soundEditorOptionCount < 4) throw new Error('Sound editor select options did not render.');
+      if (!result.soundEditorTypeText || !result.soundEditorUsageText || !result.soundEditorDescriptionText) throw new Error('Sound editor metadata did not render.');
       if (result.modelEditorCommandLabels.join('|') !== 'Undo|Load|Reset|Save') throw new Error('Model editor command labels did not initialize.');
       if (result.modelEditorCloseAria !== 'Close' || !result.modelEditorCloseHasIcon) throw new Error('Model editor close button chrome did not initialize.');
       if (!result.modelEditorIdleControlsDisabled) throw new Error('Model editor idle controls did not initialize disabled.');

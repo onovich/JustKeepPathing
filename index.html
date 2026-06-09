@@ -791,6 +791,10 @@ import {
     applySoundEditorTransportState,
     buildSoundEditorTransportState
 } from './src/view/editors/sound-editor-transport-ui.mjs';
+import {
+    applySoundEditorMeta,
+    renderSoundEventOptions
+} from './src/view/editors/sound-editor-meta.mjs';
 import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
@@ -7040,9 +7044,7 @@ class SoundEditor {
     }
 
     populateSelect() {
-        this.select.innerHTML = Object.entries(SOUND_EVENT_DEFS)
-            .map(([key, def]) => `<option value="${key}">${def.label}</option>`)
-            .join('');
+        this.select.innerHTML = renderSoundEventOptions(SOUND_EVENT_DEFS);
         this.select.value = this.currentSoundKey;
     }
 
@@ -7117,10 +7119,14 @@ class SoundEditor {
 
     render() {
         const def = this.getCurrentSoundDef();
-        this.typeEl.innerText = def.type === 'oneshot' ? '普通音效' : def.type === 'loop' ? '连续音效' : '背景音乐';
-        this.usageEl.innerText = def.usage;
-        this.descriptionEl.innerText = def.description;
-        this.select.value = this.currentSoundKey;
+        applySoundEditorMeta({
+            typeEl: this.typeEl,
+            usageEl: this.usageEl,
+            descriptionEl: this.descriptionEl,
+            select: this.select,
+            currentSoundKey: this.currentSoundKey,
+            def
+        });
 
         if (def.type === 'oneshot') this.renderOneShotControls();
         else if (def.type === 'loop') this.renderLoopControls();

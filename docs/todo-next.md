@@ -27,6 +27,7 @@ Updated 2026-06-09 after reviewing the current runtime state.
 - Shared editor log formatting/writing was extracted into `src/view/editors/editor-log.mjs`, with focused checks and browser smoke coverage for model/sound editor log DOM updates.
 - Model editor selection control-state calculation was extracted into `src/view/editors/model-editor-selection-ui.mjs`, with focused checks and browser smoke coverage for idle disabled controls.
 - Sound editor slider/select/checkbox markup helpers were extracted into `src/view/editors/sound-editor-controls.mjs`, with focused checks and browser smoke coverage for default one-shot controls.
+- Sound editor event select options and metadata labels were extracted into `src/view/editors/sound-editor-meta.mjs`, with focused checks and browser smoke coverage for select/type/usage/description rendering.
 - Sound editor Play/Pause/Stop transport UI state was extracted into `src/view/editors/sound-editor-transport-ui.mjs`, with focused checks and browser smoke coverage for initial transport state.
 - Hidden-room diversion scoring and small interaction-resolution helpers were extracted into `src/logic/hidden-room-routing.mjs` and `src/logic/hidden-room-resolution.mjs`, with focused check scripts.
 - Theme-chain bonus formulas were extracted into `src/logic/theme-chain-bonuses.mjs`, with focused checks and `GameController` still owning message/effect presentation.
