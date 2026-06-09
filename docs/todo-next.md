@@ -16,6 +16,7 @@ Updated 2026-06-09 after reviewing the current runtime state.
 - `Reflex Shield` combat text now reports how much damage was blocked and how much damage was actually taken.
 - Empty relic-pool rewards now explain that no new core is available instead of saying the core slots are full.
 - A dependency-free browser smoke now launches a temporary static server and headless Chrome to verify startup, canvas sizing, loading overlay state, and the collection panel.
+- HUD status UI initialization was extracted into `src/view/hud-status-ui.mjs`, and browser smoke now verifies HUD supply/relic/pill/upgrade nodes.
 - `LoadingOverlay` was extracted into `src/view/loading-overlay.mjs`.
 - The settings/strategy panel was extracted into `src/view/settings-panel.mjs`, with focused hint text checks.
 - `CollectionPanel` and `PathDebugPanel` were extracted into `src/view/panels/` with explicit `GameState`/controller dependencies.

@@ -260,6 +260,11 @@ async function runSmoke() {
       const settingsPanel = document.getElementById('settings-panel');
       const settingsHint = document.getElementById('settings-strategy-hint');
       const riskSelect = document.getElementById('select-strategy-risk');
+      const hudSupplyMode = document.getElementById('ui-supply-mode');
+      const hudRelicCard = document.getElementById('ui-relic-card');
+      const hudThemePill = document.getElementById('ui-theme-pill');
+      const hudSupplyPill = document.getElementById('ui-supply-pill');
+      const speedUpgradeButton = document.getElementById('btn-up-speed');
 
       if (!collectionButton || !collectionModal) throw new Error('Collection controls are missing.');
       collectionButton.click();
@@ -280,6 +285,11 @@ async function runSmoke() {
         settingsPanelHidden: settingsPanel.classList.contains('hidden'),
         settingsRiskValue: riskSelect.value,
         settingsHintText: settingsHint.innerText || '',
+        hudSupplyModeText: hudSupplyMode?.innerText || '',
+        hasHudRelicCard: !!hudRelicCard,
+        hasHudThemePill: !!hudThemePill,
+        hasHudSupplyPill: !!hudSupplyPill,
+        hasSpeedUpgradeButton: !!speedUpgradeButton,
         overlayHidden,
         canvasWidth: canvas?.clientWidth || 0,
         canvasHeight: canvas?.clientHeight || 0,
@@ -294,6 +304,10 @@ async function runSmoke() {
       if (!result.settingsPanelHidden) throw new Error('Settings panel should start hidden.');
       if (result.settingsHintText.length < 8) throw new Error('Settings strategy hint did not render.');
       if (!result.settingsRiskValue) throw new Error('Settings risk select did not sync.');
+      if (!result.hudSupplyModeText) throw new Error('HUD supply card did not render.');
+      if (!result.hasHudRelicCard) throw new Error('HUD relic card did not render.');
+      if (!result.hasHudThemePill || !result.hasHudSupplyPill) throw new Error('HUD status pills did not render.');
+      if (!result.hasSpeedUpgradeButton) throw new Error('HUD upgrade strip did not render.');
       return result;
     }})()`;
 
