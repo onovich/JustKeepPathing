@@ -29,7 +29,15 @@ npm run check
 ```
 
 It reads `index.html` as UTF-8, extracts the main module script, and checks that script separately. This avoids false failures caused by shell-side encoding mismatches when inspecting the big inline module directly.
-The same command also checks extracted `.mjs` modules such as `src/data/game-config.mjs`.
+The same command also checks extracted `.mjs` modules such as `src/data/game-config.mjs`, `src/view/loading-overlay.mjs`, and `src/view/panels/collection-panel.mjs`.
+
+For a real browser startup smoke, run:
+
+```powershell
+npm run smoke:browser
+```
+
+It launches a temporary local static server and a headless Chrome-compatible browser, then checks page startup, WebGL canvas sizing, loading overlay state, and the collection panel.
 
 ## Deploy
 
@@ -47,6 +55,8 @@ After pushing, enable GitHub Pages with **Source: GitHub Actions** in the reposi
 - Runtime content tables: `src/data/floor-content.mjs`
 - Hidden room runtime rules: `src/logic/hidden-rooms.mjs`
 - Maze progression rules: `src/logic/maze-progression.mjs`
+- Loading overlay: `src/view/loading-overlay.mjs`
+- Collection and path debug panels: `src/view/panels/`
 - Original handoff files: `origin/`
 - Vendored runtime assets: `vendor/`
 - Manual local launcher: `RunLocal.cmd`

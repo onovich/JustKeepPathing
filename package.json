@@ -12,7 +12,9 @@
     "check:content": "node --check src/data/floor-content.mjs",
     "check:hidden": "node --check src/logic/hidden-rooms.mjs",
     "check:logic": "node --check src/logic/maze-progression.mjs",
+    "check:panels": "node --check src/view/loading-overlay.mjs && node --check src/view/panels/collection-panel.mjs && node --check src/view/panels/path-debug-panel.mjs",
     "check:app": "node scripts/check-index-module.mjs",
-    "check": "npm run check:server && npm run check:data && npm run check:content && npm run check:hidden && npm run check:logic && npm run check:app"
+    "check": "npm run check:server && npm run check:data && npm run check:content && npm run check:hidden && npm run check:logic && npm run check:panels && npm run check:app",
+    "smoke:browser": "node scripts/browser-smoke.mjs"
   }
 }
