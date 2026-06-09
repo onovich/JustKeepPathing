@@ -67,7 +67,7 @@ After pushing, enable GitHub Pages with **Source: GitHub Actions** in the reposi
 - Room reward side-effect and merchant purchase plans: `src/logic/room-reward-plans.mjs`
 - Theme-chain bonus plans: `src/logic/theme-chain-bonuses.mjs`
 - Maze progression rules: `src/logic/maze-progression.mjs`
-- Sound audio math and footstep timing helpers: `src/logic/sound-audio-utils.mjs`
+- Sound audio math, footstep timing, and BGM step-plan helpers: `src/logic/sound-audio-utils.mjs`
 - Sound config sanitizing and cloning: `src/logic/sound-config.mjs`
 - Sound local storage helpers: `src/logic/sound-storage.mjs`
 - HUD status UI: `src/view/hud-status-ui.mjs`

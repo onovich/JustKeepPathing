@@ -740,6 +740,10 @@ import {
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
 import {
+    buildBgmStepPlan,
+    calculateBgmHumanizeOffset,
+    calculateBgmStepDuration,
+    calculateBgmSwingOffset,
     calculateFootstepBaseInterval,
     calculateFootstepSwingOffset,
     calculateEffectiveSoundVolume,
@@ -1354,57 +1358,61 @@ class SoundEngine {
         const kernel = BGM_KERNELS[config.kernel] || BGM_KERNELS.warmPop;
         if (state.nextNoteTime <= 0 || state.nextNoteTime < ctx.currentTime - 1) state.nextNoteTime = ctx.currentTime + 0.03;
         const horizon = ctx.currentTime + 0.35;
-        const stepDuration = 60 / config.tempo / 2;
+        const stepDuration = calculateBgmStepDuration(config.tempo);
 
         while (state.nextNoteTime < horizon && (!state.until || state.nextNoteTime < state.until)) {
-            const chordIndex = Math.floor(state.stepIndex / 8) % kernel.progression.length;
-            const chord = kernel.progression[chordIndex];
-            const melodyDegree = kernel.melody[state.stepIndex % kernel.melody.length];
-            const chordDegree = chord[state.stepIndex % chord.length];
-            const melodyNote = config.root + melodyDegree;
-            const chordNote = config.root + chordDegree + (state.stepIndex % 4 === 0 ? 12 : 0);
-            const humanize = (Math.random() * 2 - 1) * config.humanize;
+            const stepPlan = buildBgmStepPlan({
+                kernel,
+                root: config.root,
+                stepIndex: state.stepIndex,
+                stepDuration,
+                noteLength: config.noteLength,
+                brightness: config.brightness,
+                stereoSpread: config.stereoSpread
+            });
+            const humanize = calculateBgmHumanizeOffset(Math.random(), config.humanize);
             const start = state.nextNoteTime + humanize;
-            const duration = Math.max(0.08, stepDuration * config.noteLength);
-            const brightnessCutoff = 800 + config.brightness * 4200;
-            const pan = Math.sin(state.stepIndex * 0.8) * config.stereoSpread;
 
             this.scheduleVoice(createOneShotSoundConfig({
                 waveform: 'triangle',
                 volume: config.volume * 0.72,
-                startFreq: midiToFrequency(chordNote),
-                endFreq: midiToFrequency(chordNote),
-                duration,
+                startFreq: midiToFrequency(stepPlan.chordNote),
+                endFreq: midiToFrequency(stepPlan.chordNote),
+                duration: stepPlan.duration,
                 attack: config.attack,
-                hold: duration * 0.42,
+                hold: stepPlan.duration * 0.42,
                 release: config.release,
-                filterCutoff: brightnessCutoff,
+                filterCutoff: stepPlan.brightnessCutoff,
                 resonance: 1.8,
                 detune: config.detune,
                 subMix: 0.18,
                 delayMix: 0.18,
-                pan
+                pan: stepPlan.pan
             }), { startTime: start });
 
             this.scheduleVoice(createOneShotSoundConfig({
                 waveform: state.stepIndex % 2 === 0 ? 'square' : 'sine',
                 volume: config.volume * 0.46,
-                startFreq: midiToFrequency(melodyNote + 12),
-                endFreq: midiToFrequency(melodyNote + 12),
-                duration: duration * 0.78,
+                startFreq: midiToFrequency(stepPlan.melodyNote + 12),
+                endFreq: midiToFrequency(stepPlan.melodyNote + 12),
+                duration: stepPlan.duration * 0.78,
                 attack: Math.max(0.002, config.attack * 0.6),
-                hold: duration * 0.18,
+                hold: stepPlan.duration * 0.18,
                 release: config.release * 0.85,
-                filterCutoff: brightnessCutoff * 1.15,
+                filterCutoff: stepPlan.brightnessCutoff * 1.15,
                 resonance: 1.2,
                 detune: config.detune * 0.4,
                 subMix: 0,
                 delayMix: 0.12,
-                pan: -pan
+                pan: -stepPlan.pan
             }), { startTime: start + 0.01 });
 
             state.stepIndex += 1;
-            const swing = state.stepIndex % 2 === 0 ? 0 : stepDuration * config.swing * 0.45;
+            const swing = calculateBgmSwingOffset({
+                stepIndex: state.stepIndex,
+                stepDuration,
+                swing: config.swing
+            });
             state.nextNoteTime += stepDuration + swing;
         }
 

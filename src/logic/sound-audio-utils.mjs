@@ -31,6 +31,54 @@ export function calculateFootstepSwingOffset({
     return stepIndex % 2 === 0 ? 0 : baseInterval * swing * 0.5;
 }
 
+export function calculateBgmStepDuration(tempo) {
+    return 60 / tempo / 2;
+}
+
+export function calculateBgmNoteDuration({
+    stepDuration,
+    noteLength
+}) {
+    return Math.max(0.08, stepDuration * noteLength);
+}
+
+export function calculateBgmSwingOffset({
+    stepIndex,
+    stepDuration,
+    swing
+}) {
+    return stepIndex % 2 === 0 ? 0 : stepDuration * swing * 0.45;
+}
+
+export function calculateBgmHumanizeOffset(randomValue, humanize) {
+    return (randomValue * 2 - 1) * humanize;
+}
+
+export function buildBgmStepPlan({
+    kernel,
+    root,
+    stepIndex,
+    stepDuration,
+    noteLength,
+    brightness,
+    stereoSpread
+}) {
+    const chordIndex = Math.floor(stepIndex / 8) % kernel.progression.length;
+    const chord = kernel.progression[chordIndex];
+    const melodyDegree = kernel.melody[stepIndex % kernel.melody.length];
+    const chordDegree = chord[stepIndex % chord.length];
+    return {
+        chordIndex,
+        melodyDegree,
+        chordDegree,
+        melodyNote: root + melodyDegree,
+        chordNote: root + chordDegree + (stepIndex % 4 === 0 ? 12 : 0),
+        duration: calculateBgmNoteDuration({ stepDuration, noteLength }),
+        brightnessCutoff: 800 + brightness * 4200,
+        pan: Math.sin(stepIndex * 0.8) * stereoSpread
+    };
+}
+
 export function midiToFrequency(note) {
     return 440 * Math.pow(2, (note - 69) / 12);
 }
