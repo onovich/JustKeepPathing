@@ -41,6 +41,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Event stockpile, trial supply rewards, and merchant purchase decisions were extracted into `src/logic/room-reward-plans.mjs`, with focused checks.
 - Event/rest/merchant/trial/elite/treasure reward resolution now shares `src/logic/room-reward-resolution.mjs` message finalization, with focused checks for theme-chain detail appending, detail order, empty base messages, and UI refresh callbacks.
 - `npm run smoke:screenshot` now captures a reusable local browser screenshot at `artifacts/screenshots/latest.png`.
+- `npm run verify:refactor` now runs check, browser smoke, and screenshot smoke with compact success output for lower-noise refactor turns.
 
 ## 1. Theme Chain And Relic Follow-Up
 

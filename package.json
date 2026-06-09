@@ -16,6 +16,7 @@
     "check:app": "node scripts/check-index-module.mjs",
     "check": "npm run check:server && npm run check:data && npm run check:content && npm run check:hidden && npm run check:logic && npm run check:panels && npm run check:app",
     "smoke:browser": "node scripts/browser-smoke.mjs",
-    "smoke:screenshot": "node scripts/browser-screenshot.mjs"
+    "smoke:screenshot": "node scripts/browser-screenshot.mjs",
+    "verify:refactor": "node scripts/refactor-verify.mjs"
   }
 }

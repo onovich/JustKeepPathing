@@ -47,6 +47,12 @@ npm run smoke:screenshot
 
 The screenshot is written to `artifacts/screenshots/latest.png` and is ignored by git.
 
+For refactor slices, this compact wrapper runs `check`, browser smoke, and screenshot smoke while printing only a short success summary unless something fails:
+
+```powershell
+npm run verify:refactor
+```
+
 ## Deploy
 
 This repository is configured for GitHub Pages through GitHub Actions. The workflow uploads the static root files directly; no build step is required.
