@@ -949,6 +949,10 @@ import {
     buildHudUpgradeStates
 } from './src/view/hud-upgrade-ui.mjs';
 import {
+    applyScoreText,
+    pulseScoreDisplay
+} from './src/view/score-ui.mjs';
+import {
     applyCombatHpUiState,
     buildCombatHpUiState
 } from './src/view/combat-hp-ui.mjs';
@@ -1743,14 +1747,7 @@ const GameState = {
     },
     addScore(val) {
         this.score += val;
-        const el = document.getElementById('ui-score');
-        el.innerText = Math.floor(this.score);
-        el.style.transform = 'scale(1.2)';
-        el.style.color = '#ffffff';
-        setTimeout(() => {
-            el.style.transform = 'scale(1)';
-            el.style.color = '#facc15';
-        }, 150);
+        pulseScoreDisplay(document, { score: this.score });
         this.updateUI();
     },
     tryBuy(type) {
@@ -1832,7 +1829,7 @@ const GameState = {
             }
         }
 
-        document.getElementById('ui-score').innerText = Math.floor(this.score);
+        applyScoreText(document, this.score);
         const collectionBadgeEl = document.getElementById('collection-count-badge');
         if (collectionBadgeEl) {
             const progress = this.getCollectionProgress();
