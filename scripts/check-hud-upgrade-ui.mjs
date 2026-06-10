@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
+    applyHudUpgradeDescriptions,
     applyHudUpgradeState,
     applyHudUpgradeStates,
+    buildHudUpgradeDescriptionState,
     buildHudUpgradeState,
     buildHudUpgradeStates
 } from '../src/view/hud-upgrade-ui.mjs';
@@ -119,5 +122,69 @@ assert.deepEqual(
 }
 
 assert.equal(applyHudUpgradeState(null, { id: 'speed' }), null);
+
+assert.deepEqual(
+    buildHudUpgradeDescriptionState({
+        mazeSide: 13,
+        mazeSizeFactor: 1.4
+    }),
+    {
+        sizeText: '当前 13x13，总收益约 140%',
+        monsterText: '怪物更容易出现，升到 Lv.4 解锁 Boss · 普通楼层'
+    }
+);
+
+assert.deepEqual(
+    buildHudUpgradeDescriptionState({
+        mazeSide: 15,
+        sizeMaxed: true,
+        bossUnlocked: true,
+        bossFloorChance: 0.35,
+        floorContent: {
+            archetypeKey: 'elite',
+            theme: { label: 'Ember Route' },
+            isFinaleFloor: true,
+            finale: { label: 'Warden' }
+        },
+        floorDirective: {
+            label: 'Overdrive',
+            summary: 'More rewards'
+        }
+    }),
+    {
+        sizeText: '当前 15x15，已经是最大迷宫',
+        monsterText: '怪物更容易出现，Boss 出现概率 35% · 精英楼层 · Ember Route · Warden 路 Overdrive 路 More rewards'
+    }
+);
+
+{
+    const documentRef = createDocument(['desc-size', 'desc-monster']);
+    const applied = applyHudUpgradeDescriptions(documentRef, buildHudUpgradeDescriptionState({
+        mazeSide: 11,
+        mazeSizeFactor: 1.25,
+        floorContent: { archetypeKey: 'treasure' }
+    }));
+    assert.equal(documentRef.elements['desc-size'].innerText, '当前 11x11，总收益约 125%');
+    assert.equal(documentRef.elements['desc-monster'].innerText, '怪物更容易出现，升到 Lv.4 解锁 Boss · 藏宝楼层');
+    assert.equal(applied.sizeDescEl, documentRef.elements['desc-size']);
+    assert.equal(applied.monsterDescEl, documentRef.elements['desc-monster']);
+}
+
+assert.equal(applyHudUpgradeDescriptions(null, { sizeText: '', monsterText: '' }), null);
+
+{
+    const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    assert.match(
+        indexHtml,
+        /applyHudUpgradeDescriptions\(document, buildHudUpgradeDescriptionState\(\{[\s\S]*?mazeSide: this\.getMazeSide\(\),[\s\S]*?mazeSizeFactor: this\.getMazeSizeFactor\(\),[\s\S]*?floorDirective: this\.floorDirective[\s\S]*?\}\)\);/,
+        'GameState.updateUI should pass upgrade description state into the HUD helper'
+    );
+    const updateUiBody = indexHtml.match(/updateUI\(\) \{([\s\S]*?)\n    \}\n};/)?.[1] || '';
+    assert.doesNotMatch(
+        updateUiBody,
+        /document\.getElementById\('desc-(?:size|monster)'\)|const floorLabels/,
+        'GameState.updateUI should not own HUD upgrade description DOM writes'
+    );
+}
 
 console.log('hud-upgrade-ui checks passed');

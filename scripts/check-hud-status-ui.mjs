@@ -271,9 +271,9 @@ assert.doesNotMatch(
 );
 
 const supplyCardStart = indexHtml.indexOf('        applyHudSupplyCard(document, {', updateUiStart);
-const supplyCardEnd = indexHtml.indexOf('        const sizeDesc = document.getElementById', supplyCardStart);
+const supplyCardEnd = indexHtml.indexOf('        applyHudUpgradeDescriptions(document, buildHudUpgradeDescriptionState({', supplyCardStart);
 assert.notEqual(supplyCardStart, -1, 'supply card update should stay discoverable');
-assert.notEqual(supplyCardEnd, -1, 'size description should stay after supply card update');
+assert.notEqual(supplyCardEnd, -1, 'upgrade description update should stay after supply card update');
 const supplyCardSlice = indexHtml.slice(supplyCardStart, supplyCardEnd);
 assert.doesNotMatch(
     supplyCardSlice,

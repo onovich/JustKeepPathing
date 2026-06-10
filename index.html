@@ -949,7 +949,9 @@ import {
     initializeHudStatusUi
 } from './src/view/hud-status-ui.mjs';
 import {
+    applyHudUpgradeDescriptions,
     applyHudUpgradeStates,
+    buildHudUpgradeDescriptionState,
     buildHudUpgradeStates
 } from './src/view/hud-upgrade-ui.mjs';
 import {
@@ -1831,31 +1833,15 @@ const GameState = {
             floorBuff: this.floorBuff
         });
 
-        const sizeDesc = document.getElementById('desc-size');
-        if (sizeDesc) {
-            const sizeFactor = this.getMazeSizeFactor();
-            sizeDesc.innerText = this.isMazeSizeMaxed()
-                ? `当前 ${this.getMazeSide()}x${this.getMazeSide()}，已经是最大迷宫`
-                : `当前 ${this.getMazeSide()}x${this.getMazeSide()}，总收益约 ${Math.round(sizeFactor * 100)}%`;
-        }
-
-        const monsterDesc = document.getElementById('desc-monster');
-        if (monsterDesc) {
-            const floorLabels = { combat: '普通楼层', treasure: '藏宝楼层', event: '异象楼层', elite: '精英楼层' };
-            const baseText = this.isBossUnlocked()
-                ? `怪物更容易出现，Boss 出现概率 ${Math.round(this.getBossFloorChance() * 100)}%`
-                : '怪物更容易出现，升到 Lv.4 解锁 Boss';
-            const floorLabel = floorLabels[this.floorContent?.archetypeKey] || floorLabels.combat;
-            const themeLabel = this.floorContent?.theme?.label;
-            const finaleLabel = this.floorContent?.isFinaleFloor ? this.floorContent?.finale?.label : '';
-            const directiveLabel = this.floorDirective?.label;
-            const directiveSummary = this.floorDirective?.summary;
-            const themedMonsterText = themeLabel
-                ? `${baseText} · ${floorLabel} · ${themeLabel}${finaleLabel ? ` · ${finaleLabel}` : ''}`
-                : `${baseText} · ${floorLabel}`;
-            const decoratedMonsterText = `${themedMonsterText}${directiveLabel ? ` 路 ${directiveLabel}` : ''}${directiveSummary ? ` 路 ${directiveSummary}` : ''}`;
-            monsterDesc.innerText = decoratedMonsterText;
-        }
+        applyHudUpgradeDescriptions(document, buildHudUpgradeDescriptionState({
+            mazeSide: this.getMazeSide(),
+            mazeSizeFactor: this.getMazeSizeFactor(),
+            sizeMaxed: this.isMazeSizeMaxed(),
+            bossUnlocked: this.isBossUnlocked(),
+            bossFloorChance: this.getBossFloorChance(),
+            floorContent: this.floorContent,
+            floorDirective: this.floorDirective
+        }));
         window.pathDebugPanel?.render();
     }
 };

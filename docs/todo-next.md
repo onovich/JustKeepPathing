@@ -73,6 +73,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Player/maze upgrade cost formulas and purchase-state application now live in `src/logic/player-upgrades.mjs`, with focused checks for cost scaling, insufficient score, size caps, HP refill, speed floor, and merchant quote reuse.
 - Run relic overflow score, roll chance, miss/empty-pool result formatting, and claim-state decisions now live in `src/logic/run-relic-state.mjs`, with focused checks for duplicate, overflow, empty-pool, chance caps, and non-mutating inventory updates.
 - HUD upgrade button value/cost/affordability state building and DOM application now live in `src/view/hud-upgrade-ui.mjs`, with focused checks for level labels, size MAX state, and affordability class toggles.
+- HUD upgrade description text for maze size and monster/Boss floor context now lives in `src/view/hud-upgrade-ui.mjs`, with focused checks for themed/finale/directive copy and a `GameState.updateUI` path guard.
 - Score text formatting and pulse styling now live in `src/view/score-ui.mjs`, with focused checks for text refreshes, pulse reset behavior, null DOM fallback, and the `GameState` path guard.
 - Combat HP panel state and DOM application now live in `src/view/combat-hp-ui.mjs`, with focused checks for normal enemies, bosses, finale accent styling, and the `GameController` path guard.
 - Shared easing curves and tween queue management now live in `src/view/tween-manager.mjs`, with focused checks for curve outputs, interpolation, default easing, completion callbacks, and cleanup.
