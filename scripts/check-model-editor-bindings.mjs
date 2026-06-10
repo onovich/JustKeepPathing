@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
     MODEL_EDITOR_MIXED_VALUE,
     bindModelEditorControls,
+    bindModelEditorPreviewControls,
     configureModelEditorEyeDropperButton,
     isModelEditorBackdropClick
 } from '../src/view/editors/model-editor-bindings.mjs';
@@ -25,8 +27,10 @@ function createElement({ value = '', classNames = [] } = {}) {
         disabled: false,
         classList: createClassList(classNames),
         listeners: {},
-        addEventListener(eventName, handler) {
+        listenerOptions: {},
+        addEventListener(eventName, handler, options) {
             this.listeners[eventName] = handler;
+            this.listenerOptions[eventName] = options;
         }
     };
 }
@@ -74,6 +78,59 @@ assert.throws(
     /onUndo/,
     'all callbacks should be explicit so missing bindings fail fast'
 );
+assert.throws(
+    () => bindModelEditorPreviewControls({ canvas: createElement(), onPointerDown: () => {} }),
+    /onPointerMove/,
+    'preview control callbacks should be explicit so missing bindings fail fast'
+);
+
+{
+    const canvas = createElement();
+    const windowRef = createElement();
+    const calls = [];
+    const bindings = bindModelEditorPreviewControls({
+        canvas,
+        windowRef,
+        onPointerDown: (event) => calls.push(['down', event.id]),
+        onPointerMove: (event) => calls.push(['move', event.id]),
+        onPointerUp: (event) => calls.push(['up', event.id]),
+        onPointerCancel: () => calls.push(['cancel']),
+        onWheel: (event) => calls.push(['wheel', event.id]),
+        onResize: () => calls.push(['resize'])
+    });
+
+    assert.equal(bindings.length, 8);
+    assert.equal(typeof canvas.listeners.contextmenu, 'function');
+    assert.equal(typeof canvas.listeners.pointerdown, 'function');
+    assert.equal(typeof canvas.listeners.pointermove, 'function');
+    assert.equal(typeof canvas.listeners.pointerup, 'function');
+    assert.equal(typeof canvas.listeners.pointerleave, 'function');
+    assert.equal(typeof canvas.listeners.pointercancel, 'function');
+    assert.equal(typeof canvas.listeners.wheel, 'function');
+    assert.equal(typeof windowRef.listeners.resize, 'function');
+    assert.deepEqual(canvas.listenerOptions.wheel, { passive: false });
+
+    let prevented = false;
+    canvas.listeners.contextmenu({ preventDefault: () => { prevented = true; } });
+    canvas.listeners.pointerdown({ id: 'a' });
+    canvas.listeners.pointermove({ id: 'b' });
+    canvas.listeners.pointerup({ id: 'c' });
+    canvas.listeners.pointerleave();
+    canvas.listeners.pointercancel();
+    canvas.listeners.wheel({ id: 'd' });
+    windowRef.listeners.resize();
+
+    assert.equal(prevented, true);
+    assert.deepEqual(calls, [
+        ['down', 'a'],
+        ['move', 'b'],
+        ['up', 'c'],
+        ['cancel'],
+        ['cancel'],
+        ['wheel', 'd'],
+        ['resize']
+    ]);
+}
 
 {
     const refs = createRefs();
@@ -175,6 +232,24 @@ assert.throws(
 
     assert.deepEqual(calls, [], 'mixed style values and non-backdrop modal clicks should not invoke callbacks');
     assert.equal(refs.eyeDropperButton.disabled, true);
+}
+
+{
+    const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const modelEditorStart = indexHtml.indexOf('class ModelEditor');
+    const modelEditorEnd = indexHtml.indexOf('class SoundEditor', modelEditorStart);
+    const modelEditorClass = indexHtml.slice(modelEditorStart, modelEditorEnd);
+
+    assert.match(
+        modelEditorClass,
+        /bindModelEditorPreviewControls\(\{[\s\S]*?canvas: this\.canvas[\s\S]*?windowRef: window[\s\S]*?onPointerDown: \(event\) => this\.handlePointerDown\(event\)[\s\S]*?onPointerCancel: \(\) => this\.cancelPointerState\(\)[\s\S]*?onWheel: \(event\) => this\.handleWheel\(event\)[\s\S]*?onResize: this\.handleResize[\s\S]*?\}\);/,
+        'ModelEditor.initPreview should route preview event binding through the bindings helper'
+    );
+    assert.doesNotMatch(
+        modelEditorClass,
+        /canvas\.addEventListener\('pointerdown'|canvas\.addEventListener\('pointermove'|canvas\.addEventListener\('pointerup'|canvas\.addEventListener\('wheel'|window\.addEventListener\('resize'/,
+        'ModelEditor should not own preview canvas/window event binding details'
+    );
 }
 
 console.log('model-editor-bindings checks passed');

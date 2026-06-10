@@ -896,7 +896,10 @@ import {
 } from './src/view/editors/editor-dom.mjs';
 import { appendEditorLog } from './src/view/editors/editor-log.mjs';
 import { populateModelEditorAssetSelect } from './src/view/editors/model-editor-assets-ui.mjs';
-import { bindModelEditorControls } from './src/view/editors/model-editor-bindings.mjs';
+import {
+    bindModelEditorControls,
+    bindModelEditorPreviewControls
+} from './src/view/editors/model-editor-bindings.mjs';
 import { populateModelEditorStyleSelects } from './src/view/editors/model-editor-style-options-ui.mjs';
 import {
     applyModelEditorSelectionUiState,
@@ -5507,14 +5510,16 @@ class ModelEditor {
             depthWrite: false
         });
 
-        this.canvas.addEventListener('contextmenu', (event) => event.preventDefault());
-        this.canvas.addEventListener('pointerdown', (event) => this.handlePointerDown(event));
-        this.canvas.addEventListener('pointermove', (event) => this.handlePointerMove(event));
-        this.canvas.addEventListener('pointerup', (event) => this.handlePointerUp(event));
-        this.canvas.addEventListener('pointerleave', () => this.cancelPointerState());
-        this.canvas.addEventListener('pointercancel', () => this.cancelPointerState());
-        this.canvas.addEventListener('wheel', (event) => this.handleWheel(event), { passive: false });
-        window.addEventListener('resize', this.handleResize);
+        bindModelEditorPreviewControls({
+            canvas: this.canvas,
+            windowRef: window,
+            onPointerDown: (event) => this.handlePointerDown(event),
+            onPointerMove: (event) => this.handlePointerMove(event),
+            onPointerUp: (event) => this.handlePointerUp(event),
+            onPointerCancel: () => this.cancelPointerState(),
+            onWheel: (event) => this.handleWheel(event),
+            onResize: this.handleResize
+        });
 
         this.handleResize();
         this.loadAsset(this.assetSelect.value);

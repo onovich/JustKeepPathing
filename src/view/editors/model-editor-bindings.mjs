@@ -8,9 +8,9 @@ function requireHandler(name, handler) {
     }
 }
 
-function addBinding(bindings, element, eventName, handler) {
-    element?.addEventListener?.(eventName, handler);
-    bindings.push({ element, eventName });
+function addBinding(bindings, element, eventName, handler, options) {
+    element?.addEventListener?.(eventName, handler, options);
+    bindings.push({ element, eventName, options });
 }
 
 export function isModelEditorBackdropClick(event, modal) {
@@ -24,6 +24,40 @@ export function configureModelEditorEyeDropperButton(button, { eyeDropper } = {}
         button.classList?.add?.('opacity-50', 'cursor-not-allowed');
     }
     return available;
+}
+
+export function bindModelEditorPreviewControls({
+    canvas,
+    windowRef = globalThis.window,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel,
+    onWheel,
+    onResize
+} = {}) {
+    const handlers = {
+        onPointerDown,
+        onPointerMove,
+        onPointerUp,
+        onPointerCancel,
+        onWheel,
+        onResize
+    };
+    for (const [name, handler] of Object.entries(handlers)) {
+        requireHandler(name, handler);
+    }
+
+    const bindings = [];
+    addBinding(bindings, canvas, 'contextmenu', (event) => event.preventDefault());
+    addBinding(bindings, canvas, 'pointerdown', onPointerDown);
+    addBinding(bindings, canvas, 'pointermove', onPointerMove);
+    addBinding(bindings, canvas, 'pointerup', onPointerUp);
+    addBinding(bindings, canvas, 'pointerleave', onPointerCancel);
+    addBinding(bindings, canvas, 'pointercancel', onPointerCancel);
+    addBinding(bindings, canvas, 'wheel', onWheel, { passive: false });
+    addBinding(bindings, windowRef, 'resize', onResize);
+    return bindings;
 }
 
 export function bindModelEditorControls({
