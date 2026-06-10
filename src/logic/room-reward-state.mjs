@@ -494,6 +494,66 @@ export function buildHiddenEliteNodePickupStatePlan({
     };
 }
 
+export function buildThemeChainBonusStatePlan(plan = null) {
+    if (!plan?.kind) return { actions: [] };
+
+    if (plan.kind === 'ember_forge') {
+        const actions = [
+            {
+                type: 'increase-next-floor-attack-bonus',
+                amount: plan.attackBonus || 0,
+                cap: plan.nextFloorAttackBonusCap
+            }
+        ];
+        if (plan.supplyType && plan.supplyCount > 0) {
+            actions.push({ type: 'grant-floor-supply', supplyType: plan.supplyType, amount: plan.supplyCount });
+        }
+        return { actions };
+    }
+
+    if (plan.kind === 'salvage_reaches') {
+        const actions = [
+            { type: 'score', amount: plan.scoreBonus || 0 }
+        ];
+        if (plan.supplyType && plan.supplyCount > 0) {
+            actions.push({ type: 'grant-floor-supply', supplyType: plan.supplyType, amount: plan.supplyCount });
+        }
+        return {
+            actions
+        };
+    }
+
+    if (plan.kind === 'signal_warrens') {
+        const actions = [
+            {
+                type: 'increase-next-hidden-room-bonus',
+                amount: plan.hiddenRoomBonus || 0,
+                cap: plan.nextHiddenRoomBonusCap
+            }
+        ];
+        if (plan.supplyType && plan.supplyCount > 0) {
+            actions.push({ type: 'grant-floor-supply', supplyType: plan.supplyType, amount: plan.supplyCount });
+        }
+        return { actions };
+    }
+
+    if (plan.kind === 'quarantine_vault') {
+        const actions = [
+            {
+                type: 'multiply-incoming-damage',
+                factor: Math.max(plan.incomingDamageFloor ?? 0, 1 - (plan.damageReduction || 0))
+            },
+            { type: 'heal-player', amount: plan.repair || 0 }
+        ];
+        if (plan.refreshReflexShield) {
+            actions.push({ type: 'set-floor-runtime-field', field: 'reflexShieldReady', value: true });
+        }
+        return { actions };
+    }
+
+    return { actions: [] };
+}
+
 export function applyRoomRewardActions({
     gameState,
     room = null,
@@ -563,6 +623,9 @@ export function applyRoomRewardActions({
         } else if (action.type === 'increment-floor-stat') {
             if (!gameState.floorStats) gameState.floorStats = {};
             gameState.floorStats[action.field] = (gameState.floorStats[action.field] || 0) + (action.amount || 0);
+        } else if (action.type === 'set-floor-runtime-field') {
+            if (!gameState.floorRuntime) gameState.floorRuntime = {};
+            gameState.floorRuntime[action.field] = action.value;
         }
     }
 

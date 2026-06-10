@@ -6,6 +6,7 @@ import {
     buildHiddenEliteNodePickupStatePlan,
     buildHiddenEventNodePickupStatePlan,
     buildHiddenTrialNodePickupStatePlan,
+    buildThemeChainBonusStatePlan,
     buildEventRoomRewardStatePlan,
     buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
@@ -139,6 +140,140 @@ assert.deepEqual(
 
     assert.equal(state.score, 65);
     assert.equal(state.floorStats.chests, 3);
+}
+
+{
+    const statePlan = buildThemeChainBonusStatePlan({
+        kind: 'ember_forge',
+        attackBonus: 0.1,
+        nextFloorAttackBonusCap: 0.42,
+        supplyType: 'assault',
+        supplyCount: 1
+    });
+
+    assert.deepEqual(statePlan.actions, [
+        { type: 'increase-next-floor-attack-bonus', amount: 0.1, cap: 0.42 },
+        { type: 'grant-floor-supply', supplyType: 'assault', amount: 1 }
+    ]);
+
+    const state = {
+        score: 0,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0.38 },
+        floorBuff: { incomingDamageMult: 1 },
+        floorRuntime: { reflexShieldReady: false },
+        items: { supplies: { assault: 0 } }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: statePlan.actions,
+        grantFloorSupply: (type, amount) => {
+            state.items.supplies[type] = (state.items.supplies[type] || 0) + amount;
+        }
+    });
+
+    assert.equal(state.meta.nextFloorAttackBonus, 0.42);
+    assert.equal(state.items.supplies.assault, 1);
+}
+
+{
+    const statePlan = buildThemeChainBonusStatePlan({
+        kind: 'salvage_reaches',
+        scoreBonus: 64,
+        supplyType: 'salvage',
+        supplyCount: 1
+    });
+
+    assert.deepEqual(statePlan.actions, [
+        { type: 'score', amount: 64 },
+        { type: 'grant-floor-supply', supplyType: 'salvage', amount: 1 }
+    ]);
+
+    const state = {
+        score: 3,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: { salvage: 0 } }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: statePlan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        },
+        grantFloorSupply: (type, amount) => {
+            state.items.supplies[type] = (state.items.supplies[type] || 0) + amount;
+        }
+    });
+
+    assert.equal(state.score, 67);
+    assert.equal(state.items.supplies.salvage, 1);
+}
+
+{
+    const statePlan = buildThemeChainBonusStatePlan({
+        kind: 'signal_warrens',
+        hiddenRoomBonus: 0.08,
+        nextHiddenRoomBonusCap: 0.38,
+        supplyType: null,
+        supplyCount: 0
+    });
+
+    assert.deepEqual(statePlan.actions, [
+        { type: 'increase-next-hidden-room-bonus', amount: 0.08, cap: 0.38 }
+    ]);
+
+    const state = {
+        score: 0,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0.34, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: statePlan.actions
+    });
+
+    assert.equal(state.meta.nextHiddenRoomBonus, 0.38);
+}
+
+{
+    const statePlan = buildThemeChainBonusStatePlan({
+        kind: 'quarantine_vault',
+        damageReduction: 0.14,
+        incomingDamageFloor: 0.58,
+        repair: 10,
+        refreshReflexShield: true
+    });
+
+    assert.deepEqual(statePlan.actions, [
+        { type: 'multiply-incoming-damage', factor: 0.86 },
+        { type: 'heal-player', amount: 10 },
+        { type: 'set-floor-runtime-field', field: 'reflexShieldReady', value: true }
+    ]);
+
+    const state = {
+        score: 0,
+        player: { baseHp: 80, currentHp: 75, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        floorRuntime: { reflexShieldReady: false },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: statePlan.actions
+    });
+
+    assert.equal(Number(state.floorBuff.incomingDamageMult.toFixed(2)), 0.86);
+    assert.equal(state.player.currentHp, 80, 'theme repair should cap at max HP');
+    assert.equal(state.floorRuntime.reflexShieldReady, true);
 }
 
 {

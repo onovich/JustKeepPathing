@@ -770,6 +770,7 @@ import {
     buildHiddenEliteNodePickupStatePlan,
     buildHiddenEventNodePickupStatePlan,
     buildHiddenTrialNodePickupStatePlan,
+    buildThemeChainBonusStatePlan,
     buildEliteRoomClearRewardStatePlan,
     buildEventRoomRewardStatePlan,
     buildMerchantRoomRewardStatePlan,
@@ -4808,38 +4809,29 @@ class GameController {
             level: GameState.level,
             playerBaseHp: GameState.player.baseHp
         });
+        const statePlan = buildThemeChainBonusStatePlan(plan);
 
         let message = '';
         if (plan?.kind === 'ember_forge') {
             const attackBonus = plan.attackBonus;
-            GameState.meta.nextFloorAttackBonus = Math.min(plan.nextFloorAttackBonusCap, GameState.meta.nextFloorAttackBonus + attackBonus);
             if (plan.supplyType) {
-                GameState.grantFloorSupply(plan.supplyType, plan.supplyCount);
                 message = `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%，并补了 1 份${GameState.supplyDefs.assault?.label || '战备补给'}。`;
             } else {
                 message = `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%。`;
             }
         } else if (plan?.kind === 'salvage_reaches') {
             const salvageBonus = plan.scoreBonus;
-            GameState.addScore(salvageBonus);
-            GameState.grantFloorSupply(plan.supplyType, plan.supplyCount);
             message = `回收浪潮又卷出 ${salvageBonus} 魂能，并补了 1 份${GameState.supplyDefs.salvage?.label || '探宝补给'}。`;
         } else if (plan?.kind === 'signal_warrens') {
             const hiddenBonus = plan.hiddenRoomBonus;
-            GameState.meta.nextHiddenRoomBonus = Math.min(plan.nextHiddenRoomBonusCap, GameState.meta.nextHiddenRoomBonus + hiddenBonus);
             if (plan.supplyType) {
-                GameState.grantFloorSupply(plan.supplyType, plan.supplyCount);
                 message = `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%，并补了 1 份${GameState.supplyDefs.scout?.label || '侦测补给'}。`;
             } else {
                 message = `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%。`;
             }
         } else if (plan?.kind === 'quarantine_vault') {
-            const damageReduction = plan.damageReduction;
             const repair = plan.repair;
-            GameState.floorBuff.incomingDamageMult *= Math.max(plan.incomingDamageFloor, 1 - damageReduction);
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
             if (plan.refreshReflexShield) {
-                GameState.floorRuntime.reflexShieldReady = true;
                 message = `封锁协议稳住了机体，立刻修复 ${repair} 点护盾，并重新挂上一次反射护盾。`;
             } else {
                 message = `封锁协议稳住了机体，立刻修复 ${repair} 点护盾，并让本层后续受伤更轻。`;
@@ -4847,6 +4839,12 @@ class GameController {
         }
 
         if (!message) return '';
+        applyRoomRewardActions({
+            gameState: GameState,
+            actions: statePlan.actions,
+            addScore: (amount) => GameState.addScore(amount),
+            grantFloorSupply: (type, amount) => GameState.grantFloorSupply(type, amount)
+        });
         if (anchorPos) {
             this.engine.addFloatingText(this.floorDirective?.label || this.floorPlan?.theme?.directive?.label || '地带加成', anchorPos, accent, true);
         }

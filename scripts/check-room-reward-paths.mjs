@@ -34,6 +34,12 @@ assert.match(
     'event reward state helper should preserve Echo Engine handling through resolveEchoEngineEventBonus'
 );
 
+assert.match(
+    indexHtml,
+    /applyThemeChainBonus\(sourceKey, room, anchorPos = null\)[\s\S]*?buildThemeChainBonusStatePlan\(plan\)[\s\S]*?applyRoomRewardActions\(/,
+    'theme-chain bonuses should route state application through the shared state-plan helper'
+);
+
 const relicRollCalls = [...indexHtml.matchAll(/GameState\.rollRelicReward\(([^)]*)\)/g)].map((match) => match[1].trim());
 assert.deepEqual(
     relicRollCalls,
