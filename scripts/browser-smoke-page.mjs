@@ -754,6 +754,10 @@ export async function browserSmoke() {
     modelEditorAssetSelectValue: modelEditorAssetSelect?.value || '',
     modelEditorAssetOptionCount: modelEditorAssetSelect?.options?.length || 0,
     modelEditorAssetOptionValues: Array.from(modelEditorAssetSelect?.options || []).map((option) => option.value).join('|'),
+    modelEditorPatternSelectValue: modelEditorPatternSelect?.value || '',
+    modelEditorPatternOptionValues: Array.from(modelEditorPatternSelect?.options || []).map((option) => option.value).join('|'),
+    modelEditorLineStyleSelectValue: modelEditorLineStyleSelect?.value || '',
+    modelEditorLineStyleOptionValues: Array.from(modelEditorLineStyleSelect?.options || []).map((option) => option.value).join('|'),
     soundEditorSelectValue: soundEditorSelect?.value || '',
     soundEditorOptionCount: soundEditorSelect?.options?.length || 0,
     soundEditorTypeText: soundEditorType?.innerText || '',
@@ -946,6 +950,14 @@ export async function browserSmoke() {
   if (result.modelEditorAssetOptionCount !== 8) throw new Error('Model editor asset select options did not render.');
   if (result.modelEditorAssetOptionValues !== 'player|scout|brute|spine|warden|boss|chest|exit') {
     throw new Error('Model editor asset select option values changed unexpectedly.');
+  }
+  if (result.modelEditorPatternSelectValue !== 'none') throw new Error('Model editor pattern select did not default to none.');
+  if (result.modelEditorPatternOptionValues !== 'none|halftone|dither|hatch|__mixed') {
+    throw new Error('Model editor pattern select option values changed unexpectedly.');
+  }
+  if (result.modelEditorLineStyleSelectValue !== 'solid') throw new Error('Model editor line style select did not default to solid.');
+  if (result.modelEditorLineStyleOptionValues !== 'solid|dashed|__mixed') {
+    throw new Error('Model editor line style select option values changed unexpectedly.');
   }
   if (!result.soundEditorSelectValue || result.soundEditorOptionCount < 4) throw new Error('Sound editor select options did not render.');
   if (!result.soundEditorTypeText || !result.soundEditorUsageText || !result.soundEditorDescriptionText) throw new Error('Sound editor metadata did not render.');

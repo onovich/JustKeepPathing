@@ -55,6 +55,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Browser smoke now covers full elite-room clear presentation, including lifecycle clearing, marker/grid cleanup, relic presentation, and theme-chain rewards.
 - Browser smoke's page-side fixture now lives in `scripts/browser-smoke-page.mjs`, leaving `scripts/browser-smoke.mjs` focused on server/browser/CDP orchestration; `npm run check` now syntax-checks both smoke modules.
 - Model editor asset select rendering was extracted into `src/view/editors/model-editor-assets-ui.mjs`, with focused checks and browser smoke coverage for startup asset options.
+- Shared editor select-option rendering now lives in `src/view/editors/editor-select-options.mjs`, and model editor pattern/line style options were extracted into `src/view/editors/model-editor-style-options-ui.mjs` with focused checks and browser smoke coverage.
 
 ## 1. Browser Smoke Follow-Up
 

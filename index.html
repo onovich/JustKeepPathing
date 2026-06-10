@@ -500,11 +500,6 @@
                                     <div>
                                         <label for="editor-face-pattern" class="mb-2 block text-[11px] font-bold text-slate-400">纹理类型</label>
                                         <select id="editor-face-pattern" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-cyan-500">
-                                            <option value="none">无</option>
-                                            <option value="halftone">半调网点</option>
-                                            <option value="dither">抖动棋盘</option>
-                                            <option value="hatch">斜线排布</option>
-                                            <option value="__mixed">...</option>
                                         </select>
                                     </div>
                                     <div class="flex items-center gap-3">
@@ -528,9 +523,6 @@
                                     <div>
                                         <label for="editor-line-style" class="mb-2 block text-[11px] font-bold text-slate-400">线型</label>
                                         <select id="editor-line-style" class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm font-bold text-slate-100 outline-none focus:border-cyan-500">
-                                            <option value="solid">实线</option>
-                                            <option value="dashed">虚线</option>
-                                            <option value="__mixed">...</option>
                                         </select>
                                     </div>
                                     <div>
@@ -820,6 +812,7 @@ import {
 } from './src/view/editors/editor-dom.mjs';
 import { appendEditorLog } from './src/view/editors/editor-log.mjs';
 import { populateModelEditorAssetSelect } from './src/view/editors/model-editor-assets-ui.mjs';
+import { populateModelEditorStyleSelects } from './src/view/editors/model-editor-style-options-ui.mjs';
 import {
     applyModelEditorSelectionUiState,
     buildModelEditorSelectionUiState
@@ -6222,6 +6215,14 @@ class ModelEditor {
         this.renderLoopHandle = null;
 
         populateModelEditorAssetSelect(this.assetSelect, MODEL_EDITOR_ASSET_LABELS);
+        populateModelEditorStyleSelects({
+            patternSelect: this.patternSelect,
+            lineStyleSelect: this.lineStyleSelect
+        }, {
+            patternKeys: MODEL_EDITOR_FACE_PATTERN_KEYS,
+            selectedPattern: MODEL_EDITOR_DEFAULT_FACE_PATTERN.pattern,
+            selectedLineStyle: MODEL_EDITOR_DEFAULT_LINE_STYLE.style
+        });
         this.handleResize = this.handleResize.bind(this);
         this.renderLoop = this.renderLoop.bind(this);
         this.setupHeaderButtons();
