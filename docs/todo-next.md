@@ -51,6 +51,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Browser smoke now exercises the `Echo Engine` event-room finalization path with a deterministic fixture and restores runtime state afterward.
 - Browser smoke now covers consecutive elite/boss run-relic rolls for both double-add and single-slot overflow outcomes.
 - Path Debug now surfaces per-room access, gate progress, detour, final diversion score, and lifecycle flags, with browser smoke coverage for a deterministic two-room fixture.
+- Browser smoke now covers rest, merchant, trial, and treasure room completion rewards with a deterministic runtime fixture that restores `GameState` afterward.
 
 ## 1. Theme Chain And Relic Follow-Up
 
@@ -61,7 +62,7 @@ Goal:
 
 Outstanding work:
 
-- expand runtime fixtures for `event`, `trial`, `merchant`, `rest`, `treasure`, and `elite` room completion paths beyond the current static reward-path guard
+- add a focused runtime fixture for full elite-room clear presentation once the combat/engine dependencies can be isolated without inflating smoke setup
 
 Acceptance:
 

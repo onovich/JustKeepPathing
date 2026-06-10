@@ -454,6 +454,152 @@ async function runSmoke() {
         }
       };
       const consecutiveRunRelicSmoke = runConsecutiveRunRelicSmoke();
+
+      const runRoomCompletionSmoke = () => {
+        const controller = window.gameController;
+        const state = window.GameState;
+        if (!controller?.resolveRestRoom || !controller?.resolveMerchantRoom || !controller?.resolveTrialRoomV2 || !controller?.finalizeHiddenRoomRewardResolution) {
+          throw new Error('Room completion smoke dependencies are missing.');
+        }
+        const saved = {
+          level: state.level,
+          score: state.score,
+          player: { ...state.player },
+          maze: { ...state.maze },
+          meta: { ...state.meta },
+          items: cloneJson(state.items || {}),
+          floorBuff: { ...state.floorBuff },
+          floorRuntime: { ...state.floorRuntime },
+          floorContent: state.floorContent,
+          autoStrategy: { ...state.autoStrategy },
+          floorPlan: controller.floorPlan
+        };
+        const baseRewardProfile = { chestBonus: 2, scoreMult: 1.1, repairValue: 0.1 };
+        const salvageTheme = {
+          themeKey: 'salvage_reaches',
+          theme: { accentColor: '#facc15', directive: { label: 'Smoke Salvage Theme' } }
+        };
+        try {
+          state.level = 3;
+          state.score = 0;
+          state.player = {
+            ...saved.player,
+            baseHp: 120,
+            currentHp: 42,
+            baseAtk: 18
+          };
+          state.maze = {
+            ...saved.maze,
+            lvSize: 1,
+            lvChest: 1,
+            baseChestRate: 0.05,
+            baseMonsterRate: 0.03
+          };
+          state.meta = { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 };
+          state.items = { supplies: { assault: 0, salvage: 0, scout: 0 } };
+          state.floorBuff = {
+            ...saved.floorBuff,
+            supplyActive: false,
+            supplyKey: null,
+            supplyLabel: null,
+            incomingDamageMult: 1,
+            chestRewardMult: 1,
+            supplyDropBonus: 0,
+            attackMult: 1,
+            moveSpeedMult: 1,
+            bossRewardMult: 1,
+            monsterSpawnMult: 1,
+            monsterRewardMult: 1,
+            hiddenRoomBonus: 0,
+            diversionBonus: 0
+          };
+          state.floorRuntime = { reflexShieldReady: false };
+          state.autoStrategy = { risk: 'balanced', rest: 'balanced', merchant: 'power', supply: 'balanced' };
+          state.floorContent = { themeKey: null, archetypeKey: 'combat', hiddenRooms: [] };
+          controller.floorPlan = { themeKey: null, theme: null };
+
+          const restMessage = controller.resolveRestRoom({
+            id: 'smoke-rest',
+            displayName: 'Smoke Rest Room',
+            rewardTier: 2,
+            rewardProfile: baseRewardProfile
+          });
+          const restRecoveredHp = state.player.currentHp > 42;
+          const restAddedSupply = state.items.supplies.salvage > 0;
+
+          state.score = 0;
+          state.meta.nextHiddenRoomBonus = 0;
+          state.items = { supplies: { assault: 0, salvage: 0, scout: 0 } };
+          const merchantMessage = controller.resolveMerchantRoom({
+            id: 'smoke-merchant',
+            displayName: 'Smoke Merchant Room',
+            rewardTier: 2,
+            rewardProfile: baseRewardProfile
+          });
+          const merchantImprovedIntel = state.meta.nextHiddenRoomBonus > 0;
+
+          state.score = 0;
+          state.items = { supplies: { assault: 0, salvage: 0, scout: 0 } };
+          state.meta.nextFloorAttackBonus = 0;
+          state.player.baseAtk = 18;
+          const trialRoom = {
+            id: 'smoke-trial',
+            displayName: 'Smoke Trial Room',
+            rewardTier: 3,
+            rewardProfile: baseRewardProfile,
+            trialSeed: { label: 'Smoke Trial Seed', effect: 'attack_overdrive', rewardMult: 1 },
+            trialCharge: 2,
+            trialBonusSupply: null
+          };
+          const trialMessage = controller.resolveTrialRoomV2(trialRoom);
+          const trialBoostedAttack = state.player.baseAtk > 18 && state.meta.nextFloorAttackBonus > 0;
+          const trialAddedSupply = trialRoom.trialBonusSupply === 'assault' && state.items.supplies.assault > 0;
+
+          state.score = 0;
+          state.items = { supplies: { assault: 0, salvage: 0, scout: 0 } };
+          state.floorContent = { ...salvageTheme, archetypeKey: 'treasure', hiddenRooms: [] };
+          controller.floorPlan = salvageTheme;
+          const treasureMessage = controller.finalizeHiddenRoomRewardResolution(
+            'treasure',
+            {
+              id: 'smoke-treasure',
+              displayName: 'Smoke Treasure Room',
+              rewardTier: 2
+            },
+            ''
+          );
+          const treasureThemeApplied = treasureMessage.length > 0
+            && state.score > 0
+            && state.items.supplies.salvage > 0;
+
+          return {
+            restMessage,
+            restRecoveredHp,
+            restAddedSupply,
+            merchantMessage,
+            merchantImprovedIntel,
+            trialMessage,
+            trialBoostedAttack,
+            trialAddedSupply,
+            treasureMessage,
+            treasureThemeApplied
+          };
+        } finally {
+          state.level = saved.level;
+          state.score = saved.score;
+          state.player = saved.player;
+          state.maze = saved.maze;
+          state.meta = saved.meta;
+          state.items = saved.items;
+          state.floorBuff = saved.floorBuff;
+          state.floorRuntime = saved.floorRuntime;
+          state.floorContent = saved.floorContent;
+          state.autoStrategy = saved.autoStrategy;
+          controller.floorPlan = saved.floorPlan;
+          state.updateUI?.();
+        }
+      };
+      const roomCompletionSmoke = runRoomCompletionSmoke();
       const countFoundBadges = (selector) => Array.from(document.querySelectorAll(`${selector} article span`))
         .filter((element) => element.innerText.trim() === 'Found')
         .length;
@@ -717,6 +863,16 @@ async function runSmoke() {
         runRelicSingleSlotRelics: consecutiveRunRelicSmoke.singleSlotRelics,
         runRelicSingleSlotBonusScore: consecutiveRunRelicSmoke.singleSlotBonusScore,
         runRelicSingleSlotScore: consecutiveRunRelicSmoke.singleSlotScore,
+        roomCompletionRestMessage: roomCompletionSmoke.restMessage,
+        roomCompletionRestRecoveredHp: roomCompletionSmoke.restRecoveredHp,
+        roomCompletionRestAddedSupply: roomCompletionSmoke.restAddedSupply,
+        roomCompletionMerchantMessage: roomCompletionSmoke.merchantMessage,
+        roomCompletionMerchantImprovedIntel: roomCompletionSmoke.merchantImprovedIntel,
+        roomCompletionTrialMessage: roomCompletionSmoke.trialMessage,
+        roomCompletionTrialBoostedAttack: roomCompletionSmoke.trialBoostedAttack,
+        roomCompletionTrialAddedSupply: roomCompletionSmoke.trialAddedSupply,
+        roomCompletionTreasureMessage: roomCompletionSmoke.treasureMessage,
+        roomCompletionTreasureThemeApplied: roomCompletionSmoke.treasureThemeApplied,
         canvasWidth: canvas?.clientWidth || 0,
         canvasHeight: canvas?.clientHeight || 0,
         hasController: !!window.gameController,
@@ -763,6 +919,18 @@ async function runSmoke() {
       }
       if (result.runRelicSingleSlotRelics.length !== 1 || result.runRelicSingleSlotBonusScore <= 0 || result.runRelicSingleSlotScore <= 0) {
         throw new Error('Single-slot boss relic overflow did not preserve a bonus-score reward.');
+      }
+      if (!result.roomCompletionRestRecoveredHp || !result.roomCompletionRestAddedSupply || !result.roomCompletionRestMessage.includes('Smoke Rest Room restored')) {
+        throw new Error(`Rest room completion did not apply its runtime rewards: ${result.roomCompletionRestMessage}`);
+      }
+      if (!result.roomCompletionMerchantImprovedIntel || !result.roomCompletionMerchantMessage.includes('found no good deal')) {
+        throw new Error(`Merchant room completion did not apply its runtime intel fallback: ${result.roomCompletionMerchantMessage}`);
+      }
+      if (!result.roomCompletionTrialBoostedAttack || !result.roomCompletionTrialAddedSupply || !result.roomCompletionTrialMessage.includes('next-floor attack')) {
+        throw new Error(`Trial room completion did not apply its runtime attack-overdrive rewards: ${result.roomCompletionTrialMessage}`);
+      }
+      if (!result.roomCompletionTreasureThemeApplied || !result.roomCompletionTreasureMessage) {
+        throw new Error('Treasure room completion did not surface its theme-chain runtime reward.');
       }
       if (result.canvasWidth <= 0 || result.canvasHeight <= 0) throw new Error('Canvas has no visible size.');
       if (result.collectionSummaryCards < 4) throw new Error('Collection summary cards did not render.');
