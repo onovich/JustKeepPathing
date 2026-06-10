@@ -50,6 +50,32 @@ export function buildHudUpgradeStates({
     }));
 }
 
+export function bindHudUpgradeButtons({
+    documentRef,
+    windowRef,
+    upgradeIds = HUD_UPGRADE_IDS,
+    onBuy,
+    onMissingButton
+} = {}) {
+    if (!documentRef) return [];
+
+    return upgradeIds.map((id) => {
+        const buttonId = `btn-up-${id}`;
+        const button = documentRef.getElementById(buttonId);
+        if (!button) {
+            onMissingButton?.(buttonId, id);
+            return { id, button: null, bound: false };
+        }
+
+        button.addEventListener('click', async () => {
+            await windowRef?.soundEngine?.unlock?.();
+            onBuy?.(id);
+        });
+
+        return { id, button, bound: true };
+    });
+}
+
 export function buildHudUpgradeDescriptionState({
     mazeSide = 0,
     mazeSizeFactor = 1,

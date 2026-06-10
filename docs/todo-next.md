@@ -1,6 +1,6 @@
 # JustKeepPathing Next TODO
 
-Updated 2026-06-10 after reviewing the current runtime state.
+Updated 2026-06-11 after closing the current refactor phase.
 
 ## Already Landed
 
@@ -82,6 +82,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Run relic overflow score, roll chance, miss/empty-pool result formatting, and claim-state decisions now live in `src/logic/run-relic-state.mjs`, with focused checks for duplicate, overflow, empty-pool, chance caps, and non-mutating inventory updates.
 - HUD upgrade button value/cost/affordability state building and DOM application now live in `src/view/hud-upgrade-ui.mjs`, with focused checks for level labels, size MAX state, and affordability class toggles.
 - HUD upgrade description text for maze size and monster/Boss floor context now lives in `src/view/hud-upgrade-ui.mjs`, with focused checks for themed/finale/directive copy and a `GameState.updateUI` path guard.
+- HUD upgrade button binding now lives in `src/view/hud-upgrade-ui.mjs`, with focused checks for async sound unlock, buy callback routing, missing-button fallback, and a `GameController` path guard.
 - Score text formatting and pulse styling now live in `src/view/score-ui.mjs`, with focused checks for text refreshes, pulse reset behavior, null DOM fallback, and the `GameState` path guard.
 - Combat HP panel state and DOM application now live in `src/view/combat-hp-ui.mjs`, with focused checks for normal enemies, bosses, finale accent styling, and the `GameController` path guard.
 - Combat overlay show/hide class toggles now live in `src/view/combat-hp-ui.mjs`, with focused checks for visible, hide-start, hide-finish, null fallback, and `GameController` path guards while the controller still owns the hide timer.
@@ -106,37 +107,20 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Player attack damage calculation now routes through `src/logic/combat-state.mjs`, with focused checks for attack multipliers, boss damage dampening, and multiplier fallback while combat animation remains in `GameController`.
 - Exploration chest and level-exit reward state now live in `src/logic/exploration-state.mjs`, with focused checks for chest score multipliers, chest counters, exit score, and level increments while pickup effects remain in `GameController`.
 
-## 1. Browser Smoke Follow-Up
+## Refactor Closeout Status
 
-Goal:
+The required refactor phase is closed as of 2026-06-11. No required TODO blockers remain for the current static-host prototype.
 
-- broaden browser coverage while keeping the current smoke fast enough for local refactor checks
+Current boundary:
 
-Recommended slice:
+- `src/` owns focused data, logic, panel, editor, HUD, combat, reward, collection, smoke-fixture, and UI state helpers.
+- `index.html` intentionally still owns the static HTML shell, startup ordering, runtime orchestration, Three.js scene/model construction, maze generation, hidden-room entity placement, combat/exploration sequencing, and animation/audio presentation calls.
+- `GameController`, `VisualEngine`, `SoundEngine`, `ModelEditor`, and `SoundEditor` are still sizable, but the remaining size is mostly coupled runtime behavior rather than isolated pure helpers or low-risk DOM shells.
+- `npm run verify:refactor` is the closeout gate for future small refactor turns because it runs the local checks, browser smoke, and screenshot smoke without requiring a production build or external dependency.
 
-- optionally archive screenshots from `npm run smoke:screenshot` before visual-risky refactors
-- keep adding targeted smoke coverage for UI paths that still live in `index.html`
+## Optional Follow-Ups
 
-Acceptance:
-
-- `npm run check` still stays fast and local
-- browser smoke can be run manually before risky UI/render changes
-- the smoke does not require a production build step or external npm dependency
-
-## 2. Refactor Follow-Up
-
-Goal:
-
-- keep reducing `index.html` without changing gameplay feel or static-host deployment
-
-Recommended next extraction candidates:
-
-- remaining reward resolution state-application helpers
-- remaining lightweight UI shells
-- model editor UI shell
-
-Acceptance:
-
-- extracted modules stay dependency-light and static-host friendly
-- runtime ordering stays stable
-- `index.html` remains playable after each slice
+- Broaden browser smoke only when new risky UI/runtime paths are added, and keep it fast enough for local refactor checks.
+- Archive screenshots from `npm run smoke:screenshot` before visually risky rendering changes when a before/after comparison would help.
+- Treat deeper splits of `GameController`, `VisualEngine`, `SoundEngine`, `ModelEditor`, or `SoundEditor` as a new architecture phase driven by feature work, not as required cleanup for this phase.
+- Consider bundling, test-runner, or module-loading modernization only if the project moves beyond the current static HTML prototype constraints.

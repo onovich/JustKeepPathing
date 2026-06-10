@@ -4,6 +4,7 @@ import {
     applyHudUpgradeDescriptions,
     applyHudUpgradeState,
     applyHudUpgradeStates,
+    bindHudUpgradeButtons,
     buildHudUpgradeDescriptionState,
     buildHudUpgradeState,
     buildHudUpgradeStates
@@ -11,8 +12,13 @@ import {
 
 function createElement() {
     const classes = new Set(['opacity-50', 'grayscale']);
+    const listeners = new Map();
     return {
         innerText: '',
+        listeners,
+        addEventListener(type, handler) {
+            listeners.set(type, handler);
+        },
         classList: {
             add(...tokens) {
                 for (const token of tokens) classes.add(token);
@@ -173,17 +179,70 @@ assert.deepEqual(
 assert.equal(applyHudUpgradeDescriptions(null, { sizeText: '', monsterText: '' }), null);
 
 {
+    const documentRef = createDocument(['btn-up-speed', 'btn-up-atk']);
+    const calls = [];
+    const bindings = bindHudUpgradeButtons({
+        documentRef,
+        windowRef: {
+            soundEngine: {
+                async unlock() {
+                    calls.push('unlock');
+                }
+            }
+        },
+        upgradeIds: ['speed', 'atk'],
+        onBuy: (id) => calls.push(`buy:${id}`)
+    });
+
+    assert.deepEqual(
+        bindings.map(({ id, bound }) => ({ id, bound })),
+        [
+            { id: 'speed', bound: true },
+            { id: 'atk', bound: true }
+        ]
+    );
+
+    await documentRef.elements['btn-up-speed'].listeners.get('click')();
+    assert.deepEqual(calls, ['unlock', 'buy:speed']);
+}
+
+{
+    const missing = [];
+    const bindings = bindHudUpgradeButtons({
+        documentRef: createDocument([]),
+        upgradeIds: ['speed'],
+        onMissingButton: (buttonId, id) => missing.push(`${buttonId}:${id}`)
+    });
+
+    assert.deepEqual(bindings, [{ id: 'speed', button: null, bound: false }]);
+    assert.deepEqual(missing, ['btn-up-speed:speed']);
+}
+
+assert.deepEqual(bindHudUpgradeButtons({ documentRef: null, upgradeIds: ['speed'] }), []);
+
+{
     const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
     assert.match(
         indexHtml,
         /applyHudUpgradeDescriptions\(document, buildHudUpgradeDescriptionState\(\{[\s\S]*?mazeSide: this\.getMazeSide\(\),[\s\S]*?mazeSizeFactor: this\.getMazeSizeFactor\(\),[\s\S]*?floorDirective: this\.floorDirective[\s\S]*?\}\)\);/,
         'GameState.updateUI should pass upgrade description state into the HUD helper'
     );
+    assert.match(
+        indexHtml,
+        /bindHudUpgradeButtons\(\{[\s\S]*?documentRef: document,[\s\S]*?windowRef: window,[\s\S]*?onBuy: \(type\) => GameState\.tryBuy\(type\)[\s\S]*?\}\);/,
+        'GameController should route upgrade button binding through the HUD helper'
+    );
     const updateUiBody = indexHtml.match(/updateUI\(\) \{([\s\S]*?)\n    \}\n};/)?.[1] || '';
     assert.doesNotMatch(
         updateUiBody,
         /document\.getElementById\('desc-(?:size|monster)'\)|const floorLabels/,
         'GameState.updateUI should not own HUD upgrade description DOM writes'
+    );
+    const controllerConstructor = indexHtml.match(/constructor\(engine\) \{([\s\S]*?)window\.gameController = this;/)?.[1] || '';
+    assert.doesNotMatch(
+        controllerConstructor,
+        /document\.getElementById\(`btn-up-\$\{type\}`\)|\['speed', 'atk', 'hp', 'chest', 'size', 'monster'\]/,
+        'GameController should not own HUD upgrade button DOM lookup'
     );
 }
 

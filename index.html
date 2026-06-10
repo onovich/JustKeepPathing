@@ -957,6 +957,7 @@ import {
     initializeHudRelicUi
 } from './src/view/hud-relic-ui.mjs';
 import {
+    bindHudUpgradeButtons,
     applyHudUpgradeDescriptions,
     applyHudUpgradeStates,
     buildHudUpgradeDescriptionState,
@@ -3056,17 +3057,11 @@ class GameController {
 
         initializeHudStatusUi();
         initializeHudRelicUi();
-
-        ['speed', 'atk', 'hp', 'chest', 'size', 'monster'].forEach((type) => {
-            const button = document.getElementById(`btn-up-${type}`);
-            if (!button) {
-                console.warn('Missing upgrade button:', `btn-up-${type}`);
-                return;
-            }
-            button.addEventListener('click', async () => {
-                await window.soundEngine?.unlock();
-                GameState.tryBuy(type);
-            });
+        bindHudUpgradeButtons({
+            documentRef: document,
+            windowRef: window,
+            onBuy: (type) => GameState.tryBuy(type),
+            onMissingButton: (buttonId) => console.warn('Missing upgrade button:', buttonId)
         });
 
         window.gameController = this;
