@@ -736,6 +736,7 @@ import {
     sanitizeAutoStrategy as sanitizeAutoStrategyConfig
 } from './src/logic/auto-strategy.mjs';
 import {
+    buildCombatProfile as buildCombatProfileState,
     buildEnemyAttackDamageStatePlan,
     buildCombatBonusScoreStatePlan,
     buildCombatVictoryStatePlan
@@ -5466,41 +5467,16 @@ class GameController {
 
     buildCombatProfile(enemyObj) {
         const data = enemyObj.enemyData;
-        const linearScale = data.boss ? 1 + (GameState.level - 1) * 0.34 : 1 + (GameState.level - 1) * 0.18;
-        const curveScale = Math.pow(data.boss ? 1.1 : 1.06, Math.max(0, GameState.level - 1));
-        let rewardMult = GameState.floorBuff?.monsterRewardMult || 1;
-        if (data.boss) rewardMult *= GameState.floorBuff?.bossRewardMult || 1;
-        let supportHpMult = 0;
-        let supportAtkMult = 0;
-        let intro = data.intro;
-        if (data.elite && data.hiddenRoomId) {
-            const room = this.getHiddenRoomById(data.hiddenRoomId);
-            const activeEliteSupports = this.getPendingHiddenEliteNodes(room);
-            for (const supportNode of activeEliteSupports) {
-                supportHpMult += supportNode.supportData?.hpMult || 0;
-                supportAtkMult += supportNode.supportData?.atkMult || 0;
-            }
-            if (activeEliteSupports.length > 0) {
-                const supportSummary = activeEliteSupports
-                    .map((supportNode) => supportNode.supportData?.label)
-                    .filter(Boolean)
-                    .slice(0, 3)
-                    .join('、');
-                intro = `${data.intro} 当前仍有 ${activeEliteSupports.length} 个装置在运转${supportSummary ? `：${supportSummary}` : ''}。`;
-            }
-        }
-        return {
-            name: data.name,
-            intro,
-            attackVerb: data.attackVerb,
-            reward: Math.floor(data.reward * (1 + GameState.level * 0.18) * rewardMult),
-            maxHp: Math.floor(data.baseHp * linearScale * curveScale * (1 + supportHpMult)),
-            atk: Math.floor(data.baseAtk * linearScale * (1 + supportAtkMult)),
-            boss: !!data.boss,
-            color: data.color,
-            finaleBoss: !!data.finaleBoss,
-            bossMechanic: data.bossMechanic || null
-        };
+        const activeEliteSupports = data.elite && data.hiddenRoomId
+            ? this.getPendingHiddenEliteNodes(this.getHiddenRoomById(data.hiddenRoomId))
+            : [];
+
+        return buildCombatProfileState({
+            enemyData: data,
+            level: GameState.level,
+            floorBuff: GameState.floorBuff,
+            activeEliteSupports
+        });
     }
 
     async startCombatRPG(enemyObj, enemyNode) {

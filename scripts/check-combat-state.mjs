@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+    buildCombatProfile,
     buildCombatBonusScoreStatePlan,
     buildCombatVictoryStatePlan,
     buildEnemyAttackDamageStatePlan
@@ -10,6 +11,87 @@ import { applyRoomRewardActions } from '../src/logic/room-reward-state.mjs';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 const indexHtml = fs.readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
+
+{
+    const profile = buildCombatProfile({
+        level: 3,
+        floorBuff: { monsterRewardMult: 1.25 },
+        enemyData: {
+            name: 'Scout',
+            intro: 'Intro',
+            attackVerb: 'slashes',
+            reward: 100,
+            baseHp: 50,
+            baseAtk: 10,
+            color: 0xff0000
+        }
+    });
+
+    assert.equal(profile.name, 'Scout');
+    assert.equal(profile.intro, 'Intro');
+    assert.equal(profile.reward, 192);
+    assert.equal(profile.maxHp, 76);
+    assert.equal(profile.atk, 13);
+    assert.equal(profile.boss, false);
+    assert.equal(profile.finaleBoss, false);
+    assert.equal(profile.bossMechanic, null);
+}
+
+{
+    const profile = buildCombatProfile({
+        level: 2,
+        floorBuff: {
+            monsterRewardMult: 1.1,
+            bossRewardMult: 1.2
+        },
+        enemyData: {
+            name: 'Gatekeeper',
+            intro: 'Boss',
+            attackVerb: 'smashes',
+            reward: 200,
+            baseHp: 120,
+            baseAtk: 20,
+            boss: true,
+            finaleBoss: true,
+            bossMechanic: 'seal',
+            color: 0x00ff00
+        }
+    });
+
+    assert.equal(profile.reward, 359);
+    assert.equal(profile.maxHp, 176);
+    assert.equal(profile.atk, 26);
+    assert.equal(profile.boss, true);
+    assert.equal(profile.finaleBoss, true);
+    assert.equal(profile.bossMechanic, 'seal');
+}
+
+{
+    const profile = buildCombatProfile({
+        level: 2,
+        floorBuff: { monsterRewardMult: 1 },
+        enemyData: {
+            name: 'Elite',
+            intro: 'Elite intro',
+            attackVerb: 'fires',
+            reward: 80,
+            baseHp: 90,
+            baseAtk: 12,
+            elite: true,
+            color: 0x0000ff
+        },
+        activeEliteSupports: [
+            { supportData: { hpMult: 0.25, atkMult: 0.5, label: 'Shield' } },
+            { supportData: { hpMult: 0.15, atkMult: 0.25, label: 'Amplifier' } }
+        ]
+    });
+
+    assert.equal(profile.reward, 108);
+    assert.equal(profile.maxHp, 157);
+    assert.equal(profile.atk, 24);
+    assert.match(profile.intro, /2 个装置/);
+    assert.match(profile.intro, /Shield、Amplifier/);
+}
 
 {
     const plan = buildCombatVictoryStatePlan({
@@ -149,6 +231,12 @@ assert.deepEqual(
     assert.equal(state.player.currentHp, 2);
     assert.equal(state.floorRuntime.reflexShieldReady, false);
 }
+
+assert.match(
+    indexHtml,
+    /buildCombatProfile\(enemyObj\) \{[\s\S]*?buildCombatProfileState\(\{[\s\S]*?activeEliteSupports/,
+    'combat profile scaling and elite support summary should route through the shared helper'
+);
 
 assert.match(
     indexHtml,

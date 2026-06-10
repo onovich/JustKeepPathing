@@ -1,3 +1,49 @@
+export function buildCombatProfile({
+    enemyData = {},
+    level = 1,
+    floorBuff = {},
+    activeEliteSupports = []
+} = {}) {
+    const linearScale = enemyData.boss
+        ? 1 + (level - 1) * 0.34
+        : 1 + (level - 1) * 0.18;
+    const curveScale = Math.pow(enemyData.boss ? 1.1 : 1.06, Math.max(0, level - 1));
+    let rewardMult = floorBuff?.monsterRewardMult || 1;
+    if (enemyData.boss) rewardMult *= floorBuff?.bossRewardMult || 1;
+
+    let supportHpMult = 0;
+    let supportAtkMult = 0;
+    let intro = enemyData.intro;
+    const supports = activeEliteSupports || [];
+
+    for (const supportNode of supports) {
+        supportHpMult += supportNode.supportData?.hpMult || 0;
+        supportAtkMult += supportNode.supportData?.atkMult || 0;
+    }
+
+    if (supports.length > 0) {
+        const supportSummary = supports
+            .map((supportNode) => supportNode.supportData?.label)
+            .filter(Boolean)
+            .slice(0, 3)
+            .join('、');
+        intro = `${enemyData.intro} 当前仍有 ${supports.length} 个装置在运转${supportSummary ? `：${supportSummary}` : ''}。`;
+    }
+
+    return {
+        name: enemyData.name,
+        intro,
+        attackVerb: enemyData.attackVerb,
+        reward: Math.floor(enemyData.reward * (1 + level * 0.18) * rewardMult),
+        maxHp: Math.floor(enemyData.baseHp * linearScale * curveScale * (1 + supportHpMult)),
+        atk: Math.floor(enemyData.baseAtk * linearScale * (1 + supportAtkMult)),
+        boss: !!enemyData.boss,
+        color: enemyData.color,
+        finaleBoss: !!enemyData.finaleBoss,
+        bossMechanic: enemyData.bossMechanic || null
+    };
+}
+
 export function buildCombatVictoryStatePlan({
     reward = 0,
     killCount = 1
