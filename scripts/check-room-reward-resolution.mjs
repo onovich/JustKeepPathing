@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     appendRoomRewardDetails,
+    buildRunRelicRewardEffectPlan,
     formatRunRelicRewardMessage,
     finalizeRoomRewardMessage,
     resolveEchoEngineEventBonus,
@@ -191,6 +192,60 @@ assert.equal(
     }),
     '',
     'missed run relic rolls should stay silent'
+);
+
+assert.deepEqual(
+    buildRunRelicRewardEffectPlan({
+        status: 'added',
+        relic: { label: 'Echo Engine' },
+        bonusScore: 0
+    }),
+    {
+        kind: 'added',
+        sound: 'upgrade',
+        burstColor: 0x22d3ee,
+        burstCount: 22,
+        burstScale: 2.1,
+        floatingText: 'Echo Engine',
+        textColor: '#67e8f9',
+        strong: true
+    },
+    'added run relic effects should preserve the current burst and floating text plan'
+);
+
+assert.deepEqual(
+    buildRunRelicRewardEffectPlan({
+        status: 'overflow',
+        relic: null,
+        bonusScore: 75
+    }),
+    {
+        kind: 'bonus-score',
+        floatingText: '+核心残响 75',
+        textColor: '#facc15',
+        strong: true
+    },
+    'overflow run relic effects should preserve the bonus-score floating text plan'
+);
+
+assert.deepEqual(
+    buildRunRelicRewardEffectPlan({
+        status: 'miss',
+        relic: null,
+        bonusScore: 0
+    }),
+    { kind: 'none' },
+    'missed run relic rewards should not produce a presentation effect'
+);
+
+assert.deepEqual(
+    buildRunRelicRewardEffectPlan({
+        status: 'duplicate',
+        relic: null,
+        bonusScore: 0
+    }),
+    { kind: 'none' },
+    'duplicate relic rewards without score should not produce a presentation effect'
 );
 
 console.log('room-reward-resolution checks passed');

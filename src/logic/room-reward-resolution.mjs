@@ -81,3 +81,31 @@ export function formatRunRelicRewardMessage({
 
     return '';
 }
+
+export function buildRunRelicRewardEffectPlan(result) {
+    if (!result) return { kind: 'none' };
+
+    if (result.status === 'added' && result.relic) {
+        return {
+            kind: 'added',
+            sound: 'upgrade',
+            burstColor: 0x22d3ee,
+            burstCount: 22,
+            burstScale: 2.1,
+            floatingText: result.relic.label,
+            textColor: '#67e8f9',
+            strong: true
+        };
+    }
+
+    if ((result.status === 'overflow' || result.status === 'duplicate' || result.status === 'empty-pool') && result.bonusScore > 0) {
+        return {
+            kind: 'bonus-score',
+            floatingText: `+核心残响 ${result.bonusScore}`,
+            textColor: '#facc15',
+            strong: true
+        };
+    }
+
+    return { kind: 'none' };
+}

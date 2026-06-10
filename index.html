@@ -747,6 +747,7 @@ import {
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
 import {
+    buildRunRelicRewardEffectPlan,
     formatRunRelicRewardMessage,
     resolveEchoEngineEventBonus,
     resolveHiddenRoomRewardMessage
@@ -5244,14 +5245,15 @@ class GameController {
     async resolveRunRelicReward(result, anchorPos, contextLabel = '') {
         const message = formatRunRelicRewardMessage({ result, contextLabel });
         if (!message) return '';
-        if (result.status === 'added' && result.relic) {
+        const effectPlan = buildRunRelicRewardEffectPlan(result);
+        if (effectPlan.kind === 'added') {
             window.soundEngine?.upgrade();
-            this.engine.spawnBurst(anchorPos, 0x22d3ee, 22, 2.1);
-            this.engine.addFloatingText(result.relic.label, anchorPos, '#67e8f9', true);
+            this.engine.spawnBurst(anchorPos, effectPlan.burstColor, effectPlan.burstCount, effectPlan.burstScale);
+            this.engine.addFloatingText(effectPlan.floatingText, anchorPos, effectPlan.textColor, effectPlan.strong);
             return message;
         }
-        if ((result.status === 'overflow' || result.status === 'duplicate' || result.status === 'empty-pool') && result.bonusScore > 0) {
-            this.engine.addFloatingText(`+核心残响 ${result.bonusScore}`, anchorPos, '#facc15', true);
+        if (effectPlan.kind === 'bonus-score') {
+            this.engine.addFloatingText(effectPlan.floatingText, anchorPos, effectPlan.textColor, effectPlan.strong);
             return message;
         }
         return message;

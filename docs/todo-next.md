@@ -42,7 +42,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Event stockpile, trial supply rewards, and merchant purchase decisions were extracted into `src/logic/room-reward-plans.mjs`, with focused checks.
 - Event/rest/merchant/trial/elite/treasure reward resolution now shares `src/logic/room-reward-resolution.mjs` hidden-room reward finalization, with focused checks for theme-chain routing, detail order, empty base messages, and UI refresh callbacks.
 - Echo Engine event-room next-floor attack bonus capping and visible text are now routed through `src/logic/room-reward-resolution.mjs`, with focused checks.
-- Run relic reward result text for added, duplicate, overflow, and empty-pool outcomes is now formatted in `src/logic/room-reward-resolution.mjs`, with focused checks.
+- Run relic reward result text and presentation effect plans for added, duplicate, overflow, and empty-pool outcomes are now formatted in `src/logic/room-reward-resolution.mjs`, with focused checks.
 - `npm run smoke:screenshot` now captures a reusable local browser screenshot at `artifacts/screenshots/latest.png`.
 - `npm run verify:refactor` now runs check, browser smoke, and screenshot smoke with compact success output for lower-noise refactor turns.
 - Loading overlay progress/snapshot and delayed-generation reveal checks were extracted into `src/view/loading-overlay.mjs`, with focused checks and browser smoke coverage for delayed text reveal/cleanup.
