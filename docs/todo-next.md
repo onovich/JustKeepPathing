@@ -60,6 +60,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Model editor pointer/preview interaction math now lives in `src/view/editors/model-editor-pointer-ui.mjs`, with focused checks for resize, rotation, drag threshold, wheel zoom, and pointer NDC plus browser smoke coverage for wheel zoom.
 - Model editor pick-selection state decisions now live in `src/view/editors/model-editor-selection-state.mjs`, with focused checks for hit priority, single-select, additive same-kind selection, toggle-clear, miss-clear, and mixed-selection blocking.
 - Model appearance config sanitizing, cloning, part lookup, entry defaults, and selection-entry writes now live in `src/logic/model-appearance-config.mjs`, with focused checks for clamping, cleanup, and default-write removal.
+- Auto-strategy sanitizing, diversion threshold adjustment, supply priority/need state, and merchant budget calculations now live in `src/logic/auto-strategy.mjs`, with focused checks for mode fallback, scarcity pressure, and budget quotes.
 
 ## 1. Browser Smoke Follow-Up
 

@@ -717,6 +717,17 @@ import {
     buildHiddenRoomRoutingDebug,
     calculateHiddenRoomDiversionScore
 } from './src/logic/hidden-room-routing.mjs';
+import {
+    DEFAULT_AUTO_STRATEGY,
+    buildMerchantBudgetState,
+    buildSupportRoomNeedState,
+    getMostNeededSupplyType as getMostNeededSupplyTypeForStrategy,
+    getPreferredSupplyType as getPreferredSupplyTypeForStrategy,
+    getStrategyDiversionThreshold,
+    getSupplyPriority as getSupplyPriorityForStrategy,
+    getTotalSupplyCount as getTotalStrategySupplyCount,
+    sanitizeAutoStrategy as sanitizeAutoStrategyConfig
+} from './src/logic/auto-strategy.mjs';
 import { buildThemeChainBonusPlan } from './src/logic/theme-chain-bonuses.mjs';
 import {
     calculateEliteRoomClearRewards,
@@ -1430,12 +1441,7 @@ const GameState = {
     collectionStorageKey: COLLECTION_STORAGE_KEY,
     collection: sanitizeCollection(null),
     strategyStorageKey: 'jkp-auto-strategy',
-    autoStrategy: {
-        risk: 'balanced',
-        rest: 'balanced',
-        merchant: 'power',
-        supply: 'balanced'
-    },
+    autoStrategy: { ...DEFAULT_AUTO_STRATEGY },
     costs: {
         speed: () => Math.floor(10 * Math.pow(1.5, GameState.player.lvSpeed - 1)),
         atk: () => Math.floor(20 * Math.pow(1.5, GameState.player.lvAtk - 1)),
@@ -1566,16 +1572,10 @@ const GameState = {
         return { ...this.claimRunRelic(relic, source), chance };
     },
     getTotalSupplyCount() {
-        return Object.values(this.items.supplies).reduce((sum, value) => sum + Math.max(0, value || 0), 0);
+        return getTotalStrategySupplyCount(this.items.supplies);
     },
     sanitizeAutoStrategy(raw) {
-        const next = raw && typeof raw === 'object' ? raw : {};
-        return {
-            risk: ['cautious', 'balanced', 'greedy'].includes(next.risk) ? next.risk : 'balanced',
-            rest: ['emergency', 'balanced', 'prefer'].includes(next.rest) ? next.rest : 'balanced',
-            merchant: ['power', 'supplies', 'save'].includes(next.merchant) ? next.merchant : 'power',
-            supply: ['balanced', 'combat', 'loot', 'explore'].includes(next.supply) ? next.supply : 'balanced'
-        };
+        return sanitizeAutoStrategyConfig(raw);
     },
     loadAutoStrategy() {
         try {
@@ -1597,120 +1597,43 @@ const GameState = {
         this.updateUI();
     },
     getDiversionThreshold() {
-        const base = getHiddenRoomDiversionThreshold();
-        if (this.autoStrategy.risk === 'cautious') return Math.min(0.78, base + 0.07);
-        if (this.autoStrategy.risk === 'greedy') return Math.max(0.34, base - 0.06);
-        return base;
+        return getStrategyDiversionThreshold(this.autoStrategy, getHiddenRoomDiversionThreshold());
     },
     getPreferredSupplyType(archetypeKey = 'combat') {
-        if (this.autoStrategy.supply === 'combat') return 'assault';
-        if (this.autoStrategy.supply === 'loot') return 'salvage';
-        if (this.autoStrategy.supply === 'explore') return 'scout';
-        if (archetypeKey === 'treasure' || archetypeKey === 'rest' || archetypeKey === 'merchant') return 'salvage';
-        if (archetypeKey === 'event') return 'scout';
-        return 'assault';
+        return getPreferredSupplyTypeForStrategy(this.autoStrategy, archetypeKey);
     },
     getSupplyPriority(archetypeKey = 'combat') {
-        const preferred = this.getPreferredSupplyType(archetypeKey);
-        const others = ['assault', 'salvage', 'scout'].filter((key) => key !== preferred);
-        if (preferred === 'assault') return [preferred, 'scout', 'salvage'];
-        if (preferred === 'salvage') return [preferred, 'scout', 'assault'];
-        return [preferred, 'salvage', 'assault'];
+        return getSupplyPriorityForStrategy(this.autoStrategy, archetypeKey);
     },
     getMostNeededSupplyType(archetypeKey = this.floorContent?.archetypeKey || 'combat') {
-        const priority = this.getSupplyPriority(archetypeKey);
-        return [...priority].sort((a, b) => {
-            const countDiff = this.getSupplyCount(a) - this.getSupplyCount(b);
-            if (countDiff !== 0) return countDiff;
-            return priority.indexOf(a) - priority.indexOf(b);
-        })[0];
+        return getMostNeededSupplyTypeForStrategy({
+            strategy: this.autoStrategy,
+            supplies: this.items.supplies,
+            archetypeKey
+        });
     },
     getSupportRoomNeedState(archetypeKey = this.floorContent?.archetypeKey || 'combat') {
-        const preferredType = this.getPreferredSupplyType(archetypeKey);
-        const preferredCount = this.getSupplyCount(preferredType);
-        const neededType = this.getMostNeededSupplyType(archetypeKey);
-        const neededCount = this.getSupplyCount(neededType);
-        const totalSupply = this.getTotalSupplyCount();
-        const supplyActive = !!this.floorBuff?.supplyActive;
-        const totalScarcity = totalSupply <= 0
-            ? 1
-            : totalSupply === 1
-                ? 0.74
-                : totalSupply === 2
-                    ? 0.42
-                    : totalSupply === 3
-                        ? 0.18
-                        : 0;
-        const neededScarcity = neededCount <= 0
-            ? 1
-            : neededCount === 1
-                ? 0.55
-                : neededCount === 2
-                    ? 0.22
-                    : 0;
-        const shortfallSeverity = Math.min(1, totalScarcity * 0.62 + neededScarcity * 0.52);
-        const restockUrgency = Math.min(
-            1,
-            shortfallSeverity + (supplyActive ? 0.16 : 0) + (neededCount <= 0 ? 0.12 : 0)
-        );
-        const reservePressure = Math.min(
-            1,
-            shortfallSeverity * 0.72
-                + (supplyActive ? 0.18 : 0)
-                + (preferredCount <= 0 ? 0.14 : 0)
-                + (totalSupply <= 1 ? 0.12 : totalSupply === 2 ? 0.05 : 0)
-        );
-        return {
-            archetypeKey,
-            preferredType,
-            preferredCount,
-            neededType,
-            neededCount,
-            totalSupply,
-            supplyActive,
-            usedSupplyThisFloor: supplyActive,
-            preferredMissing: preferredCount <= 0,
-            missingPreferred: neededCount <= 0,
-            shortfallSeverity,
-            restockUrgency,
-            reservePressure
-        };
+        return buildSupportRoomNeedState({
+            strategy: this.autoStrategy,
+            supplies: this.items.supplies,
+            floorBuff: this.floorBuff,
+            archetypeKey
+        });
     },
     getMerchantBudgetState(discount = 0.8, supplyType = this.getMostNeededSupplyType('merchant')) {
-        const candidateTypes = ['atk', 'hp', 'chest', 'size'].filter((type) => type !== 'size' || !this.isMazeSizeMaxed());
-        const upgradeQuotes = candidateTypes.map((type) => {
-            const baseCost = this.costs[type]();
-            return {
-                type,
-                baseCost,
-                discountedCost: Math.max(1, Math.floor(baseCost * discount))
-            };
-        });
-        const cheapestUpgrade = upgradeQuotes.reduce((best, quote) => {
-            if (!best || quote.discountedCost < best.discountedCost) return quote;
-            return best;
-        }, null);
-        const supplyBaseCost = this.getSupplyCost(supplyType);
-        const supplyDiscount = Math.max(0.68, discount - 0.08);
-        const discountedSupplyCost = Math.max(18, Math.floor(supplyBaseCost * supplyDiscount));
-        const cheapestUpgradeCost = cheapestUpgrade?.discountedCost || Infinity;
-        const upgradeBudgetRatio = Number.isFinite(cheapestUpgradeCost)
-            ? this.score / Math.max(1, cheapestUpgradeCost)
-            : 0;
-        const supplyBudgetRatio = this.score / Math.max(1, discountedSupplyCost);
-        return {
+        return buildMerchantBudgetState({
+            score: this.score,
             supplyType,
-            discountedSupplyCost,
-            supplyBudgetRatio,
-            canAffordSupply: this.score >= discountedSupplyCost,
-            nearAffordSupply: this.score >= discountedSupplyCost * 0.82,
-            cheapestUpgrade,
-            cheapestUpgradeCost,
-            upgradeBudgetRatio,
-            canAffordUpgrade: Number.isFinite(cheapestUpgradeCost) ? this.score >= cheapestUpgradeCost : false,
-            nearAffordUpgrade: Number.isFinite(cheapestUpgradeCost) ? this.score >= cheapestUpgradeCost * 0.84 : false,
-            upgradeQuotes
-        };
+            discount,
+            supplyCost: this.getSupplyCost(supplyType),
+            upgradeCosts: {
+                atk: this.costs.atk(),
+                hp: this.costs.hp(),
+                chest: this.costs.chest(),
+                size: this.costs.size()
+            },
+            isMazeSizeMaxed: this.isMazeSizeMaxed()
+        });
     },
     resetFloorStats() {
         this.floorStats = { kills: 0, chests: 0, hiddenRoomsCleared: 0 };
