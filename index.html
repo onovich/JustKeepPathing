@@ -897,6 +897,10 @@ import {
     renderSoundEventOptions
 } from './src/view/editors/sound-editor-meta.mjs';
 import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
+import {
+    applyHudUpgradeStates,
+    buildHudUpgradeStates
+} from './src/view/hud-upgrade-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
 import { PathDebugPanel } from './src/view/panels/path-debug-panel.mjs';
@@ -1804,18 +1808,14 @@ const GameState = {
                 `).join('')
                 : '<div class="rounded-lg border border-dashed border-slate-700 bg-slate-950/50 px-3 py-3 text-[11px] font-bold text-slate-500">还没有拿到核心。先闯精英密室，或者把 Boss 打出来。</div>';
         }
-        ['speed', 'atk', 'hp', 'chest', 'size', 'monster'].forEach((id) => {
-            const lv = this.player[`lv${id.charAt(0).toUpperCase() + id.slice(1)}`] || this.maze[`lv${id.charAt(0).toUpperCase() + id.slice(1)}`];
-            const isSizeMaxed = id === 'size' && this.isMazeSizeMaxed();
-            const cost = isSizeMaxed ? null : this.costs[id]();
-            document.getElementById(`val-${id}`).innerText = id === 'size'
-                ? `${this.getMazeSide()}x${this.getMazeSide()}`
-                : `Lv.${lv}`;
-            document.getElementById(`cost-${id}`).innerText = isSizeMaxed ? 'MAX' : cost;
-            const btn = document.getElementById(`btn-up-${id}`);
-            if (!isSizeMaxed && this.score >= cost) btn.classList.remove('opacity-50', 'grayscale');
-            else btn.classList.add('opacity-50', 'grayscale');
-        });
+        applyHudUpgradeStates(document, buildHudUpgradeStates({
+            score: this.score,
+            player: this.player,
+            maze: this.maze,
+            costs: getUpgradeCosts(this),
+            mazeSide: this.getMazeSide(),
+            sizeMaxed: this.isMazeSizeMaxed()
+        }));
         const totalSupply = this.getTotalSupplyCount();
         const supplyModeEl = document.getElementById('ui-supply-mode');
         const supplyStatusEl = document.getElementById('ui-supply-status');
