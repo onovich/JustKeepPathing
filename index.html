@@ -788,6 +788,7 @@ import {
 } from './src/logic/room-reward-plans.mjs';
 import {
     buildRunRelicRewardEffectPlan,
+    formatThemeChainBonusMessage,
     formatRunRelicRewardMessage,
     resolveHiddenRoomRewardMessage
 } from './src/logic/room-reward-resolution.mjs';
@@ -4595,34 +4596,14 @@ class GameController {
             playerBaseHp: GameState.player.baseHp
         });
         const statePlan = buildThemeChainBonusStatePlan(plan);
-
-        let message = '';
-        if (plan?.kind === 'ember_forge') {
-            const attackBonus = plan.attackBonus;
-            if (plan.supplyType) {
-                message = `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%，并补了 1 份${GameState.supplyDefs.assault?.label || '战备补给'}。`;
-            } else {
-                message = `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%。`;
+        const message = formatThemeChainBonusMessage({
+            plan,
+            supplyLabels: {
+                assault: GameState.supplyDefs.assault?.label,
+                salvage: GameState.supplyDefs.salvage?.label,
+                scout: GameState.supplyDefs.scout?.label
             }
-        } else if (plan?.kind === 'salvage_reaches') {
-            const salvageBonus = plan.scoreBonus;
-            message = `回收浪潮又卷出 ${salvageBonus} 魂能，并补了 1 份${GameState.supplyDefs.salvage?.label || '探宝补给'}。`;
-        } else if (plan?.kind === 'signal_warrens') {
-            const hiddenBonus = plan.hiddenRoomBonus;
-            if (plan.supplyType) {
-                message = `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%，并补了 1 份${GameState.supplyDefs.scout?.label || '侦测补给'}。`;
-            } else {
-                message = `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%。`;
-            }
-        } else if (plan?.kind === 'quarantine_vault') {
-            const repair = plan.repair;
-            if (plan.refreshReflexShield) {
-                message = `封锁协议稳住了机体，立刻修复 ${repair} 点护盾，并重新挂上一次反射护盾。`;
-            } else {
-                message = `封锁协议稳住了机体，立刻修复 ${repair} 点护盾，并让本层后续受伤更轻。`;
-            }
-        }
-
+        });
         if (!message) return '';
         applyRoomRewardActions({
             gameState: GameState,

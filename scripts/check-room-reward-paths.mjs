@@ -40,6 +40,20 @@ assert.match(
     'theme-chain bonuses should route state application through the shared state-plan helper'
 );
 
+assert.match(
+    indexHtml,
+    /applyThemeChainBonus\(sourceKey, room, anchorPos = null\)[\s\S]*?formatThemeChainBonusMessage\(/,
+    'theme-chain bonuses should format visible text through the shared reward-resolution helper'
+);
+
+const themeChainControllerMatch = indexHtml.match(/applyThemeChainBonus\(sourceKey, room, anchorPos = null\) \{[\s\S]*?\n    \}/);
+assert.ok(themeChainControllerMatch, 'theme-chain bonus controller method should stay discoverable');
+assert.doesNotMatch(
+    themeChainControllerMatch[0],
+    /plan\?\.kind === 'ember_forge'/,
+    'theme-chain bonus controller should not own per-theme message branches'
+);
+
 const relicRollCalls = [...indexHtml.matchAll(/GameState\.rollRelicReward\(([^)]*)\)/g)].map((match) => match[1].trim());
 assert.deepEqual(
     relicRollCalls,

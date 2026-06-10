@@ -58,6 +58,51 @@ export function resolveEchoEngineEventBonus({
     };
 }
 
+function getSupplyLabel(supplyLabels, type, fallback) {
+    return supplyLabels?.[type] || fallback;
+}
+
+export function formatThemeChainBonusMessage({
+    plan = null,
+    supplyLabels = {}
+} = {}) {
+    if (!plan?.kind) return '';
+
+    if (plan.kind === 'ember_forge') {
+        const attackBonus = plan.attackBonus || 0;
+        if (plan.supplyType) {
+            const label = getSupplyLabel(supplyLabels, 'assault', '战备补给');
+            return `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%，并补了 1 份${label}。`;
+        }
+        return `熔压火线顺手把下一层火力又预热了 ${Math.round(attackBonus * 100)}%。`;
+    }
+
+    if (plan.kind === 'salvage_reaches') {
+        const salvageBonus = plan.scoreBonus || 0;
+        const label = getSupplyLabel(supplyLabels, 'salvage', '探宝补给');
+        return `回收浪潮又卷出 ${salvageBonus} 魂能，并补了 1 份${label}。`;
+    }
+
+    if (plan.kind === 'signal_warrens') {
+        const hiddenBonus = plan.hiddenRoomBonus || 0;
+        if (plan.supplyType) {
+            const label = getSupplyLabel(supplyLabels, 'scout', '侦测补给');
+            return `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%，并补了 1 份${label}。`;
+        }
+        return `讯号导流把下层密室率又抬了 ${Math.round(hiddenBonus * 100)}%。`;
+    }
+
+    if (plan.kind === 'quarantine_vault') {
+        const repair = plan.repair || 0;
+        if (plan.refreshReflexShield) {
+            return `封锁协议稳住了机体，立刻修复 ${repair} 点护盾，并重新挂上一次反射护盾。`;
+        }
+        return `封锁协议稳住了机体，立刻修复 ${repair} 点护盾，并让本层后续受伤更轻。`;
+    }
+
+    return '';
+}
+
 export function formatRunRelicRewardMessage({
     result,
     contextLabel = ''

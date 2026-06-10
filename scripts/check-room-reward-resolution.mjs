@@ -3,6 +3,7 @@ import {
     appendRoomRewardDetails,
     buildRunRelicRewardEffectPlan,
     formatRunRelicRewardMessage,
+    formatThemeChainBonusMessage,
     finalizeRoomRewardMessage,
     resolveEchoEngineEventBonus,
     resolveHiddenRoomRewardMessage
@@ -144,6 +145,107 @@ assert.deepEqual(
         message: 'Echo Engine preheated next-floor attack by 8%.'
     },
     'Echo Engine event bonus should preserve the current cap'
+);
+
+assert.equal(
+    formatThemeChainBonusMessage({
+        plan: {
+            kind: 'ember_forge',
+            attackBonus: 0.085,
+            supplyType: 'assault'
+        },
+        supplyLabels: { assault: 'Assault Supply' }
+    }),
+    '熔压火线顺手把下一层火力又预热了 9%，并补了 1 份Assault Supply。',
+    'ember forge bonuses should include rounded attack preheat and assault supply labels'
+);
+
+assert.equal(
+    formatThemeChainBonusMessage({
+        plan: {
+            kind: 'ember_forge',
+            attackBonus: 0.04,
+            supplyType: null
+        }
+    }),
+    '熔压火线顺手把下一层火力又预热了 4%。',
+    'ember forge bonuses without supply should only report attack preheat'
+);
+
+assert.equal(
+    formatThemeChainBonusMessage({
+        plan: {
+            kind: 'salvage_reaches',
+            scoreBonus: 86,
+            supplyType: 'salvage'
+        },
+        supplyLabels: { salvage: 'Salvage Supply' }
+    }),
+    '回收浪潮又卷出 86 魂能，并补了 1 份Salvage Supply。',
+    'salvage reaches bonuses should include score and salvage supply labels'
+);
+
+assert.equal(
+    formatThemeChainBonusMessage({
+        plan: {
+            kind: 'signal_warrens',
+            hiddenRoomBonus: 0.054,
+            supplyType: null
+        }
+    }),
+    '讯号导流把下层密室率又抬了 5%。',
+    'signal warrens bonuses without supply should only report hidden-room odds'
+);
+
+assert.equal(
+    formatThemeChainBonusMessage({
+        plan: {
+            kind: 'signal_warrens',
+            hiddenRoomBonus: 0.066,
+            supplyType: 'scout'
+        },
+        supplyLabels: { scout: 'Scout Supply' }
+    }),
+    '讯号导流把下层密室率又抬了 7%，并补了 1 份Scout Supply。',
+    'signal warrens bonuses with supply should include scout labels'
+);
+
+assert.equal(
+    formatThemeChainBonusMessage({
+        plan: {
+            kind: 'quarantine_vault',
+            repair: 10,
+            refreshReflexShield: true
+        }
+    }),
+    '封锁协议稳住了机体，立刻修复 10 点护盾，并重新挂上一次反射护盾。',
+    'quarantine vault elite bonuses should include reflex shield refresh text'
+);
+
+assert.equal(
+    formatThemeChainBonusMessage({
+        plan: {
+            kind: 'quarantine_vault',
+            repair: 8,
+            refreshReflexShield: false
+        }
+    }),
+    '封锁协议稳住了机体，立刻修复 8 点护盾，并让本层后续受伤更轻。',
+    'quarantine vault non-elite bonuses should report damage reduction'
+);
+
+assert.equal(
+    formatThemeChainBonusMessage({
+        plan: { kind: 'unknown_theme' }
+    }),
+    '',
+    'unknown theme-chain plans should stay silent'
+);
+
+assert.equal(
+    formatThemeChainBonusMessage(),
+    '',
+    'missing theme-chain plans should stay silent'
 );
 
 assert.equal(
