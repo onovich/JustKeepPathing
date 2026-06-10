@@ -67,6 +67,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - HUD upgrade button value/cost/affordability state building and DOM application now live in `src/view/hud-upgrade-ui.mjs`, with focused checks for level labels, size MAX state, and affordability class toggles.
 - Shared easing curves and tween queue management now live in `src/view/tween-manager.mjs`, with focused checks for curve outputs, interpolation, default easing, completion callbacks, and cleanup.
 - Maze cell keys, grid lookup, walkable-neighbor filtering, BFS pathing, hidden-room transit guards, and distance-map generation now live in `src/logic/maze-navigation.mjs`, with focused checks for shortest paths, unreachable targets, hidden-room allowances, and distance maps.
+- Rest-room hidden reward decisions, state action plans, message assembly, and action application now live in `src/logic/room-reward-state.mjs`, with focused checks for fortify/restock decisions, heal rewards, fallback boosts, and state mutations.
 
 ## 1. Browser Smoke Follow-Up
 

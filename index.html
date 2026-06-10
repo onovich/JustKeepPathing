@@ -768,6 +768,11 @@ import {
     resolveHiddenRoomRewardMessage
 } from './src/logic/room-reward-resolution.mjs';
 import {
+    applyRoomRewardActions,
+    buildRestRoomRewardDecision,
+    buildRestRoomRewardStatePlan
+} from './src/logic/room-reward-state.mjs';
+import {
     buildBgmStepPlan,
     calculateBgmHumanizeOffset,
     calculateBgmStepDuration,
@@ -4316,52 +4321,32 @@ class GameController {
         const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
         const supplyNeedState = GameState.getSupportRoomNeedState('rest');
         const neededSupply = supplyNeedState.neededType;
-        const shouldRestockSupply = supplyNeedState.restockUrgency >= 0.44
-            || supplyNeedState.missingPreferred
-            || supplyNeedState.preferredMissing
-            || supplyNeedState.usedSupplyThisFloor
-            || !supplyNeedState.supplyActive;
-        const shouldFortify = hpRatio < 0.68
-            || (supplyNeedState.usedSupplyThisFloor && supplyNeedState.reservePressure >= 0.48)
-            || (supplyNeedState.totalSupply <= 1 && supplyNeedState.shortfallSeverity >= 0.54);
+        const decision = buildRestRoomRewardDecision({ hpRatio, supplyNeedState });
         const restRewards = calculateRestRoomRewards({
             level: GameState.level,
             rewardTier: room.rewardTier,
             rewardProfile,
             playerBaseHp: GameState.player.baseHp,
-            shouldFortify,
+            shouldFortify: decision.shouldFortify,
             reservePressure: supplyNeedState.reservePressure
         });
-        const scoreReward = restRewards.scoreReward;
-        let message = room.displayName + ' stabilized the run.';
+        const plan = buildRestRoomRewardStatePlan({
+            roomName: room.displayName,
+            hpRatio,
+            supplyNeedState,
+            neededSupply,
+            supplyLabel: GameState.supplyDefs[neededSupply]?.label || 'supply',
+            restRewards,
+            decision
+        });
+        applyRoomRewardActions({
+            gameState: GameState,
+            actions: plan.actions,
+            addScore: (amount) => GameState.addScore(amount),
+            grantFloorSupply: (type, amount) => GameState.grantFloorSupply(type, amount)
+        });
 
-        if (hpRatio < 0.9 || shouldFortify) {
-            const heal = restRewards.heal;
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
-            GameState.addScore(scoreReward);
-            if (shouldFortify) {
-                const guardReduction = restRewards.guardReduction;
-                GameState.floorBuff.incomingDamageMult *= Math.max(0.56, 1 - guardReduction);
-            }
-            message = room.displayName + ' restored ' + heal + ' HP and granted ' + scoreReward + ' score.';
-            if (shouldFortify) {
-                message += ' Incoming damage was reduced for the rest of the floor.';
-            }
-        } else {
-            const atkBoost = restRewards.attackBoost;
-            const chestBoost = restRewards.chestBoost;
-            GameState.player.baseAtk += atkBoost;
-            GameState.maze.baseChestRate += chestBoost;
-            GameState.addScore(restRewards.fallbackScoreReward);
-            message = room.displayName + ' improved attack by ' + atkBoost + ' and slightly raised chest density.';
-        }
-        if (shouldRestockSupply) {
-            const supplyLabel = GameState.supplyDefs[neededSupply]?.label || 'supply';
-            GameState.grantFloorSupply(neededSupply, 1);
-            message += ' Added 1 ' + supplyLabel + '.';
-        }
-
-        return this.finalizeHiddenRoomRewardResolution('rest', room, message);
+        return this.finalizeHiddenRoomRewardResolution('rest', room, plan.message);
     }
     resolveMerchantRoom(room) {
         const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
