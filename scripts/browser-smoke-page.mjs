@@ -566,6 +566,7 @@ export async function browserSmoke() {
   const soundEditorButton = document.getElementById('btn-sound-editor');
   const modelEditorModal = document.getElementById('editor-modal');
   const soundEditorModal = document.getElementById('sound-editor-modal');
+  const modelEditorAssetSelect = document.getElementById('editor-asset-select');
   const soundEditorSelect = document.getElementById('sound-asset-select');
   const soundEditorType = document.getElementById('sound-editor-type');
   const soundEditorUsage = document.getElementById('sound-editor-usage');
@@ -750,6 +751,9 @@ export async function browserSmoke() {
     hasSoundEditorButton: !!soundEditorButton,
     modelEditorClosed: modelEditorModal?.classList.contains('hidden') || false,
     soundEditorClosed: soundEditorModal?.classList.contains('hidden') || false,
+    modelEditorAssetSelectValue: modelEditorAssetSelect?.value || '',
+    modelEditorAssetOptionCount: modelEditorAssetSelect?.options?.length || 0,
+    modelEditorAssetOptionValues: Array.from(modelEditorAssetSelect?.options || []).map((option) => option.value).join('|'),
     soundEditorSelectValue: soundEditorSelect?.value || '',
     soundEditorOptionCount: soundEditorSelect?.options?.length || 0,
     soundEditorTypeText: soundEditorType?.innerText || '',
@@ -938,6 +942,11 @@ export async function browserSmoke() {
   if (!result.settingsRiskValue) throw new Error('Settings risk select did not sync.');
   if (!result.hasModelEditorButton || !result.hasSoundEditorButton) throw new Error('Header editor buttons did not render.');
   if (!result.modelEditorClosed || !result.soundEditorClosed) throw new Error('Editor modals should start closed.');
+  if (result.modelEditorAssetSelectValue !== 'player') throw new Error('Model editor asset select did not default to player.');
+  if (result.modelEditorAssetOptionCount !== 8) throw new Error('Model editor asset select options did not render.');
+  if (result.modelEditorAssetOptionValues !== 'player|scout|brute|spine|warden|boss|chest|exit') {
+    throw new Error('Model editor asset select option values changed unexpectedly.');
+  }
   if (!result.soundEditorSelectValue || result.soundEditorOptionCount < 4) throw new Error('Sound editor select options did not render.');
   if (!result.soundEditorTypeText || !result.soundEditorUsageText || !result.soundEditorDescriptionText) throw new Error('Sound editor metadata did not render.');
   if (result.modelEditorCommandLabels.join('|') !== 'Undo|Load|Reset|Save') throw new Error('Model editor command labels did not initialize.');

@@ -474,14 +474,6 @@
                             <div>
                                 <label for="editor-asset-select" class="mb-2 block text-[11px] font-bold tracking-wide text-slate-400">当前对象</label>
                                 <select id="editor-asset-select" class="w-full rounded-xl border-2 border-slate-700 bg-slate-900 px-3 py-3 text-sm font-bold text-slate-100 outline-none focus:border-cyan-500">
-                                    <option value="player">玩家飞碟</option>
-                                    <option value="scout">棱镜侦察者</option>
-                                    <option value="brute">熔核冲锋兽</option>
-                                    <option value="spine">裂脊潜伏体</option>
-                                    <option value="warden">幽环守望者</option>
-                                    <option value="boss">深渊主脑</option>
-                                    <option value="chest">数据宝藏</option>
-                                    <option value="exit">出口信标</option>
                                 </select>
                             </div>
                             <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
@@ -827,6 +819,7 @@ import {
     getSoundEditorDomRefs
 } from './src/view/editors/editor-dom.mjs';
 import { appendEditorLog } from './src/view/editors/editor-log.mjs';
+import { populateModelEditorAssetSelect } from './src/view/editors/model-editor-assets-ui.mjs';
 import {
     applyModelEditorSelectionUiState,
     buildModelEditorSelectionUiState
@@ -6228,6 +6221,7 @@ class ModelEditor {
         this.leftPointer = null;
         this.renderLoopHandle = null;
 
+        populateModelEditorAssetSelect(this.assetSelect, MODEL_EDITOR_ASSET_LABELS);
         this.handleResize = this.handleResize.bind(this);
         this.renderLoop = this.renderLoop.bind(this);
         this.setupHeaderButtons();
