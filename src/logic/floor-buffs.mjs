@@ -13,6 +13,11 @@ export const FLOOR_SUPPLY_ROLLS = Object.freeze({
     ])
 });
 
+export const FLOOR_SUPPLY_DROP_CHANCES = Object.freeze({
+    cache: 0.28,
+    chest: 0.18
+});
+
 const DEFAULT_FLOOR_BUFF = Object.freeze({
     supplyActive: false,
     supplyKey: null,
@@ -44,6 +49,26 @@ export function pickRandomFloorSupplyType(source = 'chest', randomValue = Math.r
         if (roll <= 0) return entry.key;
     }
     return rolls[rolls.length - 1].key;
+}
+
+export function buildFloorSupplyDropPlan({
+    source = 'chest',
+    supplyDropBonus = 0,
+    roll = Math.random()
+} = {}) {
+    const normalizedSource = source === 'cache' ? 'cache' : 'chest';
+    const baseChance = FLOOR_SUPPLY_DROP_CHANCES[normalizedSource];
+    const bonus = Number.isFinite(Number(supplyDropBonus)) ? Number(supplyDropBonus) : 0;
+    const chance = Math.max(0, Math.min(1, baseChance + bonus));
+    const normalizedRoll = Number.isFinite(Number(roll)) ? Number(roll) : 1;
+    return {
+        source: normalizedSource,
+        baseChance,
+        supplyDropBonus: bonus,
+        chance,
+        roll: normalizedRoll,
+        shouldDrop: normalizedRoll < chance
+    };
 }
 
 export function buildSupplyFloorBuff(supplyType, supplyLabel = '') {

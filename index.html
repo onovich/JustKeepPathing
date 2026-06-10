@@ -758,6 +758,7 @@ import {
 import {
     applyRunRelicsToFloorStart,
     applyThemeDirectiveToFloorBuff,
+    buildFloorSupplyDropPlan,
     buildFloorSupplyConsumption,
     createBaseFloorBuff,
     pickRandomFloorSupplyType
@@ -4330,8 +4331,13 @@ class GameController {
             this.engine.spawnBurst(entityObj.mesh.position, 0xfacc15, 18, 1.35);
             this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#fde68a');
         }
-        if (Math.random() < 0.28 + (GameState.floorBuff?.supplyDropBonus || 0)) {
-            const droppedSupply = GameState.grantRandomFloorSupply('cache');
+        const supplyDropPlan = buildFloorSupplyDropPlan({
+            source: 'cache',
+            supplyDropBonus: GameState.floorBuff?.supplyDropBonus,
+            roll: Math.random()
+        });
+        if (supplyDropPlan.shouldDrop) {
+            const droppedSupply = GameState.grantRandomFloorSupply(supplyDropPlan.source);
             this.showSupplyPickupEffect(droppedSupply, entityObj?.mesh?.position?.clone() || this.engine.playerObj.position.clone());
         }
         const cachePending = removePendingHiddenRoomEntity({
@@ -5183,8 +5189,13 @@ class GameController {
                     this.engine.spawnBurst(entityObj.mesh.position, 0xfacc15, 20, 1.5);
                     this.engine.addFloatingText(`+${reward}`, entityObj.mesh.position, '#facc15');
                 }
-                if (Math.random() < 0.18 + (GameState.floorBuff?.supplyDropBonus || 0)) {
-                    const droppedSupply = GameState.grantRandomFloorSupply('chest');
+                const supplyDropPlan = buildFloorSupplyDropPlan({
+                    source: 'chest',
+                    supplyDropBonus: GameState.floorBuff?.supplyDropBonus,
+                    roll: Math.random()
+                });
+                if (supplyDropPlan.shouldDrop) {
+                    const droppedSupply = GameState.grantRandomFloorSupply(supplyDropPlan.source);
                     this.showSupplyPickupEffect(droppedSupply, entityObj?.mesh?.position?.clone() || this.engine.playerObj.position.clone());
                 }
                 await this.sleep(100);

@@ -84,6 +84,12 @@ assert.match(
 
 assert.match(
     indexHtml,
+    /if \(type === 'chest'\) \{[\s\S]*?buildFloorSupplyDropPlan\(\{[\s\S]*?source: 'chest'/,
+    'normal chest pickups should route supply drop chance through the floor-buff helper'
+);
+
+assert.match(
+    indexHtml,
     /else if \(type === 'end'\) \{[\s\S]*?buildLevelExitStatePlan\(/,
     'level exits should route score and level state through the exploration state helper'
 );

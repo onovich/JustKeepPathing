@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
     applyRunRelicsToFloorStart,
     applyThemeDirectiveToFloorBuff,
+    buildFloorSupplyDropPlan,
     buildFloorSupplyConsumption,
     buildSupplyFloorBuff,
     createBaseFloorBuff,
@@ -34,6 +35,64 @@ assert.equal(pickRandomFloorSupplyType('chest', 0.99), 'scout');
 assert.equal(pickRandomFloorSupplyType('cache', 0.49), 'salvage');
 assert.equal(pickRandomFloorSupplyType('cache', 0.51), 'scout');
 assert.equal(pickRandomFloorSupplyType('cache', 0.91), 'assault');
+
+{
+    const plan = buildFloorSupplyDropPlan({
+        source: 'chest',
+        supplyDropBonus: 0.04,
+        roll: 0.21
+    });
+
+    assert.equal(plan.source, 'chest');
+    assert.equal(plan.baseChance, 0.18);
+    assert.equal(plan.supplyDropBonus, 0.04);
+    near(plan.chance, 0.22);
+    assert.equal(plan.roll, 0.21);
+    assert.equal(plan.shouldDrop, true);
+}
+
+assert.equal(
+    buildFloorSupplyDropPlan({
+        source: 'chest',
+        supplyDropBonus: 0.04,
+        roll: 0.22
+    }).shouldDrop,
+    false,
+    'supply drops should preserve the strict random roll threshold'
+);
+
+{
+    const plan = buildFloorSupplyDropPlan({
+        source: 'cache',
+        supplyDropBonus: 0.14,
+        roll: 0.41
+    });
+
+    assert.equal(plan.source, 'cache');
+    assert.equal(plan.baseChance, 0.28);
+    near(plan.chance, 0.42);
+    assert.equal(plan.shouldDrop, true);
+}
+
+assert.deepEqual(
+    buildFloorSupplyDropPlan({
+        source: 'unknown',
+        supplyDropBonus: Number.NaN,
+        roll: Number.NaN
+    }),
+    {
+        source: 'chest',
+        baseChance: 0.18,
+        supplyDropBonus: 0,
+        chance: 0.18,
+        roll: 1,
+        shouldDrop: false
+    },
+    'unknown or invalid supply drop inputs should fall back to chest odds and no drop'
+);
+
+assert.equal(buildFloorSupplyDropPlan({ source: 'chest', supplyDropBonus: 3, roll: 0.99 }).shouldDrop, true);
+assert.equal(buildFloorSupplyDropPlan({ source: 'cache', supplyDropBonus: -3, roll: 0 }).shouldDrop, false);
 
 assert.deepEqual(buildSupplyFloorBuff('assault', 'Assault Supply'), {
     ...createBaseFloorBuff(),

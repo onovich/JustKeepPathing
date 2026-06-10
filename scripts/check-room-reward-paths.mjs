@@ -81,6 +81,12 @@ assert.match(
 
 assert.match(
     indexHtml,
+    /resolveHiddenCachePickup\(room, entityObj\)[\s\S]*?buildFloorSupplyDropPlan\(\{[\s\S]*?source: 'cache'/,
+    'treasure cache pickups should route supply drop chance through the floor-buff helper'
+);
+
+assert.match(
+    indexHtml,
     /resolveHiddenEventNodePickup\(room, entityObj\)[\s\S]*?buildHiddenEventNodePickupStatePlan\(/,
     'event hidden room node pickups should route reward state through the shared state-plan helper'
 );
