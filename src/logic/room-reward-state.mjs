@@ -625,6 +625,8 @@ export function applyRoomRewardActions({
         } else if (action.type === 'increment-floor-stat') {
             if (!gameState.floorStats) gameState.floorStats = {};
             gameState.floorStats[action.field] = (gameState.floorStats[action.field] || 0) + (action.amount || 0);
+        } else if (action.type === 'increment-game-field') {
+            gameState[action.field] = (gameState[action.field] || 0) + (action.amount || 0);
         } else if (action.type === 'set-floor-runtime-field') {
             if (!gameState.floorRuntime) gameState.floorRuntime = {};
             gameState.floorRuntime[action.field] = action.value;

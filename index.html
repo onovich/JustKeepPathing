@@ -741,6 +741,10 @@ import {
     buildCombatVictoryStatePlan
 } from './src/logic/combat-state.mjs';
 import {
+    buildExplorationChestPickupStatePlan,
+    buildLevelExitStatePlan
+} from './src/logic/exploration-state.mjs';
+import {
     applyRunRelicsToFloorStart,
     applyThemeDirectiveToFloorBuff,
     buildFloorSupplyConsumption,
@@ -5348,9 +5352,16 @@ class GameController {
             const entityObj = entityIndex > -1 ? this.engine.entities.splice(entityIndex, 1)[0] : null;
 
             if (type === 'chest') {
-                const reward = Math.floor(15 * GameState.level * (GameState.floorBuff?.chestRewardMult || 1));
-                GameState.addScore(reward);
-                GameState.floorStats.chests += 1;
+                const pickupStatePlan = buildExplorationChestPickupStatePlan({
+                    level: GameState.level,
+                    chestRewardMult: GameState.floorBuff?.chestRewardMult
+                });
+                const reward = pickupStatePlan.reward;
+                applyRoomRewardActions({
+                    gameState: GameState,
+                    actions: pickupStatePlan.actions,
+                    addScore: (amount) => GameState.addScore(amount)
+                });
                 window.soundEngine?.chest();
                 if (entityObj) {
                     this.engine.tweens.add(entityObj.mesh.scale, { x: 2, y: 2, z: 2 }, 0.2, Easing.easeOutQuad, () => {
@@ -5376,9 +5387,14 @@ class GameController {
             } else if (type === 'hidden-room') {
                 await this.resolveHiddenRoomInteraction(room, entityObj);
             } else if (type === 'end') {
-                const reward = 100 * GameState.level;
-                GameState.addScore(reward);
-                GameState.level++;
+                const exitStatePlan = buildLevelExitStatePlan({
+                    level: GameState.level
+                });
+                applyRoomRewardActions({
+                    gameState: GameState,
+                    actions: exitStatePlan.actions,
+                    addScore: (amount) => GameState.addScore(amount)
+                });
                 window.soundEngine?.levelClear();
                 this.engine.addFloatingText('突破!', this.engine.playerObj.position, '#10b981', true);
                 this.engine.triggerUpgradeEffect();
