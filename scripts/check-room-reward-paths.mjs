@@ -1,0 +1,49 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const repoRoot = path.resolve(import.meta.dirname, '..');
+const indexHtml = fs.readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
+
+const expectedHiddenRewardSources = ['event', 'rest', 'merchant', 'trial', 'treasure', 'elite'];
+const finalizeCallPattern = /finalizeHiddenRoomRewardResolution\(\s*['"]([^'"]+)['"]/g;
+const finalizedSources = new Set([...indexHtml.matchAll(finalizeCallPattern)].map((match) => match[1]));
+
+assert.deepEqual(
+    [...finalizedSources].sort(),
+    [...expectedHiddenRewardSources].sort(),
+    'all hidden room reward source keys should route through finalizeHiddenRoomRewardResolution'
+);
+
+assert.match(
+    indexHtml,
+    /finalizeHiddenRoomRewardResolution\(sourceKey, room, message, anchorPos = null, details = \[\]\) \{[\s\S]*?resolveHiddenRoomRewardMessage\(/,
+    'hidden room reward finalization wrapper should delegate to resolveHiddenRoomRewardMessage'
+);
+
+assert.match(
+    indexHtml,
+    /resolveEventRoomV2\(room\)[\s\S]*?resolveEchoEngineEventBonus\(/,
+    'event room final resolution should route Echo Engine handling through resolveEchoEngineEventBonus'
+);
+
+const relicRollCalls = [...indexHtml.matchAll(/GameState\.rollRelicReward\(([^)]*)\)/g)].map((match) => match[1].trim());
+assert.deepEqual(
+    relicRollCalls,
+    ['relicRollPlan.request', 'relicRollPlan.request'],
+    'controller relic reward rolls should use buildRunRelicRewardRollPlan requests'
+);
+
+assert.match(
+    indexHtml,
+    /buildRunRelicRewardRollPlan\(\{[\s\S]*?source: 'elite'[\s\S]*?rewardTier: room\.rewardTier[\s\S]*?\}\)/,
+    'elite hidden room clears should build relic roll requests through the shared plan helper'
+);
+
+assert.match(
+    indexHtml,
+    /buildRunRelicRewardRollPlan\(\{[\s\S]*?enabled: profile\.boss[\s\S]*?source: 'boss'[\s\S]*?guaranteed: true[\s\S]*?\}\)/,
+    'boss clears should build guaranteed relic roll requests through the shared plan helper'
+);
+
+console.log('room-reward-paths checks passed');
