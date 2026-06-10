@@ -77,6 +77,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Theme-chain bonus state application now routes through `src/logic/room-reward-state.mjs`, with focused checks for next-floor attack caps, hidden-room odds caps, salvage score/supplies, quarantine repairs, damage reduction, and reflex-shield refresh.
 - Finale boss archetype construction, clear-bonus calculation, and boss mechanic state initialization now live in `src/logic/finale-boss-state.mjs`, with focused checks and path guards while combat presentation remains in `GameController`.
 - Finale boss mechanic damage and enemy-attack prep decisions now share `src/logic/finale-boss-state.mjs`, with focused checks for signal jam, seal layers, heat ramp, salvage repair, floating-text plans, and state mutation.
+- Combat victory reward state now lives in `src/logic/combat-state.mjs`, with focused checks for score rewards, kill counters, and finale bonus score while combat animation and messaging remain in `GameController`.
 
 ## 1. Browser Smoke Follow-Up
 

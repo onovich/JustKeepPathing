@@ -736,6 +736,10 @@ import {
     sanitizeAutoStrategy as sanitizeAutoStrategyConfig
 } from './src/logic/auto-strategy.mjs';
 import {
+    buildCombatBonusScoreStatePlan,
+    buildCombatVictoryStatePlan
+} from './src/logic/combat-state.mjs';
+import {
     applyRunRelicsToFloorStart,
     applyThemeDirectiveToFloorBuff,
     buildFloorSupplyConsumption,
@@ -5603,8 +5607,14 @@ class GameController {
         }
 
         if (enemyHp <= 0) {
-            GameState.addScore(profile.reward);
-            GameState.floorStats.kills += 1;
+            const victoryStatePlan = buildCombatVictoryStatePlan({
+                reward: profile.reward
+            });
+            applyRoomRewardActions({
+                gameState: GameState,
+                actions: victoryStatePlan.actions,
+                addScore: (amount) => GameState.addScore(amount)
+            });
             const hiddenRoom = this.getHiddenRoomById(this.grid[enemyNode.r][enemyNode.c].hiddenRoomId);
             const finaleBossBonus = this.getFinaleBossClearBonus(enemyObj, profile);
             const relicRollPlan = buildRunRelicRewardRollPlan({
@@ -5645,7 +5655,14 @@ class GameController {
                 }
             }
             if (finaleBossBonus > 0) {
-                GameState.addScore(finaleBossBonus);
+                const finaleBonusStatePlan = buildCombatBonusScoreStatePlan({
+                    bonusScore: finaleBossBonus
+                });
+                applyRoomRewardActions({
+                    gameState: GameState,
+                    actions: finaleBonusStatePlan.actions,
+                    addScore: (amount) => GameState.addScore(amount)
+                });
                 this.engine.addFloatingText(
                     `+\u7ec8\u5c40 ${finaleBossBonus}`,
                     enemyMesh.position.clone().add(new THREE.Vector3(0, 0.5, 0)),
