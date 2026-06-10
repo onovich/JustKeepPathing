@@ -171,6 +171,32 @@ export function getHiddenRoomRewardTier(rewardTier) {
     return HIDDEN_ROOM_REWARD_TIERS[rewardTier] || HIDDEN_ROOM_REWARD_TIERS[1];
 }
 
+export function buildEliteEnemyArchetype({
+    baseEnemy = {},
+    room = {}
+} = {}) {
+    const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+    const variantLabel = room.eliteVariant?.label || room.displayName;
+    const variantHint = room.eliteVariant?.introHint || '精英正在深处待命。';
+
+    return {
+        ...baseEnemy,
+        id: `${baseEnemy.id}-elite-${room.id}`,
+        name: `${baseEnemy.name}精英`,
+        baseHp: Math.floor(baseEnemy.baseHp * 1.52),
+        baseAtk: Math.floor(baseEnemy.baseAtk * 1.26),
+        reward: Math.floor(baseEnemy.reward * (1.55 + rewardProfile.scoreMult * 0.35)),
+        scale: (baseEnemy.scale || 1) * 1.12,
+        hoverAmplitude: baseEnemy.hoverAmplitude * 1.08,
+        hoverSpeed: Math.max(1.5, baseEnemy.hoverSpeed * 0.94),
+        intro: `${variantLabel}里的 ${baseEnemy.name} 精英开始反击。${variantHint}`,
+        attackVerb: `精英${baseEnemy.attackVerb}`,
+        elite: true,
+        hiddenRoomId: room.id,
+        hiddenRoomRewardTier: room.rewardTier
+    };
+}
+
 export function getHiddenRoomDiversionThreshold() {
     return HIDDEN_ROOM_ACCESS_PARAMS.diversionThresholdBase;
 }

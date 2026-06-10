@@ -705,6 +705,7 @@ import {
     getWalkableMazeNeighbors
 } from './src/logic/maze-navigation.mjs';
 import {
+    buildEliteEnemyArchetype as buildEliteEnemyArchetypeState,
     buildEliteRoomSupportLoadout,
     buildEliteRoomVariant,
     buildHiddenRoomPlan,
@@ -4643,25 +4644,10 @@ class GameController {
     }
     buildEliteArchetype(room) {
         const base = this.pickEnemyArchetype();
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
-        const variantLabel = room.eliteVariant?.label || room.displayName;
-        const variantHint = room.eliteVariant?.introHint || '精英正在深处待命。';
-        return {
-            ...base,
-            id: `${base.id}-elite-${room.id}`,
-            name: `${base.name}精英`,
-            baseHp: Math.floor(base.baseHp * 1.52),
-            baseAtk: Math.floor(base.baseAtk * 1.26),
-            reward: Math.floor(base.reward * (1.55 + rewardProfile.scoreMult * 0.35)),
-            scale: (base.scale || 1) * 1.12,
-            hoverAmplitude: base.hoverAmplitude * 1.08,
-            hoverSpeed: Math.max(1.5, base.hoverSpeed * 0.94),
-            intro: `${variantLabel}里的 ${base.name} 精英开始反击。${variantHint}`,
-            attackVerb: `精英${base.attackVerb}`,
-            elite: true,
-            hiddenRoomId: room.id,
-            hiddenRoomRewardTier: room.rewardTier
-        };
+        return buildEliteEnemyArchetypeState({
+            baseEnemy: base,
+            room
+        });
     }
 
     buildFinaleBossArchetype() {
