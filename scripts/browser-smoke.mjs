@@ -319,6 +319,60 @@ async function runSmoke() {
         window.gameController.generationProgress = savedGenerationProgress;
         window.gameController.generationLoadingSnapshot = savedGenerationSnapshot;
       }
+
+      const runEchoEngineEventSmoke = () => {
+        if (!window.gameController?.resolveEventRoomV2 || !window.GameState?.meta) {
+          throw new Error('Echo Engine event smoke dependencies are missing.');
+        }
+        const state = window.GameState;
+        const controller = window.gameController;
+        const saved = {
+          score: state.score,
+          player: { ...state.player },
+          maze: { ...state.maze },
+          meta: { ...state.meta },
+          items: JSON.parse(JSON.stringify(state.items || {})),
+          floorBuff: { ...state.floorBuff },
+          floorContent: state.floorContent,
+          runRelics: Array.isArray(state.runRelics) ? [...state.runRelics] : [],
+          floorPlan: controller.floorPlan
+        };
+        const echoRoom = {
+          displayName: 'Echo Smoke Event',
+          rewardTier: 2,
+          rewardProfile: { chestBonus: 2, scoreMult: 1.1, repairValue: 0.1 },
+          eventSeed: { label: 'Echo Smoke Seed', effect: 'score_now_risk_next_floor', rewardMult: 1 },
+          eventCharge: 2
+        };
+        try {
+          state.runRelics = [...new Set([...saved.runRelics, 'echo_engine'])];
+          state.meta.nextFloorAttackBonus = 0.04;
+          state.floorContent = { themeKey: null, archetypeKey: 'event', hiddenRooms: [] };
+          controller.floorPlan = { themeKey: null, theme: null };
+
+          const before = state.meta.nextFloorAttackBonus;
+          const message = controller.resolveEventRoomV2(echoRoom);
+          const after = state.meta.nextFloorAttackBonus;
+          return {
+            before,
+            after,
+            message,
+            applied: after > before && message.includes('Echo Engine preheated next-floor attack')
+          };
+        } finally {
+          state.score = saved.score;
+          state.player = saved.player;
+          state.maze = saved.maze;
+          state.meta = saved.meta;
+          state.items = saved.items;
+          state.floorBuff = saved.floorBuff;
+          state.floorContent = saved.floorContent;
+          state.runRelics = saved.runRelics;
+          controller.floorPlan = saved.floorPlan;
+          state.updateUI?.();
+        }
+      };
+      const echoEngineEventSmoke = runEchoEngineEventSmoke();
       const countFoundBadges = (selector) => Array.from(document.querySelectorAll(`${selector} article span`))
         .filter((element) => element.innerText.trim() === 'Found')
         .length;
@@ -485,6 +539,10 @@ async function runSmoke() {
         generationOverlayShownAfterDelay,
         generationOverlayText,
         generationOverlayHiddenAfterClear,
+        echoEngineEventMessage: echoEngineEventSmoke.message,
+        echoEngineEventBonusBefore: echoEngineEventSmoke.before,
+        echoEngineEventBonusAfter: echoEngineEventSmoke.after,
+        echoEngineEventBonusApplied: echoEngineEventSmoke.applied,
         canvasWidth: canvas?.clientWidth || 0,
         canvasHeight: canvas?.clientHeight || 0,
         hasController: !!window.gameController,
@@ -516,6 +574,10 @@ async function runSmoke() {
         throw new Error(`Generation overlay delayed text did not render: ${result.generationOverlayText}`);
       }
       if (!result.generationOverlayHiddenAfterClear) throw new Error('Generation overlay did not hide after cleanup.');
+      if (!result.echoEngineEventBonusApplied) throw new Error('Echo Engine event final path did not apply next-floor attack bonus.');
+      if (!result.echoEngineEventMessage.includes('Echo Engine preheated next-floor attack')) {
+        throw new Error(`Echo Engine event final message did not render: ${result.echoEngineEventMessage}`);
+      }
       if (result.canvasWidth <= 0 || result.canvasHeight <= 0) throw new Error('Canvas has no visible size.');
       if (result.collectionSummaryCards < 4) throw new Error('Collection summary cards did not render.');
       if (!result.collectionBadge.includes('/')) throw new Error('Collection badge did not render progress.');
