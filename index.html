@@ -949,6 +949,10 @@ import {
     initializeHudStatusUi
 } from './src/view/hud-status-ui.mjs';
 import {
+    applyHudRelicCard,
+    initializeHudRelicUi
+} from './src/view/hud-relic-ui.mjs';
+import {
     applyHudUpgradeDescriptions,
     applyHudUpgradeStates,
     buildHudUpgradeDescriptionState,
@@ -1796,29 +1800,11 @@ const GameState = {
             const total = progress.eventRoomSeeds.total + progress.trialRoomSeeds.total + progress.relics.total + progress.finaleBosses.total;
             collectionBadgeEl.innerText = `${found}/${total}`;
         }
-        const relicCountEl = document.getElementById('ui-relic-count');
-        const relicListEl = document.getElementById('ui-relic-list');
-        const relicHintEl = document.getElementById('ui-relic-hint');
-        if (relicCountEl && relicListEl && relicHintEl) {
-            const relicDefs = this.getRunRelicDefs();
-            relicCountEl.innerText = `${relicDefs.length}/${this.relicSlots}`;
-            relicHintEl.innerText = this.meta.nextFloorAttackBonus > 0
-                ? `回响引擎已为下层预热 +${Math.round(this.meta.nextFloorAttackBonus * 100)}% 火力`
-                : relicDefs.length > 0
-                    ? '这些核心会持续影响当前这轮推进。'
-                    : '精英密室和 Boss 有机会掉当前这轮的核心。';
-            relicListEl.innerHTML = relicDefs.length > 0
-                ? relicDefs.map((relic) => `
-                    <div class="rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2">
-                        <div class="flex items-center justify-between gap-3">
-                            <div class="text-xs font-bold text-slate-100">${relic.label}</div>
-                            <div class="text-[10px] font-bold text-cyan-300">${relic.summary}</div>
-                        </div>
-                        <div class="mt-1 text-[10px] leading-4 text-slate-400">${relic.shortLabel}</div>
-                    </div>
-                `).join('')
-                : '<div class="rounded-lg border border-dashed border-slate-700 bg-slate-950/50 px-3 py-3 text-[11px] font-bold text-slate-500">还没有拿到核心。先闯精英密室，或者把 Boss 打出来。</div>';
-        }
+        applyHudRelicCard(document, {
+            relicDefs: this.getRunRelicDefs(),
+            relicSlots: this.relicSlots,
+            nextFloorAttackBonus: this.meta.nextFloorAttackBonus
+        });
         applyHudUpgradeStates(document, buildHudUpgradeStates({
             score: this.score,
             player: this.player,
@@ -1847,6 +1833,7 @@ const GameState = {
 };
 
 initializeHudStatusUi();
+initializeHudRelicUi();
 window.loadingOverlay = new LoadingOverlay();
 window.GameState = GameState;
 
@@ -3055,6 +3042,7 @@ class GameController {
         };
 
         initializeHudStatusUi();
+        initializeHudRelicUi();
 
         ['speed', 'atk', 'hp', 'chest', 'size', 'monster'].forEach((type) => {
             const button = document.getElementById(`btn-up-${type}`);

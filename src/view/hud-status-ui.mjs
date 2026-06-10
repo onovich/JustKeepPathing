@@ -1,5 +1,3 @@
-import { RUN_RELIC_SLOTS } from '../data/relics.mjs';
-
 export const HUD_STATUS_LABELS = Object.freeze({
     GENERATING: '挖掘中',
     EXPLORING: '自动寻路',
@@ -278,23 +276,6 @@ function initializeUpgradeStripUi() {
     }
 }
 
-function initializeRelicCardUi() {
-    const scoreCard = document.getElementById('ui-score-card');
-    if (!scoreCard || document.getElementById('ui-relic-card')) return;
-    const card = document.createElement('div');
-    card.id = 'ui-relic-card';
-    card.className = 'bg-slate-800 rounded-xl p-4 border-2 border-slate-700 shadow-inner';
-    card.innerHTML = `
-        <div class="flex items-center justify-between">
-            <span class="text-slate-400 font-bold text-sm">本轮核心</span>
-            <span id="ui-relic-count" class="text-xl font-black text-cyan-300">0/${RUN_RELIC_SLOTS}</span>
-        </div>
-        <div id="ui-relic-hint" class="mt-2 text-[11px] font-bold text-slate-400">精英密室和 Boss 有机会掉当前这轮的核心。</div>
-        <div id="ui-relic-list" class="mt-3 space-y-2"></div>
-    `;
-    scoreCard.insertAdjacentElement('afterend', card);
-}
-
 function initializeSupplyStatusPill() {
     const host = document.getElementById('ui-status-box')?.parentElement;
     if (!host || document.getElementById('ui-supply-pill')) return;
@@ -318,7 +299,6 @@ function initializeThemeStatusPill() {
 export function initializeHudStatusUi() {
     initializeSupplyCardUi();
     initializeUpgradeStripUi();
-    initializeRelicCardUi();
     initializeThemeStatusPill();
     initializeSupplyStatusPill();
 }
