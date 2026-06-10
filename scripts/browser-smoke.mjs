@@ -320,6 +320,7 @@ async function runSmoke() {
         window.gameController.generationLoadingSnapshot = savedGenerationSnapshot;
       }
 
+      const cloneJson = (value) => JSON.parse(JSON.stringify(value));
       const runEchoEngineEventSmoke = () => {
         if (!window.gameController?.resolveEventRoomV2 || !window.GameState?.meta) {
           throw new Error('Echo Engine event smoke dependencies are missing.');
@@ -331,7 +332,7 @@ async function runSmoke() {
           player: { ...state.player },
           maze: { ...state.maze },
           meta: { ...state.meta },
-          items: JSON.parse(JSON.stringify(state.items || {})),
+          items: cloneJson(state.items || {}),
           floorBuff: { ...state.floorBuff },
           floorContent: state.floorContent,
           runRelics: Array.isArray(state.runRelics) ? [...state.runRelics] : [],
@@ -373,6 +374,86 @@ async function runSmoke() {
         }
       };
       const echoEngineEventSmoke = runEchoEngineEventSmoke();
+
+      const runConsecutiveRunRelicSmoke = () => {
+        if (!window.GameState?.rollRelicReward) {
+          throw new Error('Run relic smoke dependencies are missing.');
+        }
+        const state = window.GameState;
+        const saved = {
+          level: state.level,
+          score: state.score,
+          relicSlots: state.relicSlots,
+          runRelics: Array.isArray(state.runRelics) ? [...state.runRelics] : [],
+          collection: cloneJson(state.collection || {}),
+          collectionStorage: window.localStorage.getItem(state.collectionStorageKey),
+          random: Math.random
+        };
+        const deterministicRandomValues = [0, 0, 0, 0, 0, 0, 0, 0];
+        let randomIndex = 0;
+        const nextDeterministicRandom = () => deterministicRandomValues[randomIndex++] ?? 0;
+        try {
+          Math.random = nextDeterministicRandom;
+          state.level = 3;
+          state.score = 0;
+          state.relicSlots = 3;
+          state.runRelics = [];
+          const eliteAdded = state.rollRelicReward({
+            source: 'elite',
+            themeKey: null,
+            rewardTier: 3,
+            guaranteed: true
+          });
+          const bossAdded = state.rollRelicReward({
+            source: 'boss',
+            themeKey: null,
+            rewardTier: 3,
+            guaranteed: true
+          });
+          const addedRelics = [...state.runRelics];
+          const addedUniqueCount = new Set(addedRelics).size;
+
+          state.score = 0;
+          state.relicSlots = 1;
+          state.runRelics = [];
+          const singleSlotFirst = state.rollRelicReward({
+            source: 'elite',
+            themeKey: null,
+            rewardTier: 3,
+            guaranteed: true
+          });
+          const singleSlotSecond = state.rollRelicReward({
+            source: 'boss',
+            themeKey: null,
+            rewardTier: 3,
+            guaranteed: true
+          });
+
+          return {
+            addedStatuses: [eliteAdded.status, bossAdded.status],
+            addedRelics,
+            addedUniqueCount,
+            singleSlotStatuses: [singleSlotFirst.status, singleSlotSecond.status],
+            singleSlotRelics: [...state.runRelics],
+            singleSlotBonusScore: singleSlotSecond.bonusScore || 0,
+            singleSlotScore: state.score
+          };
+        } finally {
+          Math.random = saved.random;
+          state.level = saved.level;
+          state.score = saved.score;
+          state.relicSlots = saved.relicSlots;
+          state.runRelics = saved.runRelics;
+          state.collection = saved.collection;
+          if (saved.collectionStorage === null) {
+            window.localStorage.removeItem(state.collectionStorageKey);
+          } else {
+            window.localStorage.setItem(state.collectionStorageKey, saved.collectionStorage);
+          }
+          state.updateUI?.();
+        }
+      };
+      const consecutiveRunRelicSmoke = runConsecutiveRunRelicSmoke();
       const countFoundBadges = (selector) => Array.from(document.querySelectorAll(`${selector} article span`))
         .filter((element) => element.innerText.trim() === 'Found')
         .length;
@@ -543,6 +624,13 @@ async function runSmoke() {
         echoEngineEventBonusBefore: echoEngineEventSmoke.before,
         echoEngineEventBonusAfter: echoEngineEventSmoke.after,
         echoEngineEventBonusApplied: echoEngineEventSmoke.applied,
+        runRelicAddedStatuses: consecutiveRunRelicSmoke.addedStatuses,
+        runRelicAddedRelics: consecutiveRunRelicSmoke.addedRelics,
+        runRelicAddedUniqueCount: consecutiveRunRelicSmoke.addedUniqueCount,
+        runRelicSingleSlotStatuses: consecutiveRunRelicSmoke.singleSlotStatuses,
+        runRelicSingleSlotRelics: consecutiveRunRelicSmoke.singleSlotRelics,
+        runRelicSingleSlotBonusScore: consecutiveRunRelicSmoke.singleSlotBonusScore,
+        runRelicSingleSlotScore: consecutiveRunRelicSmoke.singleSlotScore,
         canvasWidth: canvas?.clientWidth || 0,
         canvasHeight: canvas?.clientHeight || 0,
         hasController: !!window.gameController,
@@ -577,6 +665,18 @@ async function runSmoke() {
       if (!result.echoEngineEventBonusApplied) throw new Error('Echo Engine event final path did not apply next-floor attack bonus.');
       if (!result.echoEngineEventMessage.includes('Echo Engine preheated next-floor attack')) {
         throw new Error(`Echo Engine event final message did not render: ${result.echoEngineEventMessage}`);
+      }
+      if (result.runRelicAddedStatuses.join('|') !== 'added|added') {
+        throw new Error(`Consecutive elite/boss relic rolls did not both add: ${result.runRelicAddedStatuses.join('|')}`);
+      }
+      if (result.runRelicAddedRelics.length !== 2 || result.runRelicAddedUniqueCount !== 2) {
+        throw new Error(`Consecutive elite/boss relic rolls duplicated or missed relics: ${result.runRelicAddedRelics.join('|')}`);
+      }
+      if (result.runRelicSingleSlotStatuses.join('|') !== 'added|overflow') {
+        throw new Error(`Single-slot elite/boss relic rolls did not overflow correctly: ${result.runRelicSingleSlotStatuses.join('|')}`);
+      }
+      if (result.runRelicSingleSlotRelics.length !== 1 || result.runRelicSingleSlotBonusScore <= 0 || result.runRelicSingleSlotScore <= 0) {
+        throw new Error('Single-slot boss relic overflow did not preserve a bonus-score reward.');
       }
       if (result.canvasWidth <= 0 || result.canvasHeight <= 0) throw new Error('Canvas has no visible size.');
       if (result.collectionSummaryCards < 4) throw new Error('Collection summary cards did not render.');

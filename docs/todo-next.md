@@ -49,6 +49,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - `npm run verify:refactor` now runs check, browser smoke, and screenshot smoke with compact success output for lower-noise refactor turns.
 - Loading overlay progress/snapshot and delayed-generation reveal checks were extracted into `src/view/loading-overlay.mjs`, with focused checks and browser smoke coverage for delayed text reveal/cleanup.
 - Browser smoke now exercises the `Echo Engine` event-room finalization path with a deterministic fixture and restores runtime state afterward.
+- Browser smoke now covers consecutive elite/boss run-relic rolls for both double-add and single-slot overflow outcomes.
 
 ## 1. Theme Chain And Relic Follow-Up
 
@@ -60,7 +61,6 @@ Goal:
 Outstanding work:
 
 - expand runtime fixtures for `event`, `trial`, `merchant`, `rest`, `treasure`, and `elite` room completion paths beyond the current static reward-path guard
-- add runtime coverage around consecutive elite/boss relic reward rolls so premium rewards cannot double-apply or silently miss
 
 Acceptance:
 
