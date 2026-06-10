@@ -75,6 +75,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Event, trial, and elite hidden-room node pickup reward state now share `src/logic/room-reward-state.mjs`, with focused checks for charge counters, hazard damage, reward fallbacks, HP floors, and score actions while animations remain in `GameController`.
 - Treasure cache hidden-room pickup reward state now shares `src/logic/room-reward-state.mjs`, with focused checks for chest reward multipliers, score actions, and floor chest counters while random supply drops remain in `GameController`.
 - Theme-chain bonus state application now routes through `src/logic/room-reward-state.mjs`, with focused checks for next-floor attack caps, hidden-room odds caps, salvage score/supplies, quarantine repairs, damage reduction, and reflex-shield refresh.
+- Finale boss archetype construction, clear-bonus calculation, and boss mechanic state initialization now live in `src/logic/finale-boss-state.mjs`, with focused checks and path guards while combat presentation remains in `GameController`.
 
 ## 1. Browser Smoke Follow-Up
 
