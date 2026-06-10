@@ -33,6 +33,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Shared editor log formatting/writing was extracted into `src/view/editors/editor-log.mjs`, with focused checks and browser smoke coverage for model/sound editor log DOM updates.
 - Model editor selection UI state orchestration and DOM application were extracted into `src/view/editors/model-editor-selection-ui.mjs`, with focused checks and browser smoke coverage for idle disabled controls.
 - Sound editor slider/select/checkbox markup and live range display formatting were extracted into `src/view/editors/sound-editor-controls.mjs`, with focused checks and browser smoke coverage for default one-shot controls.
+- Sound editor one-shot, loop, and BGM control group rendering now lives in `src/view/editors/sound-editor-controls.mjs`, with focused checks and a `SoundEditor.render` path guard.
 - Sound editor rendered-control event binding was extracted into `src/view/editors/sound-editor-bindings.mjs`, with focused checks and browser smoke coverage for range input updates.
 - Sound editor control-state mutation was extracted into `src/view/editors/sound-editor-control-state.mjs`, with focused checks for oneshot/loop/track/bgm/meta writes and browser smoke coverage for range and track-select updates.
 - Sound editor event select options and metadata labels were extracted into `src/view/editors/sound-editor-meta.mjs`, with focused checks and browser smoke coverage for select/type/usage/description rendering.

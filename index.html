@@ -928,10 +928,8 @@ import {
 import { bindSoundEditorRenderedControls } from './src/view/editors/sound-editor-bindings.mjs';
 import { applySoundEditorControlValue } from './src/view/editors/sound-editor-control-state.mjs';
 import {
-    formatSoundRangeControlValue,
-    renderSoundCheckboxControl,
-    renderSoundSelectControl,
-    renderSoundSliderControl
+    applySoundEditorControls,
+    formatSoundRangeControlValue
 } from './src/view/editors/sound-editor-controls.mjs';
 import {
     applySoundEditorTransportState,
@@ -6118,18 +6116,6 @@ class SoundEditor {
         this.statusEl.innerText = text;
     }
 
-    sliderMarkup(label, field, value, min, max, step, unit, group) {
-        return renderSoundSliderControl({ label, field, value, min, max, step, unit, group });
-    }
-
-    selectMarkup(label, field, value, options, group) {
-        return renderSoundSelectControl({ label, field, value, options, group });
-    }
-
-    checkboxMarkup(label, field, checked, group) {
-        return renderSoundCheckboxControl({ label, field, checked, group });
-    }
-
     getCurrentSoundDef() {
         return SOUND_EVENT_DEFS[this.currentSoundKey];
     }
@@ -6149,108 +6135,17 @@ class SoundEditor {
             def
         });
 
-        if (def.type === 'oneshot') this.renderOneShotControls();
-        else if (def.type === 'loop') this.renderLoopControls();
-        else this.renderBgmControls();
+        applySoundEditorControls({
+            controlsEl: this.controlsEl,
+            def,
+            sound: this.getCurrentSoundConfig(),
+            currentTrackIndex: this.currentTrackIndex,
+            waveTypes: SOUND_WAVE_TYPES,
+            bgmKernels: BGM_KERNELS
+        });
 
         this.bindRenderedControls();
         this.updateTransportUi();
-    }
-
-    renderOneShotControls() {
-        const sound = this.getCurrentSoundConfig();
-        this.controlsEl.innerHTML = `
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                ${this.selectMarkup('波形', 'waveform', sound.waveform, SOUND_WAVE_TYPES.map((wave) => ({ value: wave, label: wave })), 'oneshot')}
-                ${this.sliderMarkup('音量', 'volume', sound.volume, 0, 0.4, 0.005, '', 'oneshot')}
-                ${this.sliderMarkup('起始频率', 'startFreq', sound.startFreq, 40, 2200, 1, 'Hz', 'oneshot')}
-                ${this.sliderMarkup('结束频率', 'endFreq', sound.endFreq, 40, 2200, 1, 'Hz', 'oneshot')}
-                ${this.sliderMarkup('时长', 'duration', sound.duration, 0.03, 1.2, 0.01, 's', 'oneshot')}
-                ${this.sliderMarkup('滤波截止', 'filterCutoff', sound.filterCutoff, 120, 8000, 10, 'Hz', 'oneshot')}
-                ${this.sliderMarkup('攻击', 'attack', sound.attack, 0.001, 0.25, 0.001, 's', 'oneshot')}
-                ${this.sliderMarkup('保持', 'hold', sound.hold, 0, 0.3, 0.005, 's', 'oneshot')}
-                ${this.sliderMarkup('释放', 'release', sound.release, 0.01, 0.9, 0.01, 's', 'oneshot')}
-                ${this.sliderMarkup('共振', 'resonance', sound.resonance, 0.1, 16, 0.1, '', 'oneshot')}
-                ${this.sliderMarkup('颤音速率', 'vibratoRate', sound.vibratoRate, 0, 24, 0.1, 'Hz', 'oneshot')}
-                ${this.sliderMarkup('颤音深度', 'vibratoDepth', sound.vibratoDepth, 0, 220, 1, 'c', 'oneshot')}
-                ${this.sliderMarkup('轻微失谐', 'detune', sound.detune, 0, 48, 1, 'c', 'oneshot')}
-                ${this.sliderMarkup('次低频混合', 'subMix', sound.subMix, 0, 0.75, 0.01, '', 'oneshot')}
-                ${this.sliderMarkup('失真', 'distortion', sound.distortion, 0, 1, 0.01, '', 'oneshot')}
-                ${this.sliderMarkup('延迟混合', 'delayMix', sound.delayMix, 0, 0.75, 0.01, '', 'oneshot')}
-                ${this.sliderMarkup('声像', 'pan', sound.pan, -1, 1, 0.01, '', 'oneshot')}
-            </div>
-        `;
-    }
-
-    renderLoopControls() {
-        const sound = this.getCurrentSoundConfig();
-        const track = sound.tracks[this.currentTrackIndex];
-        this.controlsEl.innerHTML = `
-            <div class="space-y-4">
-                <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
-                    <div class="mb-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">整体节奏</div>
-                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        ${this.sliderMarkup('总音量', 'volume', sound.volume, 0, 0.65, 0.01, '', 'loop')}
-                        ${this.sliderMarkup('节奏速度', 'tempo', sound.tempo, 40, 220, 1, ' BPM', 'loop')}
-                        ${this.sliderMarkup('步频倍率', 'stride', sound.stride, 0.4, 2.5, 0.01, 'x', 'loop')}
-                        ${this.sliderMarkup('摇摆', 'swing', sound.swing, 0, 0.45, 0.01, '', 'loop')}
-                        ${this.sliderMarkup('每步拍值', 'stepBeats', sound.stepBeats, 0.125, 2, 0.125, ' 拍', 'loop')}
-                        ${this.sliderMarkup('重拍力度', 'accent', sound.accent, 0.5, 2.5, 0.01, 'x', 'loop')}
-                    </div>
-                </div>
-                <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
-                    <div class="mb-3 flex items-center justify-between">
-                        <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">音轨</div>
-                        <div class="text-xs font-bold text-slate-400">最多 5 条</div>
-                    </div>
-                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        ${this.selectMarkup('当前音轨', 'trackIndex', String(this.currentTrackIndex), sound.tracks.map((_, index) => ({ value: String(index), label: `音轨 ${index + 1}` })), 'meta')}
-                        ${this.checkboxMarkup('启用这条音轨', 'enabled', track.enabled, 'track')}
-                        ${this.selectMarkup('波形', 'waveform', track.waveform, SOUND_WAVE_TYPES.map((wave) => ({ value: wave, label: wave })), 'track')}
-                        ${this.sliderMarkup('音轨音量', 'volume', track.volume, 0, 0.4, 0.005, '', 'track')}
-                        ${this.sliderMarkup('起始频率', 'startFreq', track.startFreq, 40, 2400, 1, 'Hz', 'track')}
-                        ${this.sliderMarkup('结束频率', 'endFreq', track.endFreq, 40, 2400, 1, 'Hz', 'track')}
-                        ${this.sliderMarkup('时长', 'duration', track.duration, 0.02, 0.5, 0.005, 's', 'track')}
-                        ${this.sliderMarkup('攻击', 'attack', track.attack, 0.001, 0.1, 0.001, 's', 'track')}
-                        ${this.sliderMarkup('保持', 'hold', track.hold, 0, 0.08, 0.001, 's', 'track')}
-                        ${this.sliderMarkup('释放', 'release', track.release, 0.01, 0.25, 0.005, 's', 'track')}
-                        ${this.sliderMarkup('滤波截止', 'filterCutoff', track.filterCutoff, 120, 6000, 10, 'Hz', 'track')}
-                        ${this.sliderMarkup('共振', 'resonance', track.resonance, 0.1, 12, 0.1, '', 'track')}
-                        ${this.sliderMarkup('失谐', 'detune', track.detune, 0, 36, 1, 'c', 'track')}
-                        ${this.sliderMarkup('失真', 'distortion', track.distortion, 0, 1, 0.01, '', 'track')}
-                        ${this.sliderMarkup('声像', 'pan', track.pan, -1, 1, 0.01, '', 'track')}
-                        ${this.sliderMarkup('每隔几步触发', 'stepDiv', track.stepDiv, 1, 8, 1, '', 'track')}
-                        ${this.sliderMarkup('触发偏移', 'offset', track.offset, 0, 7, 1, '', 'track')}
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderBgmControls() {
-        const bgm = this.getCurrentSoundConfig();
-        this.controlsEl.innerHTML = `
-            <div class="space-y-4">
-                <div class="rounded-xl border border-slate-800 bg-slate-900/80 p-3">
-                    <div class="mb-3 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">背景音乐合成</div>
-                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        ${this.checkboxMarkup('启用 BGM', 'enabled', bgm.enabled, 'bgm')}
-                        ${this.selectMarkup('和弦卷积核', 'kernel', bgm.kernel, Object.entries(BGM_KERNELS).map(([key, info]) => ({ value: key, label: info.label })), 'bgm')}
-                        ${this.sliderMarkup('音量', 'volume', bgm.volume, 0, 0.5, 0.01, '', 'bgm')}
-                        ${this.sliderMarkup('速度', 'tempo', bgm.tempo, 50, 180, 1, ' BPM', 'bgm')}
-                        ${this.sliderMarkup('根音', 'root', bgm.root, 30, 72, 1, ' MIDI', 'bgm')}
-                        ${this.sliderMarkup('亮度', 'brightness', bgm.brightness, 0.15, 1, 0.01, '', 'bgm')}
-                        ${this.sliderMarkup('摇摆', 'swing', bgm.swing, 0, 0.45, 0.01, '', 'bgm')}
-                        ${this.sliderMarkup('音符长度', 'noteLength', bgm.noteLength, 0.2, 1.4, 0.01, 'x', 'bgm')}
-                        ${this.sliderMarkup('起音', 'attack', bgm.attack, 0.001, 0.2, 0.001, 's', 'bgm')}
-                        ${this.sliderMarkup('尾音', 'release', bgm.release, 0.05, 1.2, 0.01, 's', 'bgm')}
-                        ${this.sliderMarkup('立体声扩散', 'stereoSpread', bgm.stereoSpread, 0, 1, 0.01, '', 'bgm')}
-                        ${this.sliderMarkup('人味抖动', 'humanize', bgm.humanize, 0, 0.12, 0.001, 's', 'bgm')}
-                        ${this.sliderMarkup('MIDI 失谐', 'detune', bgm.detune, 0, 36, 1, 'c', 'bgm')}
-                    </div>
-                </div>
-            </div>
-        `;
     }
 
     bindRenderedControls() {
