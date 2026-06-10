@@ -94,3 +94,28 @@ export function applyCombatHpUiState(documentRef, state) {
         monsterText
     };
 }
+
+export function showCombatOverlay(documentRef) {
+    const ui = documentRef?.getElementById('rpg-combat-ui');
+    if (!ui) return null;
+
+    ui.classList.remove('hidden');
+    void ui.offsetWidth;
+    ui.classList.remove('opacity-0');
+    return ui;
+}
+
+export function beginHideCombatOverlay(documentRef) {
+    const ui = documentRef?.getElementById('rpg-combat-ui');
+    if (!ui) return null;
+
+    ui.classList.add('opacity-0');
+    return ui;
+}
+
+export function finishHideCombatOverlay(ui) {
+    if (!ui) return null;
+
+    ui.classList.add('hidden');
+    return ui;
+}

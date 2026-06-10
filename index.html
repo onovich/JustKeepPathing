@@ -965,7 +965,10 @@ import {
 } from './src/view/score-ui.mjs';
 import {
     applyCombatHpUiState,
-    buildCombatHpUiState
+    beginHideCombatOverlay,
+    buildCombatHpUiState,
+    finishHideCombatOverlay,
+    showCombatOverlay
 } from './src/view/combat-hp-ui.mjs';
 import {
     Easing,
@@ -3104,25 +3107,21 @@ class GameController {
     }
 
     showCombatUI() {
-        const ui = document.getElementById('rpg-combat-ui');
         if (this.combatUiHideTimer) {
             clearTimeout(this.combatUiHideTimer);
             this.combatUiHideTimer = null;
         }
-        ui.classList.remove('hidden');
-        void ui.offsetWidth;
-        ui.classList.remove('opacity-0');
-        return ui;
+        return showCombatOverlay(document);
     }
 
     hideCombatUI() {
-        const ui = document.getElementById('rpg-combat-ui');
         if (this.combatUiHideTimer) {
             clearTimeout(this.combatUiHideTimer);
         }
-        ui.classList.add('opacity-0');
+        const ui = beginHideCombatOverlay(document);
+        if (!ui) return null;
         this.combatUiHideTimer = setTimeout(() => {
-            ui.classList.add('hidden');
+            finishHideCombatOverlay(ui);
             this.combatUiHideTimer = null;
         }, 300);
         return ui;

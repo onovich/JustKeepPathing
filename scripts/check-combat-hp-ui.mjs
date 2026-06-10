@@ -5,17 +5,33 @@ import {
     COMBAT_BOSS_CARD_CLASS,
     COMBAT_MONSTER_CARD_CLASS,
     applyCombatHpUiState,
-    buildCombatHpUiState
+    beginHideCombatOverlay,
+    buildCombatHpUiState,
+    finishHideCombatOverlay,
+    showCombatOverlay
 } from '../src/view/combat-hp-ui.mjs';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 const indexHtml = fs.readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
 
 function createElement() {
+    const classNames = new Set(['hidden', 'opacity-0']);
     return {
         innerText: '',
         className: '',
-        style: {}
+        style: {},
+        offsetWidth: 120,
+        classList: {
+            add(...names) {
+                names.forEach((name) => classNames.add(name));
+            },
+            remove(...names) {
+                names.forEach((name) => classNames.delete(name));
+            },
+            contains(name) {
+                return classNames.has(name);
+            }
+        }
     };
 }
 
@@ -26,7 +42,8 @@ function createDocument() {
         'rpg-m-name',
         'rpg-m-card',
         'rpg-m-hp-bar',
-        'rpg-m-hp-text'
+        'rpg-m-hp-text',
+        'rpg-combat-ui'
     ].map((id) => [id, createElement()]));
 
     return {
@@ -135,6 +152,30 @@ assert.deepEqual(
 assert.equal(applyCombatHpUiState(null, buildCombatHpUiState()), null);
 assert.equal(applyCombatHpUiState(createDocument(), null), null);
 
+{
+    const documentRef = createDocument();
+    const ui = showCombatOverlay(documentRef);
+    assert.equal(ui, documentRef.elements['rpg-combat-ui']);
+    assert.equal(ui.classList.contains('hidden'), false);
+    assert.equal(ui.classList.contains('opacity-0'), false);
+}
+
+{
+    const documentRef = createDocument();
+    const ui = documentRef.elements['rpg-combat-ui'];
+    ui.classList.remove('hidden');
+    ui.classList.remove('opacity-0');
+
+    assert.equal(beginHideCombatOverlay(documentRef), ui);
+    assert.equal(ui.classList.contains('opacity-0'), true);
+    assert.equal(finishHideCombatOverlay(ui), ui);
+    assert.equal(ui.classList.contains('hidden'), true);
+}
+
+assert.equal(showCombatOverlay(null), null);
+assert.equal(beginHideCombatOverlay(null), null);
+assert.equal(finishHideCombatOverlay(null), null);
+
 assert.match(
     indexHtml,
     /updateRPG_HP\(enemyHp, enemyMaxHp, enemyObj\) \{[\s\S]*?applyCombatHpUiState\(document, buildCombatHpUiState\(/,
@@ -147,6 +188,34 @@ assert.doesNotMatch(
     updateHpMatch[0],
     /monsterCard\.className/,
     'combat HP controller should not own monster card class switching'
+);
+
+assert.match(
+    indexHtml,
+    /showCombatUI\(\) \{[\s\S]*?return showCombatOverlay\(document\);[\s\S]*?\n    \}/,
+    'combat UI show should route overlay visibility through the combat view helper'
+);
+
+assert.match(
+    indexHtml,
+    /hideCombatUI\(\) \{[\s\S]*?const ui = beginHideCombatOverlay\(document\);[\s\S]*?finishHideCombatOverlay\(ui\);[\s\S]*?\}, 300\);/,
+    'combat UI hide should route overlay visibility through the combat view helper'
+);
+
+const showCombatMatch = indexHtml.match(/showCombatUI\(\) \{[\s\S]*?\n    \}/);
+assert.ok(showCombatMatch, 'combat UI show method should stay discoverable');
+assert.doesNotMatch(
+    showCombatMatch[0],
+    /getElementById\('rpg-combat-ui'\)|classList\.remove\('hidden'\)|classList\.remove\('opacity-0'\)/,
+    'combat UI show method should not own overlay class toggles'
+);
+
+const hideCombatMatch = indexHtml.match(/hideCombatUI\(\) \{[\s\S]*?\n    \}/);
+assert.ok(hideCombatMatch, 'combat UI hide method should stay discoverable');
+assert.doesNotMatch(
+    hideCombatMatch[0],
+    /getElementById\('rpg-combat-ui'\)|classList\.add\('opacity-0'\)|classList\.add\('hidden'\)/,
+    'combat UI hide method should not own overlay class toggles'
 );
 
 console.log('combat-hp-ui checks passed');
