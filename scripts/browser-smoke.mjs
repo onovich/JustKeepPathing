@@ -600,6 +600,198 @@ async function runSmoke() {
         }
       };
       const roomCompletionSmoke = runRoomCompletionSmoke();
+
+      const runEliteRoomClearSmoke = async () => {
+        const controller = window.gameController;
+        const state = window.GameState;
+        if (!controller?.resolveHiddenEliteRoomClear) {
+          throw new Error('Elite room clear smoke dependencies are missing.');
+        }
+        const engine = controller.engine;
+        const createSmokeVector = (x = 0, y = 0, z = 0) => ({
+          x,
+          y,
+          z,
+          clone() {
+            return createSmokeVector(this.x, this.y, this.z);
+          },
+          add(vector = {}) {
+            this.x += vector.x || 0;
+            this.y += vector.y || 0;
+            this.z += vector.z || 0;
+            return this;
+          }
+        });
+        const saved = {
+          level: state.level,
+          score: state.score,
+          player: { ...state.player },
+          maze: { ...state.maze },
+          meta: { ...state.meta },
+          items: cloneJson(state.items || {}),
+          floorBuff: { ...state.floorBuff },
+          floorRuntime: { ...state.floorRuntime },
+          floorContent: state.floorContent,
+          floorStats: { ...state.floorStats },
+          runRelics: Array.isArray(state.runRelics) ? [...state.runRelics] : [],
+          collection: cloneJson(state.collection || {}),
+          collectionStorage: window.localStorage.getItem(state.collectionStorageKey),
+          grid: controller.grid,
+          floorPlan: controller.floorPlan,
+          engineEntities: Array.isArray(engine?.entities) ? engine.entities : null,
+          random: Math.random,
+          sleep: controller.sleep,
+          typeText: controller.typeText,
+          spawnBurst: engine?.spawnBurst,
+          addFloatingText: engine?.addFloatingText,
+          sceneRemove: engine?.scene?.remove,
+          soundUpgrade: window.soundEngine?.upgrade
+        };
+        const calls = {
+          bursts: 0,
+          floatingTexts: [],
+          removedMeshes: 0,
+          typedText: '',
+          upgrades: 0
+        };
+        const markerMesh = { id: 'smoke-elite-marker-mesh', position: createSmokeVector(1, 0, 1) };
+        const enemyMesh = { id: 'smoke-elite-enemy-mesh', position: createSmokeVector(2, 0, 2) };
+        const room = {
+          id: 'smoke-elite-clear-room',
+          displayName: 'Smoke Elite Room',
+          typeKey: 'elite',
+          rewardTier: 3,
+          rewardProfile: { chestBonus: 2, scoreMult: 1.15, repairValue: 0.12 },
+          entered: true,
+          cleared: false,
+          anchor: { r: 0, c: 0 },
+          chamberCells: [{ r: 0, c: 0 }, { r: 0, c: 1 }],
+          entity: { id: 'smoke-elite-marker', mesh: markerMesh }
+        };
+        try {
+          Math.random = () => 0;
+          state.level = 3;
+          state.score = 0;
+          state.player = {
+            ...saved.player,
+            baseHp: 120,
+            currentHp: 70,
+            baseAtk: 18
+          };
+          state.maze = {
+            ...saved.maze,
+            lvSize: 1,
+            lvChest: 1,
+            baseChestRate: 0.05,
+            baseMonsterRate: 0.03
+          };
+          state.meta = { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 };
+          state.items = { supplies: { assault: 0, salvage: 0, scout: 0 } };
+          state.floorBuff = {
+            ...saved.floorBuff,
+            supplyActive: false,
+            supplyKey: null,
+            supplyLabel: null,
+            incomingDamageMult: 1,
+            chestRewardMult: 1,
+            supplyDropBonus: 0,
+            attackMult: 1,
+            moveSpeedMult: 1,
+            bossRewardMult: 1,
+            monsterSpawnMult: 1,
+            monsterRewardMult: 1,
+            hiddenRoomBonus: 0,
+            diversionBonus: 0
+          };
+          state.floorRuntime = { reflexShieldReady: false };
+          state.floorStats = { kills: 0, chests: 0, hiddenRoomsCleared: 0 };
+          state.runRelics = [];
+          state.floorContent = {
+            themeKey: 'ember_forge',
+            theme: { accentColor: '#fb923c', directive: { label: 'Smoke Ember Theme' } },
+            archetypeKey: 'elite',
+            hiddenRooms: [room]
+          };
+          controller.floorPlan = {
+            themeKey: 'ember_forge',
+            theme: { accentColor: '#fb923c', directive: { label: 'Smoke Ember Theme' } }
+          };
+          controller.grid = [
+            [{ hiddenRoomId: room.id }, { hiddenRoomId: room.id }]
+          ];
+          engine.entities = [room.entity];
+          controller.sleep = async () => {};
+          controller.typeText = async (text) => {
+            calls.typedText = text;
+          };
+          engine.spawnBurst = () => {
+            calls.bursts += 1;
+          };
+          engine.addFloatingText = (text) => {
+            calls.floatingTexts.push(String(text));
+          };
+          engine.scene.remove = () => {
+            calls.removedMeshes += 1;
+          };
+          if (window.soundEngine?.upgrade) {
+            window.soundEngine.upgrade = () => {
+              calls.upgrades += 1;
+            };
+          }
+
+          const summary = await controller.resolveHiddenEliteRoomClear(room, enemyMesh);
+          return {
+            summary,
+            typedText: calls.typedText,
+            cleared: room.cleared,
+            entered: room.entered,
+            hiddenRoomsCleared: state.floorStats.hiddenRoomsCleared,
+            markerRemoved: !engine.entities.includes(room.entity),
+            gridCleared: controller.grid[0][0].hiddenRoomId === null && controller.grid[0][1].hiddenRoomId === null,
+            relicAdded: state.runRelics.length === 1,
+            nextFloorAttackBonus: state.meta.nextFloorAttackBonus,
+            assaultSupply: state.items.supplies.assault || 0,
+            bursts: calls.bursts,
+            floatingTexts: calls.floatingTexts,
+            removedMeshes: calls.removedMeshes,
+            upgrades: calls.upgrades
+          };
+        } finally {
+          Math.random = saved.random;
+          state.level = saved.level;
+          state.score = saved.score;
+          state.player = saved.player;
+          state.maze = saved.maze;
+          state.meta = saved.meta;
+          state.items = saved.items;
+          state.floorBuff = saved.floorBuff;
+          state.floorRuntime = saved.floorRuntime;
+          state.floorContent = saved.floorContent;
+          state.floorStats = saved.floorStats;
+          state.runRelics = saved.runRelics;
+          state.collection = saved.collection;
+          if (saved.collectionStorage === null) {
+            window.localStorage.removeItem(state.collectionStorageKey);
+          } else {
+            window.localStorage.setItem(state.collectionStorageKey, saved.collectionStorage);
+          }
+          controller.grid = saved.grid;
+          controller.floorPlan = saved.floorPlan;
+          if (engine) {
+            engine.entities = saved.engineEntities;
+            engine.spawnBurst = saved.spawnBurst;
+            engine.addFloatingText = saved.addFloatingText;
+            if (engine.scene) engine.scene.remove = saved.sceneRemove;
+          }
+          controller.sleep = saved.sleep;
+          controller.typeText = saved.typeText;
+          if (window.soundEngine && saved.soundUpgrade) {
+            window.soundEngine.upgrade = saved.soundUpgrade;
+          }
+          state.updateUI?.();
+        }
+      };
+      const eliteRoomClearSmoke = await runEliteRoomClearSmoke();
       const countFoundBadges = (selector) => Array.from(document.querySelectorAll(`${selector} article span`))
         .filter((element) => element.innerText.trim() === 'Found')
         .length;
@@ -873,6 +1065,20 @@ async function runSmoke() {
         roomCompletionTrialAddedSupply: roomCompletionSmoke.trialAddedSupply,
         roomCompletionTreasureMessage: roomCompletionSmoke.treasureMessage,
         roomCompletionTreasureThemeApplied: roomCompletionSmoke.treasureThemeApplied,
+        eliteRoomClearSummary: eliteRoomClearSmoke.summary,
+        eliteRoomClearTypedText: eliteRoomClearSmoke.typedText,
+        eliteRoomClearCleared: eliteRoomClearSmoke.cleared,
+        eliteRoomClearEntered: eliteRoomClearSmoke.entered,
+        eliteRoomClearHiddenRoomsCleared: eliteRoomClearSmoke.hiddenRoomsCleared,
+        eliteRoomClearMarkerRemoved: eliteRoomClearSmoke.markerRemoved,
+        eliteRoomClearGridCleared: eliteRoomClearSmoke.gridCleared,
+        eliteRoomClearRelicAdded: eliteRoomClearSmoke.relicAdded,
+        eliteRoomClearNextFloorAttackBonus: eliteRoomClearSmoke.nextFloorAttackBonus,
+        eliteRoomClearAssaultSupply: eliteRoomClearSmoke.assaultSupply,
+        eliteRoomClearBursts: eliteRoomClearSmoke.bursts,
+        eliteRoomClearFloatingTexts: eliteRoomClearSmoke.floatingTexts,
+        eliteRoomClearRemovedMeshes: eliteRoomClearSmoke.removedMeshes,
+        eliteRoomClearUpgrades: eliteRoomClearSmoke.upgrades,
         canvasWidth: canvas?.clientWidth || 0,
         canvasHeight: canvas?.clientHeight || 0,
         hasController: !!window.gameController,
@@ -931,6 +1137,24 @@ async function runSmoke() {
       }
       if (!result.roomCompletionTreasureThemeApplied || !result.roomCompletionTreasureMessage) {
         throw new Error('Treasure room completion did not surface its theme-chain runtime reward.');
+      }
+      if (!result.eliteRoomClearCleared || !result.eliteRoomClearEntered || result.eliteRoomClearHiddenRoomsCleared !== 1) {
+        throw new Error('Elite room clear did not mark the room lifecycle state.');
+      }
+      if (!result.eliteRoomClearMarkerRemoved || !result.eliteRoomClearGridCleared) {
+        throw new Error('Elite room clear did not remove marker references or clear grid links.');
+      }
+      if (!result.eliteRoomClearRelicAdded || result.eliteRoomClearNextFloorAttackBonus <= 0 || result.eliteRoomClearAssaultSupply < 1) {
+        throw new Error('Elite room clear did not apply relic and theme-chain rewards.');
+      }
+      if (!result.eliteRoomClearSummary.includes('Smoke Elite Room cleared') || !result.eliteRoomClearSummary.includes('Smoke Elite Room 掉出了核心')) {
+        throw new Error(`Elite room clear summary did not include score and relic presentation: ${result.eliteRoomClearSummary}`);
+      }
+      if (result.eliteRoomClearTypedText !== result.eliteRoomClearSummary) {
+        throw new Error('Elite room clear did not route the final summary through typeText.');
+      }
+      if (result.eliteRoomClearBursts < 2 || result.eliteRoomClearRemovedMeshes < 1 || result.eliteRoomClearUpgrades < 2) {
+        throw new Error('Elite room clear presentation effects did not run.');
       }
       if (result.canvasWidth <= 0 || result.canvasHeight <= 0) throw new Error('Canvas has no visible size.');
       if (result.collectionSummaryCards < 4) throw new Error('Collection summary cards did not render.');

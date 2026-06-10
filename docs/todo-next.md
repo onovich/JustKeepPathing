@@ -52,26 +52,9 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Browser smoke now covers consecutive elite/boss run-relic rolls for both double-add and single-slot overflow outcomes.
 - Path Debug now surfaces per-room access, gate progress, detour, final diversion score, and lifecycle flags, with browser smoke coverage for a deterministic two-room fixture.
 - Browser smoke now covers rest, merchant, trial, and treasure room completion rewards with a deterministic runtime fixture that restores `GameState` afterward.
+- Browser smoke now covers full elite-room clear presentation, including lifecycle clearing, marker/grid cleanup, relic presentation, and theme-chain rewards.
 
-## 1. Theme Chain And Relic Follow-Up
-
-Goal:
-
-- finish the cross-system glue between special rooms, theme chains, and run relics
-- keep all bonus text and collection/relic state routed through one obvious runtime path
-
-Outstanding work:
-
-- add a focused runtime fixture for full elite-room clear presentation once the combat/engine dependencies can be isolated without inflating smoke setup
-
-Acceptance:
-
-- no room type silently applies theme-chain effects without surfacing them in text
-- chained bonuses update runtime state and UI consistently
-- consecutive elite/event reward flows do not double-apply or silently miss
-- collection discoveries still update after event/trial room entry
-
-## 2. Browser Smoke Follow-Up
+## 1. Browser Smoke Follow-Up
 
 Goal:
 
@@ -88,7 +71,7 @@ Acceptance:
 - browser smoke can be run manually before risky UI/render changes
 - the smoke does not require a production build step or external npm dependency
 
-## 3. Refactor Follow-Up
+## 2. Refactor Follow-Up
 
 Goal:
 
