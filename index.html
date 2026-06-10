@@ -972,6 +972,13 @@ import {
 } from './src/view/combat-hp-ui.mjs';
 import { typeCombatDialogue } from './src/view/combat-dialogue-ui.mjs';
 import {
+    appendFloatingTextElement,
+    applyFloatingTextFrame,
+    buildFloatingTextFrame,
+    createFloatingTextElement,
+    removeFloatingTextElement
+} from './src/view/floating-text-ui.mjs';
+import {
     Easing,
     TweenManager
 } from './src/view/tween-manager.mjs';
@@ -2877,12 +2884,12 @@ class VisualEngine {
     }
 
     addFloatingText(text, pos3D, colorStr, isCritical = false) {
-        const el = document.createElement('div');
-        el.className = 'floating-text';
-        el.innerText = text;
-        el.style.color = colorStr;
-        if (isCritical) el.style.fontSize = '24px';
-        this.textContainer.appendChild(el);
+        const el = appendFloatingTextElement(this.textContainer, createFloatingTextElement(document, {
+            text,
+            color: colorStr,
+            critical: isCritical
+        }));
+        if (!el) return null;
         this.floatingTexts.push({ el, pos: pos3D.clone().add(new THREE.Vector3(0, 1.5, 0)), life: 1.0, vy: 2.0 });
     }
 
@@ -2905,7 +2912,7 @@ class VisualEngine {
             const text = this.floatingTexts[i];
             text.life -= dt * 1.2;
             if (text.life <= 0) {
-                text.el.remove();
+                removeFloatingTextElement(text.el);
                 this.floatingTexts.splice(i, 1);
                 continue;
             }
@@ -2914,8 +2921,7 @@ class VisualEngine {
             temp.project(this.camera);
             const x = (temp.x * 0.5 + 0.5) * this.canvas.clientWidth;
             const y = (temp.y * -0.5 + 0.5) * this.canvas.clientHeight;
-            text.el.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${text.life < 0.2 ? text.life * 5 : 1})`;
-            text.el.style.opacity = text.life;
+            applyFloatingTextFrame(text.el, buildFloatingTextFrame({ x, y, life: text.life }));
         }
     }
 
