@@ -818,6 +818,15 @@ import {
     pickRelicReward
 } from './src/data/relics.mjs';
 import {
+    attachRunRelicRollChance,
+    buildEmptyRunRelicPoolResult,
+    buildRunRelicClaimResult,
+    buildRunRelicMissResult,
+    getRunRelicOverflowScore,
+    getRunRelicRollChance,
+    shouldRollRunRelicReward
+} from './src/logic/run-relic-state.mjs';
+import {
     COLLECTION_STORAGE_KEY,
     buildCollectionProgress,
     countFinaleBossThemes,
@@ -1524,23 +1533,27 @@ const GameState = {
             .filter(Boolean);
     },
     getRelicOverflowScore(source = 'elite') {
-        return Math.floor((90 + this.level * 24) * (source === 'boss' ? 1.45 : 1));
+        return getRunRelicOverflowScore({
+            level: this.level,
+            source
+        });
     },
     claimRunRelic(relic, source = 'elite') {
-        if (!relic) return { status: 'none', relic: null, bonusScore: 0 };
-        if (this.hasRunRelic(relic.id) || this.runRelics.length >= this.relicSlots) {
-            const bonusScore = this.getRelicOverflowScore(source);
-            this.addScore(bonusScore);
-            return {
-                status: this.hasRunRelic(relic.id) ? 'duplicate' : 'overflow',
-                relic,
-                bonusScore
-            };
+        const result = buildRunRelicClaimResult({
+            relic,
+            source,
+            ownedIds: this.runRelics,
+            slotCount: this.relicSlots,
+            level: this.level
+        });
+        if (result.bonusScore > 0) this.addScore(result.bonusScore);
+        if (result.status === 'added') {
+            this.runRelics = result.runRelics;
+            if (result.shouldDiscover) this.discoverRelic(relic);
+            this.updateUI();
         }
-        this.runRelics.push(relic.id);
-        this.discoverRelic(relic);
-        this.updateUI();
-        return { status: 'added', relic, bonusScore: 0 };
+        const { runRelics, shouldDiscover, ...publicResult } = result;
+        return publicResult;
     },
     rollRelicReward({
         source = 'elite',
@@ -1548,9 +1561,8 @@ const GameState = {
         rewardTier = 1,
         guaranteed = false
     } = {}) {
-        const baseChance = source === 'boss' ? 1 : 0.08 + rewardTier * 0.08;
-        const chance = guaranteed ? 1 : Math.min(0.72, baseChance);
-        if (Math.random() > chance) return { status: 'miss', relic: null, bonusScore: 0, chance };
+        const chance = getRunRelicRollChance({ source, rewardTier, guaranteed });
+        if (!shouldRollRunRelicReward({ chance })) return buildRunRelicMissResult(chance);
         const relic = pickRelicReward({
             level: this.level,
             source,
@@ -1558,11 +1570,15 @@ const GameState = {
             ownedIds: this.runRelics
         });
         if (!relic) {
-            const bonusScore = this.getRelicOverflowScore(source);
-            this.addScore(bonusScore);
-            return { status: 'empty-pool', relic: null, bonusScore, chance };
+            const result = buildEmptyRunRelicPoolResult({
+                level: this.level,
+                source,
+                chance
+            });
+            this.addScore(result.bonusScore);
+            return result;
         }
-        return { ...this.claimRunRelic(relic, source), chance };
+        return attachRunRelicRollChance(this.claimRunRelic(relic, source), chance);
     },
     getTotalSupplyCount() {
         return getTotalStrategySupplyCount(this.items.supplies);
