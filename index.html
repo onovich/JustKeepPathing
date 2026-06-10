@@ -744,6 +744,7 @@ import {
 import {
     buildEventStockpileSupplyPlan,
     buildMerchantRoomPurchasePlan,
+    buildRunRelicRewardRollPlan,
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
 import {
@@ -5048,11 +5049,14 @@ class GameController {
         });
         const bonusReward = eliteRewards.bonusReward;
         const repair = eliteRewards.repair;
-        const relicReward = GameState.rollRelicReward({
+        const relicRollPlan = buildRunRelicRewardRollPlan({
             source: 'elite',
             themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
             rewardTier: room.rewardTier
         });
+        const relicReward = relicRollPlan.shouldRoll
+            ? GameState.rollRelicReward(relicRollPlan.request)
+            : relicRollPlan.fallback;
         GameState.addScore(bonusReward);
         if (repair > 0) {
             GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
@@ -6128,14 +6132,16 @@ class GameController {
             GameState.floorStats.kills += 1;
             const hiddenRoom = this.getHiddenRoomById(this.grid[enemyNode.r][enemyNode.c].hiddenRoomId);
             const finaleBossBonus = this.getFinaleBossClearBonus(enemyObj, profile);
-            const relicReward = profile.boss
-                ? GameState.rollRelicReward({
-                    source: 'boss',
-                    themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
-                    rewardTier: enemyObj.enemyData.finaleBoss ? 4 : 3,
-                    guaranteed: true
-                })
-                : { status: 'miss', relic: null, bonusScore: 0 };
+            const relicRollPlan = buildRunRelicRewardRollPlan({
+                enabled: profile.boss,
+                source: 'boss',
+                themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
+                rewardTier: enemyObj.enemyData.finaleBoss ? 4 : 3,
+                guaranteed: true
+            });
+            const relicReward = relicRollPlan.shouldRoll
+                ? GameState.rollRelicReward(relicRollPlan.request)
+                : relicRollPlan.fallback;
             window.soundEngine?.enemyDefeat(profile.boss);
             await this.typeText(`战斗胜利！击溃 ${profile.name}，获得了 ${profile.reward} 魂能！`);
 

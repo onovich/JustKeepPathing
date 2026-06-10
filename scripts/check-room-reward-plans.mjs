@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
     buildEventStockpileSupplyPlan,
     buildMerchantRoomPurchasePlan,
+    buildRunRelicRewardRollPlan,
     buildTrialSupplyRewardPlan
 } from '../src/logic/room-reward-plans.mjs';
 
@@ -92,6 +93,56 @@ assert.equal(
     }),
     null,
     'trial supply plan should be empty below threshold'
+);
+
+assert.deepEqual(
+    buildRunRelicRewardRollPlan({
+        source: 'elite',
+        themeKey: 'ember_forge',
+        rewardTier: 3
+    }),
+    {
+        shouldRoll: true,
+        request: {
+            source: 'elite',
+            themeKey: 'ember_forge',
+            rewardTier: 3,
+            guaranteed: false
+        },
+        fallback: { status: 'miss', relic: null, bonusScore: 0 }
+    },
+    'elite relic roll plans should preserve source, theme, tier, and non-guaranteed default'
+);
+
+assert.deepEqual(
+    buildRunRelicRewardRollPlan({
+        source: 'boss',
+        themeKey: 'quarantine_vault',
+        rewardTier: 4,
+        guaranteed: true
+    }).request,
+    {
+        source: 'boss',
+        themeKey: 'quarantine_vault',
+        rewardTier: 4,
+        guaranteed: true
+    },
+    'boss relic roll plans should preserve guaranteed finale-tier requests'
+);
+
+assert.deepEqual(
+    buildRunRelicRewardRollPlan({
+        enabled: false,
+        source: 'boss',
+        rewardTier: 3,
+        guaranteed: true
+    }),
+    {
+        shouldRoll: false,
+        request: null,
+        fallback: { status: 'miss', relic: null, bonusScore: 0 }
+    },
+    'disabled relic roll plans should return the shared miss fallback shape'
 );
 
 const merchantSupplyPlan = buildMerchantRoomPurchasePlan({

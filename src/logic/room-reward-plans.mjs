@@ -41,6 +41,34 @@ export function buildTrialSupplyRewardPlan({
     return { type: mostNeededType, amount: 1 };
 }
 
+export function buildRunRelicRewardRollPlan({
+    enabled = true,
+    source = 'elite',
+    themeKey = null,
+    rewardTier = 1,
+    guaranteed = false
+} = {}) {
+    const fallback = { status: 'miss', relic: null, bonusScore: 0 };
+    if (!enabled) {
+        return {
+            shouldRoll: false,
+            request: null,
+            fallback
+        };
+    }
+
+    return {
+        shouldRoll: true,
+        request: {
+            source,
+            themeKey: themeKey || null,
+            rewardTier: Math.max(1, rewardTier || 1),
+            guaranteed: !!guaranteed
+        },
+        fallback
+    };
+}
+
 function shouldPrioritizeMerchantSupply({
     merchantMode,
     supplyNeedState,

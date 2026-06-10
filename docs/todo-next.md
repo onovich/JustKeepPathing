@@ -43,6 +43,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Event/rest/merchant/trial/elite/treasure reward resolution now shares `src/logic/room-reward-resolution.mjs` hidden-room reward finalization, with focused checks for theme-chain routing, detail order, empty base messages, and UI refresh callbacks.
 - Echo Engine event-room next-floor attack bonus capping and visible text are now routed through `src/logic/room-reward-resolution.mjs`, with focused checks.
 - Run relic reward result text and presentation effect plans for added, duplicate, overflow, and empty-pool outcomes are now formatted in `src/logic/room-reward-resolution.mjs`, with focused checks.
+- Elite-room and boss run-relic roll request planning now shares `src/logic/room-reward-plans.mjs`, with focused checks for elite, boss, and disabled fallback plans.
 - `npm run smoke:screenshot` now captures a reusable local browser screenshot at `artifacts/screenshots/latest.png`.
 - `npm run verify:refactor` now runs check, browser smoke, and screenshot smoke with compact success output for lower-noise refactor turns.
 - Loading overlay progress/snapshot and delayed-generation reveal checks were extracted into `src/view/loading-overlay.mjs`, with focused checks and browser smoke coverage for delayed text reveal/cleanup.
@@ -58,7 +59,7 @@ Outstanding work:
 
 - audit `event`, `trial`, `merchant`, `rest`, `treasure`, and `elite` room completion paths for consistent `applyThemeChainBonus(...)` calls and visible result text
 - add runtime coverage for the `Echo Engine` final event path once event-room fixtures become deterministic enough for smoke
-- remove or consolidate any remaining duplicate elite/boss reward-roll paths so premium rewards cannot double-apply or silently miss
+- add runtime coverage around consecutive elite/boss relic reward rolls so premium rewards cannot double-apply or silently miss
 
 Acceptance:
 
