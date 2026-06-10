@@ -698,6 +698,13 @@ import {
     pickFloorArchetypeKey
 } from './src/logic/maze-progression.mjs';
 import {
+    buildMazeDistanceMap,
+    computeMazePathBetween,
+    getMazeCellByKey,
+    getMazeCellKey,
+    getWalkableMazeNeighbors
+} from './src/logic/maze-navigation.mjs';
+import {
     buildEliteRoomSupportLoadout,
     buildEliteRoomVariant,
     buildHiddenRoomPlan,
@@ -3178,85 +3185,42 @@ class GameController {
     }
 
     getCellKey(c, r) {
-        return `${c},${r}`;
+        return getMazeCellKey(c, r);
     }
 
     getCellByKey(key) {
-        const [c, r] = key.split(',').map(Number);
-        return this.grid?.[r]?.[c] || null;
+        return getMazeCellByKey(this.grid, key);
     }
 
     getWalkableNeighbors(c, r) {
-        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-        const neighbors = [];
-        for (const [dc, dr] of dirs) {
-            const nc = c + dc;
-            const nr = r + dr;
-            if (nc <= 0 || nr <= 0 || nc >= this.cols || nr >= this.rows) continue;
-            const cell = this.grid?.[nr]?.[nc];
-            if (cell && !cell.isWall) neighbors.push(cell);
-        }
-        return neighbors;
+        return getWalkableMazeNeighbors({
+            grid: this.grid,
+            cols: this.cols,
+            rows: this.rows,
+            c,
+            r
+        });
     }
 
     computePathBetween(start, target, options = {}) {
-        const startKey = this.getCellKey(start.c, start.r);
-        const targetKey = this.getCellKey(target.c, target.r);
-        if (startKey === targetKey) return [];
-
-        const queue = [{ c: start.c, r: start.r }];
-        const visited = new Set([startKey]);
-        const prev = new Map();
-
-        while (queue.length > 0) {
-            const curr = queue.shift();
-            for (const neighbor of this.getWalkableNeighbors(curr.c, curr.r)) {
-                if (options.avoidUnclearedHiddenRooms && neighbor.hiddenRoomId) {
-                    const hiddenRoom = this.getHiddenRoomById(neighbor.hiddenRoomId);
-                    const isTargetCell = neighbor.c === target.c && neighbor.r === target.r;
-                    const isAllowedRoom = hiddenRoom?.id && hiddenRoom.id === options.allowedHiddenRoomId;
-                    if (hiddenRoom && !hiddenRoom.cleared && !isTargetCell && !isAllowedRoom) continue;
-                }
-                const key = this.getCellKey(neighbor.c, neighbor.r);
-                if (visited.has(key)) continue;
-                visited.add(key);
-                prev.set(key, this.getCellKey(curr.c, curr.r));
-                if (key === targetKey) {
-                    const path = [];
-                    let cursor = key;
-                    while (cursor !== startKey) {
-                        const [c, r] = cursor.split(',').map(Number);
-                        path.unshift({ c, r });
-                        cursor = prev.get(cursor);
-                        if (!cursor) return [];
-                    }
-                    return path;
-                }
-                queue.push({ c: neighbor.c, r: neighbor.r });
-            }
-        }
-
-        return [];
+        return computeMazePathBetween({
+            grid: this.grid,
+            cols: this.cols,
+            rows: this.rows,
+            start,
+            target,
+            ...options,
+            getHiddenRoomById: (roomId) => this.getHiddenRoomById(roomId)
+        });
     }
 
     buildDistanceMap(start) {
-        const startKey = this.getCellKey(start.c, start.r);
-        const distances = new Map([[startKey, 0]]);
-        const queue = [{ c: start.c, r: start.r }];
-
-        while (queue.length > 0) {
-            const curr = queue.shift();
-            const currentKey = this.getCellKey(curr.c, curr.r);
-            const nextDistance = (distances.get(currentKey) || 0) + 1;
-            for (const neighbor of this.getWalkableNeighbors(curr.c, curr.r)) {
-                const key = this.getCellKey(neighbor.c, neighbor.r);
-                if (distances.has(key)) continue;
-                distances.set(key, nextDistance);
-                queue.push({ c: neighbor.c, r: neighbor.r });
-            }
-        }
-
-        return distances;
+        return buildMazeDistanceMap({
+            grid: this.grid,
+            cols: this.cols,
+            rows: this.rows,
+            start
+        });
     }
 
     buildHiddenRoomCandidates(openCells, basePath) {
