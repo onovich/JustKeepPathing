@@ -766,6 +766,9 @@ import {
 } from './src/logic/room-reward-resolution.mjs';
 import {
     applyRoomRewardActions,
+    buildHiddenEliteNodePickupStatePlan,
+    buildHiddenEventNodePickupStatePlan,
+    buildHiddenTrialNodePickupStatePlan,
     buildEliteRoomClearRewardStatePlan,
     buildEventRoomRewardStatePlan,
     buildMerchantRoomRewardStatePlan,
@@ -4391,12 +4394,20 @@ class GameController {
 
     async resolveHiddenTrialNodePickup(room, entityObj) {
         if (!room || room.cleared || !entityObj) return;
-        const reward = entityObj.reward || Math.max(16, 18 * GameState.level);
-        const hazardDamage = Math.max(1, Math.floor(GameState.player.baseHp * Math.max(0.04, entityObj.hazardRatio || 0.06)));
-        room.trialCharge = (room.trialCharge || 0) + 1;
-        room.trialHazardTaken = (room.trialHazardTaken || 0) + hazardDamage;
-        GameState.addScore(reward);
-        GameState.player.currentHp = Math.max(1, GameState.player.currentHp - hazardDamage);
+        const pickupPlan = buildHiddenTrialNodePickupStatePlan({
+            level: GameState.level,
+            playerBaseHp: GameState.player.baseHp,
+            entityReward: entityObj.reward,
+            hazardRatio: entityObj.hazardRatio
+        });
+        const reward = pickupPlan.reward;
+        const hazardDamage = pickupPlan.hazardDamage;
+        applyRoomRewardActions({
+            gameState: GameState,
+            room,
+            actions: pickupPlan.actions,
+            addScore: (amount) => GameState.addScore(amount)
+        });
         GameState.updateUI();
         window.soundEngine?.playerHit(false);
         window.soundEngine?.upgrade();
@@ -4479,9 +4490,17 @@ class GameController {
 
     async resolveHiddenEventNodePickup(room, entityObj) {
         if (!room || room.cleared || !entityObj) return;
-        const reward = entityObj.reward || Math.max(10, 12 * GameState.level);
-        room.eventCharge = (room.eventCharge || 0) + 1;
-        GameState.addScore(reward);
+        const pickupPlan = buildHiddenEventNodePickupStatePlan({
+            level: GameState.level,
+            entityReward: entityObj.reward
+        });
+        const reward = pickupPlan.reward;
+        applyRoomRewardActions({
+            gameState: GameState,
+            room,
+            actions: pickupPlan.actions,
+            addScore: (amount) => GameState.addScore(amount)
+        });
         window.soundEngine?.upgrade();
         if (entityObj.mesh) {
             this.engine.tweens.add(entityObj.mesh.scale, { x: 1.5, y: 1.5, z: 1.5 }, 0.14, Easing.easeOutQuad, () => {
@@ -4513,8 +4532,16 @@ class GameController {
 
     async resolveHiddenEliteNodePickup(room, entityObj) {
         if (!room || room.cleared || !entityObj) return;
-        const reward = entityObj.reward || Math.max(12, 16 * GameState.level);
-        GameState.addScore(reward);
+        const pickupPlan = buildHiddenEliteNodePickupStatePlan({
+            level: GameState.level,
+            entityReward: entityObj.reward
+        });
+        const reward = pickupPlan.reward;
+        applyRoomRewardActions({
+            gameState: GameState,
+            actions: pickupPlan.actions,
+            addScore: (amount) => GameState.addScore(amount)
+        });
         window.soundEngine?.upgrade();
         if (entityObj.mesh) {
             this.engine.tweens.add(entityObj.mesh.scale, { x: 1.55, y: 1.55, z: 1.55 }, 0.14, Easing.easeOutQuad, () => {

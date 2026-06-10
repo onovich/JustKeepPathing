@@ -430,6 +430,54 @@ export function buildEliteRoomClearRewardStatePlan({
     };
 }
 
+export function buildHiddenEventNodePickupStatePlan({
+    level = 1,
+    entityReward = null
+} = {}) {
+    const reward = entityReward || Math.max(10, 12 * level);
+    return {
+        reward,
+        actions: [
+            { type: 'increment-room-field', field: 'eventCharge', amount: 1 },
+            { type: 'score', amount: reward }
+        ]
+    };
+}
+
+export function buildHiddenTrialNodePickupStatePlan({
+    level = 1,
+    playerBaseHp = 1,
+    entityReward = null,
+    hazardRatio = 0.06
+} = {}) {
+    const reward = entityReward || Math.max(16, 18 * level);
+    const resolvedHazardRatio = hazardRatio || 0.06;
+    const hazardDamage = Math.max(1, Math.floor(playerBaseHp * Math.max(0.04, resolvedHazardRatio)));
+    return {
+        reward,
+        hazardDamage,
+        actions: [
+            { type: 'increment-room-field', field: 'trialCharge', amount: 1 },
+            { type: 'increment-room-field', field: 'trialHazardTaken', amount: hazardDamage },
+            { type: 'score', amount: reward },
+            { type: 'damage-player', amount: hazardDamage }
+        ]
+    };
+}
+
+export function buildHiddenEliteNodePickupStatePlan({
+    level = 1,
+    entityReward = null
+} = {}) {
+    const reward = entityReward || Math.max(12, 16 * level);
+    return {
+        reward,
+        actions: [
+            { type: 'score', amount: reward }
+        ]
+    };
+}
+
 export function applyRoomRewardActions({
     gameState,
     room = null,
@@ -494,6 +542,8 @@ export function applyRoomRewardActions({
             }
         } else if (action.type === 'set-room-field' && room) {
             room[action.field] = action.value ?? null;
+        } else if (action.type === 'increment-room-field' && room) {
+            room[action.field] = (room[action.field] || 0) + (action.amount || 0);
         }
     }
 

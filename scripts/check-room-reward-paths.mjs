@@ -55,6 +55,24 @@ assert.match(
 
 assert.match(
     indexHtml,
+    /resolveHiddenEventNodePickup\(room, entityObj\)[\s\S]*?buildHiddenEventNodePickupStatePlan\(/,
+    'event hidden room node pickups should route reward state through the shared state-plan helper'
+);
+
+assert.match(
+    indexHtml,
+    /resolveHiddenTrialNodePickup\(room, entityObj\)[\s\S]*?buildHiddenTrialNodePickupStatePlan\(/,
+    'trial hidden room node pickups should route reward state through the shared state-plan helper'
+);
+
+assert.match(
+    indexHtml,
+    /resolveHiddenEliteNodePickup\(room, entityObj\)[\s\S]*?buildHiddenEliteNodePickupStatePlan\(/,
+    'elite hidden room support node pickups should route reward state through the shared state-plan helper'
+);
+
+assert.match(
+    indexHtml,
     /buildRunRelicRewardRollPlan\(\{[\s\S]*?enabled: profile\.boss[\s\S]*?source: 'boss'[\s\S]*?guaranteed: true[\s\S]*?\}\)/,
     'boss clears should build guaranteed relic roll requests through the shared plan helper'
 );

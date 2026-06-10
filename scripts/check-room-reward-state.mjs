@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import {
     applyRoomRewardActions,
     buildEliteRoomClearRewardStatePlan,
+    buildHiddenEliteNodePickupStatePlan,
+    buildHiddenEventNodePickupStatePlan,
+    buildHiddenTrialNodePickupStatePlan,
     buildEventRoomRewardStatePlan,
     buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
@@ -100,6 +103,93 @@ assert.deepEqual(
     assert.equal(plan.message, 'Dry Elite Room cleared and granted 300 bonus score.');
     assert.deepEqual(plan.actions, [
         { type: 'score', amount: 300 }
+    ]);
+}
+
+{
+    const plan = buildHiddenEventNodePickupStatePlan({
+        level: 3,
+        entityReward: null
+    });
+
+    assert.equal(plan.reward, 36);
+    assert.deepEqual(plan.actions, [
+        { type: 'increment-room-field', field: 'eventCharge', amount: 1 },
+        { type: 'score', amount: 36 }
+    ]);
+
+    const room = { eventCharge: 2 };
+    const state = {
+        score: 4,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        room,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        }
+    });
+
+    assert.equal(room.eventCharge, 3);
+    assert.equal(state.score, 40);
+}
+
+{
+    const plan = buildHiddenTrialNodePickupStatePlan({
+        level: 2,
+        playerBaseHp: 80,
+        entityReward: 99,
+        hazardRatio: 0.03
+    });
+
+    assert.equal(plan.reward, 99);
+    assert.equal(plan.hazardDamage, 3);
+    assert.deepEqual(plan.actions, [
+        { type: 'increment-room-field', field: 'trialCharge', amount: 1 },
+        { type: 'increment-room-field', field: 'trialHazardTaken', amount: 3 },
+        { type: 'score', amount: 99 },
+        { type: 'damage-player', amount: 3 }
+    ]);
+
+    const room = { trialCharge: 1, trialHazardTaken: 5 };
+    const state = {
+        score: 1,
+        player: { baseHp: 80, currentHp: 2, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        room,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        }
+    });
+
+    assert.equal(room.trialCharge, 2);
+    assert.equal(room.trialHazardTaken, 8);
+    assert.equal(state.score, 100);
+    assert.equal(state.player.currentHp, 1, 'trial hazard should not defeat the player');
+}
+
+{
+    const plan = buildHiddenEliteNodePickupStatePlan({
+        level: 3,
+        entityReward: null
+    });
+
+    assert.equal(plan.reward, 48);
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 48 }
     ]);
 }
 
