@@ -728,6 +728,13 @@ import {
     getTotalSupplyCount as getTotalStrategySupplyCount,
     sanitizeAutoStrategy as sanitizeAutoStrategyConfig
 } from './src/logic/auto-strategy.mjs';
+import {
+    applyRunRelicsToFloorStart,
+    applyThemeDirectiveToFloorBuff,
+    buildFloorSupplyConsumption,
+    createBaseFloorBuff,
+    pickRandomFloorSupplyType
+} from './src/logic/floor-buffs.mjs';
 import { buildThemeChainBonusPlan } from './src/logic/theme-chain-bonuses.mjs';
 import {
     calculateEliteRoomClearRewards,
@@ -879,25 +886,6 @@ import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
 import { PathDebugPanel } from './src/view/panels/path-debug-panel.mjs';
-
-function createBaseFloorBuff(overrides = {}) {
-    return {
-        supplyActive: false,
-        supplyKey: null,
-        supplyLabel: '',
-        hiddenRoomBonus: 0,
-        chestRewardMult: 1,
-        attackMult: 1,
-        supplyDropBonus: 0,
-        diversionBonus: 0,
-        moveSpeedMult: 1,
-        monsterSpawnMult: 1,
-        monsterRewardMult: 1,
-        incomingDamageMult: 1,
-        bossRewardMult: 1,
-        ...overrides
-    };
-}
 
 class SoundEngine {
     constructor() {
@@ -1643,111 +1631,40 @@ const GameState = {
         this.updateUI();
     },
     grantRandomFloorSupply(source = 'chest') {
-        const rolls = source === 'cache'
-            ? [
-                { key: 'salvage', weight: 0.5 },
-                { key: 'scout', weight: 0.32 },
-                { key: 'assault', weight: 0.18 }
-            ]
-            : [
-                { key: 'salvage', weight: 0.48 },
-                { key: 'assault', weight: 0.3 },
-                { key: 'scout', weight: 0.22 }
-            ];
-        let roll = Math.random();
-        for (const entry of rolls) {
-            roll -= entry.weight;
-            if (roll <= 0) {
-                this.grantFloorSupply(entry.key, 1);
-                return entry.key;
-            }
-        }
-        this.grantFloorSupply(rolls[rolls.length - 1].key, 1);
-        return rolls[rolls.length - 1].key;
+        const supplyType = pickRandomFloorSupplyType(source);
+        this.grantFloorSupply(supplyType, 1);
+        return supplyType;
     },
     consumeFloorSupplyIfAvailable(archetypeKey = 'combat') {
-        const priority = this.getSupplyPriority(archetypeKey);
-        const chosenType = priority.find((type) => this.getSupplyCount(type) > 0) || null;
-        if (!chosenType) {
-            this.floorBuff = createBaseFloorBuff();
-            return false;
-        }
-        this.items.supplies[chosenType] -= 1;
-        if (chosenType === 'assault') {
-            this.floorBuff = createBaseFloorBuff({
-                supplyActive: true,
-                supplyKey: chosenType,
-                supplyLabel: this.supplyDefs[chosenType].label,
-                attackMult: 1.24,
-                bossRewardMult: 1.08
-            });
-        } else if (chosenType === 'salvage') {
-            this.floorBuff = createBaseFloorBuff({
-                supplyActive: true,
-                supplyKey: chosenType,
-                supplyLabel: this.supplyDefs[chosenType].label,
-                chestRewardMult: 1.42,
-                supplyDropBonus: 0.14
-            });
-        } else {
-            this.floorBuff = createBaseFloorBuff({
-                supplyActive: true,
-                supplyKey: chosenType,
-                supplyLabel: this.supplyDefs[chosenType].label,
-                hiddenRoomBonus: 0.1,
-                supplyDropBonus: 0.04,
-                diversionBonus: 0.08
-            });
-        }
+        const consumption = buildFloorSupplyConsumption({
+            priority: this.getSupplyPriority(archetypeKey),
+            supplies: this.items.supplies,
+            supplyDefs: this.supplyDefs
+        });
+        this.floorBuff = consumption.floorBuff;
+        if (!consumption.consumed) return false;
+        this.items.supplies[consumption.supplyType] -= 1;
         this.updateUI();
         return true;
     },
     applyRunRelicsAtFloorStart(archetypeKey = 'combat') {
-        this.floorRuntime = {
-            reflexShieldReady: this.hasRunRelic('reflex_shield')
-        };
-        if (this.hasRunRelic('pathfinder_lens')) {
-            this.floorBuff.hiddenRoomBonus += 0.08;
-            this.floorBuff.diversionBonus += 0.06;
-        }
-        if (this.hasRunRelic('salvage_thrusters')) {
-            this.floorBuff.chestRewardMult *= 1.18;
-            this.floorBuff.supplyDropBonus += 0.08;
-            this.floorBuff.moveSpeedMult *= archetypeKey === 'treasure' ? 0.9 : 0.95;
-        }
-        if (this.hasRunRelic('blood_compass')) {
-            this.floorBuff.monsterSpawnMult *= 1.18;
-            this.floorBuff.monsterRewardMult *= 1.18;
-        }
-        if (this.hasRunRelic('echo_engine') && this.meta.nextFloorAttackBonus > 0) {
-            this.floorBuff.attackMult *= 1 + this.meta.nextFloorAttackBonus;
-            this.meta.nextFloorAttackBonus = 0;
-        }
-        if (this.hasRunRelic('boss_harvester')) {
-            this.floorBuff.bossRewardMult *= 1.22;
-        }
+        const next = applyRunRelicsToFloorStart({
+            floorBuff: this.floorBuff,
+            meta: this.meta,
+            runRelics: this.runRelics,
+            archetypeKey
+        });
+        this.floorBuff = next.floorBuff;
+        this.floorRuntime = next.floorRuntime;
+        this.meta = next.meta;
     },
     applyThemeDirectiveAtFloorStart(floorPlan = null) {
-        const directive = floorPlan?.theme?.directive || null;
-        if (!directive) {
-            this.floorDirective = null;
-            return;
-        }
-        const scale = floorPlan?.isFinaleFloor ? 1.35 : 1;
-        this.floorDirective = {
-            label: directive.label,
-            summary: directive.summary
-        };
-        if (directive.attackBonus) this.floorBuff.attackMult *= 1 + directive.attackBonus * scale;
-        if (directive.chestRewardBonus) this.floorBuff.chestRewardMult *= 1 + directive.chestRewardBonus * scale;
-        if (directive.hiddenRoomBonus) this.floorBuff.hiddenRoomBonus += directive.hiddenRoomBonus * scale;
-        if (directive.supplyDropBonus) this.floorBuff.supplyDropBonus += directive.supplyDropBonus * scale;
-        if (directive.diversionBonus) this.floorBuff.diversionBonus += directive.diversionBonus * scale;
-        if (directive.monsterRewardBonus) this.floorBuff.monsterRewardMult *= 1 + directive.monsterRewardBonus * scale;
-        if (directive.bossRewardBonus) this.floorBuff.bossRewardMult *= 1 + directive.bossRewardBonus * scale;
-        if (directive.incomingDamageReduction) {
-            this.floorBuff.incomingDamageMult *= Math.max(0.2, 1 - directive.incomingDamageReduction * scale);
-        }
+        const next = applyThemeDirectiveToFloorBuff({
+            floorBuff: this.floorBuff,
+            floorPlan
+        });
+        this.floorBuff = next.floorBuff;
+        this.floorDirective = next.floorDirective;
     },
     addScore(val) {
         this.score += val;
