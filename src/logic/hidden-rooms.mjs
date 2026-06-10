@@ -321,6 +321,130 @@ export function buildHiddenTrialNodeEntityState({
     };
 }
 
+function getInteriorRoomCells(room = {}) {
+    const anchor = room.anchor || {};
+    return (room.chamberCells || [])
+        .filter((cell) => !(cell.c === anchor.c && cell.r === anchor.r));
+}
+
+function buildDistanceSortedRoomSlots(room = {}) {
+    const anchor = room.anchor || {};
+    return getInteriorRoomCells(room)
+        .map((cell) => ({
+            c: cell.c,
+            r: cell.r,
+            score: Math.abs(cell.c - anchor.c) + Math.abs(cell.r - anchor.r)
+        }))
+        .sort((a, b) => b.score - a.score);
+}
+
+export function buildTreasureRoomCachePrepState({
+    room = {}
+} = {}) {
+    const slots = buildDistanceSortedRoomSlots(room);
+    const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+    const count = Math.min(slots.length, Math.max(2, rewardProfile.chestBonus));
+
+    return {
+        cacheSlots: slots.slice(0, count),
+        cacheEntities: [],
+        pendingCacheIds: [],
+        cacheSpawned: false
+    };
+}
+
+export function buildEventRoomNodePrepState({
+    room = {}
+} = {}) {
+    const slots = buildDistanceSortedRoomSlots(room);
+    const eventSeed = room.eventSeed || {};
+    const count = Math.min(
+        slots.length,
+        Math.max(1, Math.min(3, Math.min(2, room.rewardTier) + (eventSeed.nodeCountBias || 0)))
+    );
+
+    return {
+        eventNodeSlots: slots.slice(0, count),
+        eventNodeEntities: [],
+        pendingEventNodeIds: [],
+        eventNodesSpawned: false,
+        eventCharge: 0
+    };
+}
+
+export function buildEliteRoomEncounterPrepState({
+    room = {},
+    level = 1,
+    random = Math.random
+} = {}) {
+    const anchor = room.anchor || {};
+    const slots = getInteriorRoomCells(room)
+        .map((cell) => ({
+            c: cell.c,
+            r: cell.r,
+            depth: Math.abs(cell.c - anchor.c) + Math.abs(cell.r - anchor.r),
+            sideBias: room.chamberBlueprint
+                ? Math.abs((cell.c - anchor.c) * room.chamberBlueprint.left.dc + (cell.r - anchor.r) * room.chamberBlueprint.left.dr)
+                : 0
+        }));
+    const supportDefs = buildEliteRoomSupportLoadout(level, room.rewardTier, random);
+    const variantKey = room.eliteVariant?.key || 'bulwark';
+    const eliteSlots = [...slots].sort((a, b) => {
+        if (variantKey === 'pincer') return (b.depth + b.sideBias * 0.45) - (a.depth + a.sideBias * 0.45);
+        if (variantKey === 'gauntlet') return (b.depth * 1.4 - b.sideBias * 0.1) - (a.depth * 1.4 - a.sideBias * 0.1);
+        return (b.depth * 1.2 - b.sideBias * 0.08) - (a.depth * 1.2 - a.sideBias * 0.08);
+    });
+    const eliteSlot = eliteSlots.shift() || { c: anchor.c, r: anchor.r };
+    const supportSlots = slots
+        .filter((slot) => !(slot.c === eliteSlot.c && slot.r === eliteSlot.r))
+        .sort((a, b) => {
+            if (variantKey === 'pincer') return (b.sideBias * 1.2 + b.depth * 0.4) - (a.sideBias * 1.2 + a.depth * 0.4);
+            if (variantKey === 'gauntlet') return (a.depth - b.depth) || (b.sideBias - a.sideBias);
+            return (b.depth * 0.9 + b.sideBias * 0.5) - (a.depth * 0.9 + a.sideBias * 0.5);
+        });
+    const supportLabelMap = {
+        amp_pylon: '增幅装置',
+        shield_core: '护盾核心',
+        jammer: '干扰核心'
+    };
+    const eliteSupportDefs = supportDefs
+        .slice(0, Math.max(0, Math.min(supportDefs.length, supportSlots.length)))
+        .map((supportDef) => ({
+            ...supportDef,
+            label: supportLabelMap[supportDef.id] || supportDef.label
+        }));
+
+    return {
+        eliteSlot,
+        eliteSupportDefs,
+        eliteSupportSlots: supportSlots.slice(0, eliteSupportDefs.length),
+        eliteNodeEntities: [],
+        pendingEliteNodeIds: [],
+        eliteEncounterRevealed: false,
+        eliteEntity: null
+    };
+}
+
+export function buildTrialRoomNodePrepState({
+    room = {}
+} = {}) {
+    const slots = buildDistanceSortedRoomSlots(room);
+    const trialSeed = room.trialSeed || {};
+    const count = Math.min(
+        slots.length,
+        Math.max(2, Math.min(5, room.rewardTier + (trialSeed.nodeCountBias || 0)))
+    );
+
+    return {
+        trialNodeSlots: slots.slice(0, count),
+        trialNodeEntities: [],
+        pendingTrialNodeIds: [],
+        trialNodesSpawned: false,
+        trialCharge: 0,
+        trialHazardTaken: 0
+    };
+}
+
 export function getHiddenRoomDiversionThreshold() {
     return HIDDEN_ROOM_ACCESS_PARAMS.diversionThresholdBase;
 }

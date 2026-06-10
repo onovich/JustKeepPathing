@@ -706,13 +706,16 @@ import {
 } from './src/logic/maze-navigation.mjs';
 import {
     buildEliteEnemyArchetype as buildEliteEnemyArchetypeState,
-    buildEliteRoomSupportLoadout,
     buildEliteRoomVariant,
     buildHiddenCacheEntityState,
     buildHiddenEliteNodeEntityState,
     buildHiddenEventNodeEntityState,
+    buildTreasureRoomCachePrepState,
+    buildEliteRoomEncounterPrepState,
+    buildEventRoomNodePrepState,
     buildHiddenRoomPlan,
     buildHiddenTrialNodeEntityState,
+    buildTrialRoomNodePrepState,
     getHiddenRoomAccentColor,
     getHiddenRoomDiversionThreshold,
     getHiddenRoomRewardTier
@@ -3767,102 +3770,25 @@ class GameController {
 
     prepareTreasureRoomCaches(room) {
         if (room.typeKey !== 'treasure') return;
-        const slots = (room.chamberCells || [])
-            .filter((cell) => !(cell.c === room.anchor.c && cell.r === room.anchor.r))
-            .map((cell) => ({
-                c: cell.c,
-                r: cell.r,
-                score: Math.abs(cell.c - room.anchor.c) + Math.abs(cell.r - room.anchor.r)
-            }))
-            .sort((a, b) => b.score - a.score);
-        const count = Math.min(slots.length, Math.max(2, room.rewardProfile.chestBonus));
-        room.cacheSlots = slots.slice(0, count);
-        room.cacheEntities = [];
-        room.pendingCacheIds = [];
-        room.cacheSpawned = false;
+        Object.assign(room, buildTreasureRoomCachePrepState({ room }));
     }
 
     prepareEventRoomNodes(room) {
         if (room.typeKey !== 'event') return;
-        const slots = (room.chamberCells || [])
-            .filter((cell) => !(cell.c === room.anchor.c && cell.r === room.anchor.r))
-            .map((cell) => ({
-                c: cell.c,
-                r: cell.r,
-                score: Math.abs(cell.c - room.anchor.c) + Math.abs(cell.r - room.anchor.r)
-            }))
-            .sort((a, b) => b.score - a.score);
-        const eventSeed = room.eventSeed || {};
-        const count = Math.min(slots.length, Math.max(1, Math.min(3, Math.min(2, room.rewardTier) + (eventSeed.nodeCountBias || 0))));
-        room.eventNodeSlots = slots.slice(0, count);
-        room.eventNodeEntities = [];
-        room.pendingEventNodeIds = [];
-        room.eventNodesSpawned = false;
-        room.eventCharge = 0;
+        Object.assign(room, buildEventRoomNodePrepState({ room }));
     }
 
     prepareEliteRoomEncounter(room) {
         if (room.typeKey !== 'elite') return;
-        const slots = (room.chamberCells || [])
-            .filter((cell) => !(cell.c === room.anchor.c && cell.r === room.anchor.r))
-            .map((cell) => ({
-                c: cell.c,
-                r: cell.r,
-                depth: Math.abs(cell.c - room.anchor.c) + Math.abs(cell.r - room.anchor.r),
-                sideBias: room.chamberBlueprint
-                    ? Math.abs((cell.c - room.anchor.c) * room.chamberBlueprint.left.dc + (cell.r - room.anchor.r) * room.chamberBlueprint.left.dr)
-                    : 0
-            }));
-        const supportDefs = buildEliteRoomSupportLoadout(GameState.level, room.rewardTier);
-        const variantKey = room.eliteVariant?.key || 'bulwark';
-        const eliteSlots = [...slots].sort((a, b) => {
-            if (variantKey === 'pincer') return (b.depth + b.sideBias * 0.45) - (a.depth + a.sideBias * 0.45);
-            if (variantKey === 'gauntlet') return (b.depth * 1.4 - b.sideBias * 0.1) - (a.depth * 1.4 - a.sideBias * 0.1);
-            return (b.depth * 1.2 - b.sideBias * 0.08) - (a.depth * 1.2 - a.sideBias * 0.08);
-        });
-        room.eliteSlot = eliteSlots.shift() || { c: room.anchor.c, r: room.anchor.r };
-        const remainingSlots = slots.filter((slot) => !(slot.c === room.eliteSlot.c && slot.r === room.eliteSlot.r));
-        const supportSlots = remainingSlots.sort((a, b) => {
-            if (variantKey === 'pincer') return (b.sideBias * 1.2 + b.depth * 0.4) - (a.sideBias * 1.2 + a.depth * 0.4);
-            if (variantKey === 'gauntlet') return (a.depth - b.depth) || (b.sideBias - a.sideBias);
-            return (b.depth * 0.9 + b.sideBias * 0.5) - (a.depth * 0.9 + a.sideBias * 0.5);
-        });
-        const supportLabelMap = {
-            amp_pylon: '增幅装置',
-            shield_core: '护盾核心',
-            jammer: '干扰核心'
-        };
-        room.eliteSupportDefs = supportDefs
-            .slice(0, Math.max(0, Math.min(supportDefs.length, supportSlots.length)))
-            .map((supportDef) => ({
-                ...supportDef,
-                label: supportLabelMap[supportDef.id] || supportDef.label
-            }));
-        room.eliteSupportSlots = supportSlots.slice(0, room.eliteSupportDefs.length);
-        room.eliteNodeEntities = [];
-        room.pendingEliteNodeIds = [];
-        room.eliteEncounterRevealed = false;
-        room.eliteEntity = null;
+        Object.assign(room, buildEliteRoomEncounterPrepState({
+            room,
+            level: GameState.level
+        }));
     }
 
     prepareTrialRoomNodes(room) {
         if (room.typeKey !== 'trial') return;
-        const slots = (room.chamberCells || [])
-            .filter((cell) => !(cell.c === room.anchor.c && cell.r === room.anchor.r))
-            .map((cell) => ({
-                c: cell.c,
-                r: cell.r,
-                score: Math.abs(cell.c - room.anchor.c) + Math.abs(cell.r - room.anchor.r)
-            }))
-            .sort((a, b) => b.score - a.score);
-        const trialSeed = room.trialSeed || {};
-        const count = Math.min(slots.length, Math.max(2, Math.min(5, room.rewardTier + (trialSeed.nodeCountBias || 0))));
-        room.trialNodeSlots = slots.slice(0, count);
-        room.trialNodeEntities = [];
-        room.pendingTrialNodeIds = [];
-        room.trialNodesSpawned = false;
-        room.trialCharge = 0;
-        room.trialHazardTaken = 0;
+        Object.assign(room, buildTrialRoomNodePrepState({ room }));
     }
 
     revealTreasureRoomCaches(room) {

@@ -3,11 +3,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
     buildEliteEnemyArchetype,
+    buildEliteRoomEncounterPrepState,
+    buildEventRoomNodePrepState,
     buildHiddenCacheEntityState,
     buildHiddenEliteNodeEntityState,
     buildHiddenEventNodeEntityState,
     buildHiddenRoomPlan,
     buildHiddenTrialNodeEntityState,
+    buildTreasureRoomCachePrepState,
+    buildTrialRoomNodePrepState,
     getHiddenRoomRewardTier
 } from '../src/logic/hidden-rooms.mjs';
 
@@ -45,6 +49,114 @@ assert.ok(rooms[0].typeKey, 'generated room should include a type key');
 assert.ok(rooms[0].placementKey, 'generated room should include a placement key');
 assert.equal(rooms[0].candidate.key, candidates[0].key, 'generated room should keep the selected candidate');
 assert.equal(typeof rooms[0].accessScore, 'number', 'generated room should include access scoring');
+
+const roomWithInteriorCells = {
+    anchor: { c: 0, r: 0 },
+    chamberCells: [
+        { c: 0, r: 0 },
+        { c: 1, r: 0 },
+        { c: 2, r: 0 },
+        { c: 0, r: 3 }
+    ]
+};
+
+{
+    const prep = buildTreasureRoomCachePrepState({
+        room: {
+            ...roomWithInteriorCells,
+            rewardTier: 2,
+            rewardProfile: { chestBonus: 2, scoreMult: 1 }
+        }
+    });
+
+    assert.deepEqual(prep.cacheSlots, [
+        { c: 0, r: 3, score: 3 },
+        { c: 2, r: 0, score: 2 }
+    ]);
+    assert.deepEqual(prep.cacheEntities, []);
+    assert.deepEqual(prep.pendingCacheIds, []);
+    assert.equal(prep.cacheSpawned, false);
+}
+
+{
+    const prep = buildEventRoomNodePrepState({
+        room: {
+            ...roomWithInteriorCells,
+            rewardTier: 2,
+            eventSeed: { nodeCountBias: 1 }
+        }
+    });
+
+    assert.deepEqual(prep.eventNodeSlots, [
+        { c: 0, r: 3, score: 3 },
+        { c: 2, r: 0, score: 2 },
+        { c: 1, r: 0, score: 1 }
+    ]);
+    assert.deepEqual(prep.eventNodeEntities, []);
+    assert.deepEqual(prep.pendingEventNodeIds, []);
+    assert.equal(prep.eventNodesSpawned, false);
+    assert.equal(prep.eventCharge, 0);
+}
+
+{
+    const prep = buildEliteRoomEncounterPrepState({
+        room: {
+            anchor: { c: 0, r: 0 },
+            chamberCells: [
+                { c: 0, r: 0 },
+                { c: 3, r: 0 },
+                { c: 0, r: 4 },
+                { c: -2, r: 1 }
+            ],
+            chamberBlueprint: { left: { dc: 1, dr: 0 } },
+            rewardTier: 3,
+            eliteVariant: { key: 'pincer' }
+        },
+        level: 3,
+        random: () => 0
+    });
+
+    assert.deepEqual(prep.eliteSlot, { c: 3, r: 0, depth: 3, sideBias: 3 });
+    assert.deepEqual(
+        prep.eliteSupportSlots,
+        [
+            { c: -2, r: 1, depth: 3, sideBias: 2 },
+            { c: 0, r: 4, depth: 4, sideBias: 0 }
+        ]
+    );
+    assert.deepEqual(
+        prep.eliteSupportDefs.map(({ id, label }) => ({ id, label })),
+        [
+            { id: 'amp_pylon', label: '增幅装置' },
+            { id: 'shield_core', label: '护盾核心' }
+        ]
+    );
+    assert.deepEqual(prep.eliteNodeEntities, []);
+    assert.deepEqual(prep.pendingEliteNodeIds, []);
+    assert.equal(prep.eliteEncounterRevealed, false);
+    assert.equal(prep.eliteEntity, null);
+}
+
+{
+    const prep = buildTrialRoomNodePrepState({
+        room: {
+            ...roomWithInteriorCells,
+            rewardTier: 3,
+            trialSeed: { nodeCountBias: 1 }
+        }
+    });
+
+    assert.deepEqual(prep.trialNodeSlots, [
+        { c: 0, r: 3, score: 3 },
+        { c: 2, r: 0, score: 2 },
+        { c: 1, r: 0, score: 1 }
+    ]);
+    assert.deepEqual(prep.trialNodeEntities, []);
+    assert.deepEqual(prep.pendingTrialNodeIds, []);
+    assert.equal(prep.trialNodesSpawned, false);
+    assert.equal(prep.trialCharge, 0);
+    assert.equal(prep.trialHazardTaken, 0);
+}
 
 {
     const entity = buildHiddenCacheEntityState({
@@ -248,6 +360,30 @@ assert.match(
     indexHtml,
     /createTrialNodeEntity\(room, slot, index\) \{[\s\S]*?buildHiddenTrialNodeEntityState\(/,
     'hidden trial node reward and hazard state should route through the hidden-room helper'
+);
+
+assert.match(
+    indexHtml,
+    /prepareTreasureRoomCaches\(room\) \{[\s\S]*?buildTreasureRoomCachePrepState\(/,
+    'treasure room cache preparation should route through the hidden-room helper'
+);
+
+assert.match(
+    indexHtml,
+    /prepareEventRoomNodes\(room\) \{[\s\S]*?buildEventRoomNodePrepState\(/,
+    'event room node preparation should route through the hidden-room helper'
+);
+
+assert.match(
+    indexHtml,
+    /prepareEliteRoomEncounter\(room\) \{[\s\S]*?buildEliteRoomEncounterPrepState\(/,
+    'elite room encounter preparation should route through the hidden-room helper'
+);
+
+assert.match(
+    indexHtml,
+    /prepareTrialRoomNodes\(room\) \{[\s\S]*?buildTrialRoomNodePrepState\(/,
+    'trial room node preparation should route through the hidden-room helper'
 );
 
 console.log('hidden-rooms checks passed');
