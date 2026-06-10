@@ -62,6 +62,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Model appearance config sanitizing, cloning, part lookup, entry defaults, and selection-entry writes now live in `src/logic/model-appearance-config.mjs`, with focused checks for clamping, cleanup, and default-write removal.
 - Auto-strategy sanitizing, diversion threshold adjustment, supply priority/need state, and merchant budget calculations now live in `src/logic/auto-strategy.mjs`, with focused checks for mode fallback, scarcity pressure, and budget quotes.
 - Floor buff defaults, supply roll/consumption decisions, run-relic floor-start effects, and theme directive buff application now live in `src/logic/floor-buffs.mjs`, with focused checks for supply weights, relic stacking, Echo Engine consumption, and finale directive scaling.
+- Player/maze upgrade cost formulas and purchase-state application now live in `src/logic/player-upgrades.mjs`, with focused checks for cost scaling, insufficient score, size caps, HP refill, speed floor, and merchant quote reuse.
 
 ## 1. Browser Smoke Follow-Up
 

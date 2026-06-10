@@ -735,6 +735,11 @@ import {
     createBaseFloorBuff,
     pickRandomFloorSupplyType
 } from './src/logic/floor-buffs.mjs';
+import {
+    applyUpgradePurchase,
+    getUpgradeCost,
+    getUpgradeCosts
+} from './src/logic/player-upgrades.mjs';
 import { buildThemeChainBonusPlan } from './src/logic/theme-chain-bonuses.mjs';
 import {
     calculateEliteRoomClearRewards,
@@ -1431,12 +1436,12 @@ const GameState = {
     strategyStorageKey: 'jkp-auto-strategy',
     autoStrategy: { ...DEFAULT_AUTO_STRATEGY },
     costs: {
-        speed: () => Math.floor(10 * Math.pow(1.5, GameState.player.lvSpeed - 1)),
-        atk: () => Math.floor(20 * Math.pow(1.5, GameState.player.lvAtk - 1)),
-        hp: () => Math.floor(20 * Math.pow(1.4, GameState.player.lvHp - 1)),
-        chest: () => Math.floor(50 * Math.pow(1.6, GameState.maze.lvChest - 1)),
-        size: () => Math.floor(40 * Math.pow(1.7, GameState.maze.lvSize - 1)),
-        monster: () => Math.floor(100 * Math.pow(1.8, GameState.maze.lvMonster - 1))
+        speed: () => getUpgradeCost('speed', GameState),
+        atk: () => getUpgradeCost('atk', GameState),
+        hp: () => getUpgradeCost('hp', GameState),
+        chest: () => getUpgradeCost('chest', GameState),
+        size: () => getUpgradeCost('size', GameState),
+        monster: () => getUpgradeCost('monster', GameState)
     },
     supplyDefs: {
         assault: { label: '战备补给', color: '#fda4af', manualCostMult: 1.08 },
@@ -1614,12 +1619,7 @@ const GameState = {
             supplyType,
             discount,
             supplyCost: this.getSupplyCost(supplyType),
-            upgradeCosts: {
-                atk: this.costs.atk(),
-                hp: this.costs.hp(),
-                chest: this.costs.chest(),
-                size: this.costs.size()
-            },
+            upgradeCosts: getUpgradeCosts(this),
             isMazeSizeMaxed: this.isMazeSizeMaxed()
         });
     },
@@ -1679,17 +1679,18 @@ const GameState = {
         this.updateUI();
     },
     tryBuy(type) {
-        if (type === 'size' && this.isMazeSizeMaxed()) return false;
-        const cost = this.costs[type]();
-        if (this.score < cost) return false;
+        const purchase = applyUpgradePurchase({
+            type,
+            score: this.score,
+            player: this.player,
+            maze: this.maze,
+            sizeUpgradeMaxed: this.isMazeSizeMaxed()
+        });
+        if (!purchase.purchased) return false;
 
-        this.score -= cost;
-        if (type === 'speed') { this.player.lvSpeed++; this.player.baseSpeed = Math.max(0.04, this.player.baseSpeed - 0.015); }
-        if (type === 'atk') { this.player.lvAtk++; this.player.baseAtk += 5; }
-        if (type === 'hp') { this.player.lvHp++; this.player.baseHp += 20; this.player.currentHp = this.player.baseHp; }
-        if (type === 'chest') { this.maze.lvChest++; this.maze.baseChestRate += 0.02; }
-        if (type === 'size') { this.maze.lvSize++; }
-        if (type === 'monster') { this.maze.lvMonster++; this.maze.baseMonsterRate += 0.015; }
+        this.score = purchase.score;
+        this.player = purchase.player;
+        this.maze = purchase.maze;
 
         this.updateUI();
         window.soundEngine?.upgrade();
