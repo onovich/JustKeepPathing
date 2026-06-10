@@ -566,6 +566,7 @@ export async function browserSmoke() {
   const soundEditorButton = document.getElementById('btn-sound-editor');
   const modelEditorModal = document.getElementById('editor-modal');
   const soundEditorModal = document.getElementById('sound-editor-modal');
+  const modelEditorPreviewCanvas = document.getElementById('editor-preview-canvas');
   const modelEditorAssetSelect = document.getElementById('editor-asset-select');
   const soundEditorSelect = document.getElementById('sound-asset-select');
   const soundEditorType = document.getElementById('sound-editor-type');
@@ -699,10 +700,17 @@ export async function browserSmoke() {
   if (!settingsButton || !settingsPanel || !settingsHint || !riskSelect) throw new Error('Settings controls are missing.');
   let modelEditorOpenedByHeader = false;
   let modelEditorClosedByCloseButton = false;
+  let modelEditorPreviewDistanceBeforeWheel = 0;
+  let modelEditorPreviewDistanceAfterWheel = 0;
+  let modelEditorWheelChangedDistance = false;
   if (modelEditorButton && modelEditorModal && modelEditorCloseButton) {
     modelEditorButton.click();
     await waitFor(() => !modelEditorModal.classList.contains('hidden'), 4000, 'model editor modal open');
     modelEditorOpenedByHeader = true;
+    modelEditorPreviewDistanceBeforeWheel = Number(window.modelEditor?.previewDistance || 0);
+    modelEditorPreviewCanvas?.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true }));
+    modelEditorPreviewDistanceAfterWheel = Number(window.modelEditor?.previewDistance || 0);
+    modelEditorWheelChangedDistance = Math.abs(modelEditorPreviewDistanceAfterWheel - modelEditorPreviewDistanceBeforeWheel) > 0.001;
     modelEditorCloseButton.click();
     await waitFor(() => modelEditorModal.classList.contains('hidden'), 4000, 'model editor modal close');
     modelEditorClosedByCloseButton = true;
@@ -762,6 +770,9 @@ export async function browserSmoke() {
     modelEditorClosed: modelEditorModal?.classList.contains('hidden') || false,
     modelEditorOpenedByHeader,
     modelEditorClosedByCloseButton,
+    modelEditorPreviewDistanceBeforeWheel,
+    modelEditorPreviewDistanceAfterWheel,
+    modelEditorWheelChangedDistance,
     soundEditorClosed: soundEditorModal?.classList.contains('hidden') || false,
     modelEditorAssetSelectValue: modelEditorAssetSelect?.value || '',
     modelEditorAssetOptionCount: modelEditorAssetSelect?.options?.length || 0,
@@ -961,6 +972,7 @@ export async function browserSmoke() {
   if (!result.modelEditorOpenedByHeader || !result.modelEditorClosedByCloseButton) {
     throw new Error('Model editor header/close bindings did not round-trip the modal.');
   }
+  if (!result.modelEditorWheelChangedDistance) throw new Error('Model editor wheel interaction did not update preview distance.');
   if (result.modelEditorAssetSelectValue !== 'player') throw new Error('Model editor asset select did not default to player.');
   if (result.modelEditorAssetOptionCount !== 8) throw new Error('Model editor asset select options did not render.');
   if (result.modelEditorAssetOptionValues !== 'player|scout|brute|spine|warden|boss|chest|exit') {

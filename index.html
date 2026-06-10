@@ -815,6 +815,20 @@ import {
     applyModelEditorSelectionUiState,
     buildModelEditorSelectionUiState
 } from './src/view/editors/model-editor-selection-ui.mjs';
+import {
+    MODEL_EDITOR_PICK_BUTTON,
+    MODEL_EDITOR_ROTATE_BUTTON,
+    applyModelEditorRotationMove,
+    buildModelEditorPreviewSize,
+    createModelEditorLeftPointer,
+    createModelEditorPointerPoint,
+    getModelEditorPointerNdc,
+    getModelEditorRotationMove,
+    getModelEditorWheelDistance,
+    isModelEditorLeftPointerMatch,
+    shouldPickModelEditorPointer,
+    updateModelEditorLeftPointerMove
+} from './src/view/editors/model-editor-pointer-ui.mjs';
 import { bindSoundEditorRenderedControls } from './src/view/editors/sound-editor-bindings.mjs';
 import { applySoundEditorControlValue } from './src/view/editors/sound-editor-control-state.mjs';
 import {
@@ -6335,8 +6349,11 @@ class ModelEditor {
     handleResize() {
         if (!this.previewRenderer || !this.previewCamera) return;
         const rect = this.canvas.getBoundingClientRect();
-        const width = Math.max(320, Math.floor(rect.width || this.canvas.clientWidth || 320));
-        const height = Math.max(320, Math.floor(rect.height || this.canvas.clientHeight || 320));
+        const { width, height } = buildModelEditorPreviewSize({
+            rect,
+            clientWidth: this.canvas.clientWidth,
+            clientHeight: this.canvas.clientHeight
+        });
         this.previewCamera.aspect = width / height;
         this.previewCamera.updateProjectionMatrix();
         this.previewRenderer.setSize(width, height, false);
@@ -6481,14 +6498,14 @@ class ModelEditor {
 
     handlePointerDown(event) {
         if (!this.isOpen) return;
-        if (event.button === 2) {
+        if (event.button === MODEL_EDITOR_ROTATE_BUTTON) {
             this.isRotating = true;
-            this.rightDragPoint = { x: event.clientX, y: event.clientY };
+            this.rightDragPoint = createModelEditorPointerPoint(event);
             this.canvas.setPointerCapture(event.pointerId);
             return;
         }
-        if (event.button === 0) {
-            this.leftPointer = { id: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+        if (event.button === MODEL_EDITOR_PICK_BUTTON) {
+            this.leftPointer = createModelEditorLeftPointer(event);
             this.canvas.setPointerCapture(event.pointerId);
         }
     }
@@ -6496,29 +6513,25 @@ class ModelEditor {
     handlePointerMove(event) {
         if (!this.isOpen) return;
         if (this.isRotating && this.rightDragPoint) {
-            const dx = event.clientX - this.rightDragPoint.x;
-            const dy = event.clientY - this.rightDragPoint.y;
-            this.rightDragPoint = { x: event.clientX, y: event.clientY };
-            this.previewRig.rotation.y += dx * 0.012;
-            this.previewRig.rotation.x = THREE.MathUtils.clamp(this.previewRig.rotation.x + dy * 0.012, -1.1, 1.1);
+            const move = getModelEditorRotationMove(this.rightDragPoint, event);
+            const rotation = applyModelEditorRotationMove(this.previewRig.rotation, move);
+            this.rightDragPoint = move.nextPoint;
+            this.previewRig.rotation.x = rotation.x;
+            this.previewRig.rotation.y = rotation.y;
             this.renderPreview();
             return;
         }
-        if (this.leftPointer && event.pointerId === this.leftPointer.id) {
-            const dx = event.clientX - this.leftPointer.x;
-            const dy = event.clientY - this.leftPointer.y;
-            if (dx * dx + dy * dy > 25) this.leftPointer.moved = true;
-        }
+        this.leftPointer = updateModelEditorLeftPointerMove(this.leftPointer, event);
     }
 
     handlePointerUp(event) {
-        if (event.button === 2) {
+        if (event.button === MODEL_EDITOR_ROTATE_BUTTON) {
             this.isRotating = false;
             this.rightDragPoint = null;
             return;
         }
-        if (event.button === 0 && this.leftPointer && event.pointerId === this.leftPointer.id) {
-            const shouldPick = !this.leftPointer.moved;
+        if (event.button === MODEL_EDITOR_PICK_BUTTON && isModelEditorLeftPointerMatch(this.leftPointer, event)) {
+            const shouldPick = shouldPickModelEditorPointer(this.leftPointer, event);
             this.leftPointer = null;
             if (shouldPick) this.pickAtPointer(event);
         }
@@ -6533,16 +6546,14 @@ class ModelEditor {
     handleWheel(event) {
         if (!this.isOpen) return;
         event.preventDefault();
-        this.previewDistance = THREE.MathUtils.clamp(this.previewDistance + event.deltaY * 0.0045, 1.8, 8.5);
+        this.previewDistance = getModelEditorWheelDistance(this.previewDistance, event.deltaY);
         this.renderPreview();
     }
 
     getPointerNdc(event) {
         const rect = this.canvas.getBoundingClientRect();
-        return new THREE.Vector2(
-            ((event.clientX - rect.left) / rect.width) * 2 - 1,
-            -((event.clientY - rect.top) / rect.height) * 2 + 1
-        );
+        const ndc = getModelEditorPointerNdc(event, rect);
+        return new THREE.Vector2(ndc.x, ndc.y);
     }
 
     pickFaceHit(ndc) {
