@@ -800,10 +800,7 @@ import {
     buildLoadingOverlaySnapshot,
     shouldRevealGenerationLoading
 } from './src/view/loading-overlay.mjs';
-import {
-    bindModelEditorHeaderButton,
-    bindSoundEditorHeaderButton
-} from './src/view/header-actions.mjs';
+import { bindSoundEditorHeaderButton } from './src/view/header-actions.mjs';
 import { configureModelEditorHeaderButtons } from './src/view/editors/model-editor-chrome.mjs';
 import { configureSoundEditorTransportButtons } from './src/view/editors/sound-editor-chrome.mjs';
 import {
@@ -812,6 +809,7 @@ import {
 } from './src/view/editors/editor-dom.mjs';
 import { appendEditorLog } from './src/view/editors/editor-log.mjs';
 import { populateModelEditorAssetSelect } from './src/view/editors/model-editor-assets-ui.mjs';
+import { bindModelEditorControls } from './src/view/editors/model-editor-bindings.mjs';
 import { populateModelEditorStyleSelects } from './src/view/editors/model-editor-style-options-ui.mjs';
 import {
     applyModelEditorSelectionUiState,
@@ -6241,35 +6239,25 @@ class ModelEditor {
     }
 
     bindUi() {
-        bindModelEditorHeaderButton({
+        bindModelEditorControls({
             documentRef: document,
-            onOpen: () => this.open()
+            refs: this,
+            eyeDropper: window.EyeDropper,
+            onOpen: () => this.open(),
+            onUndo: () => this.undo(),
+            onClose: () => this.close(),
+            onReadSavedConfig: () => this.readSavedConfig(),
+            onResetToBackup: () => this.resetToBackup(),
+            onSaveToRuntime: () => this.saveToRuntime(),
+            onLoadAsset: (assetKey) => this.loadAsset(assetKey),
+            onApplyColor: (color) => this.applyColorToSelection(color),
+            onApplyPatternColor: (color) => this.applyPatternColorToSelection(color),
+            onApplyPattern: (pattern) => this.applyPatternToSelection(pattern),
+            onApplyPatternScale: (scale) => this.applyPatternScaleToSelection(scale),
+            onApplyLineStyle: (style) => this.applyLineStyleToSelection(style),
+            onApplyLineWidth: (width) => this.applyLineWidthToSelection(width),
+            onPickScreenColor: () => this.pickScreenColor()
         });
-        this.undoButton.addEventListener('click', () => this.undo());
-        this.closeButton.addEventListener('click', () => this.close());
-        this.readButton.addEventListener('click', () => this.readSavedConfig());
-        this.resetButton.addEventListener('click', () => this.resetToBackup());
-        this.saveButton.addEventListener('click', () => this.saveToRuntime());
-        this.assetSelect.addEventListener('change', () => this.loadAsset(this.assetSelect.value));
-        this.colorPicker.addEventListener('input', () => this.applyColorToSelection(this.colorPicker.value));
-        this.patternColorPicker.addEventListener('input', () => this.applyPatternColorToSelection(this.patternColorPicker.value));
-        this.patternSelect.addEventListener('change', () => {
-            if (this.patternSelect.value !== '__mixed') this.applyPatternToSelection(this.patternSelect.value);
-        });
-        this.patternScale.addEventListener('input', () => this.applyPatternScaleToSelection(Number(this.patternScale.value)));
-        this.lineStyleSelect.addEventListener('change', () => {
-            if (this.lineStyleSelect.value !== '__mixed') this.applyLineStyleToSelection(this.lineStyleSelect.value);
-        });
-        this.lineWidth.addEventListener('input', () => this.applyLineWidthToSelection(Number(this.lineWidth.value)));
-        this.eyeDropperButton.addEventListener('click', () => this.pickScreenColor());
-        this.modal.addEventListener('click', (event) => {
-            if (event.target === this.modal || event.target.classList.contains('bg-black/55')) this.close();
-        });
-
-        if (!window.EyeDropper) {
-            this.eyeDropperButton.disabled = true;
-            this.eyeDropperButton.classList.add('opacity-50', 'cursor-not-allowed');
-        }
     }
 
     initPreview() {

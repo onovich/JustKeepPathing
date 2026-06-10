@@ -697,6 +697,16 @@ export async function browserSmoke() {
   }
 
   if (!settingsButton || !settingsPanel || !settingsHint || !riskSelect) throw new Error('Settings controls are missing.');
+  let modelEditorOpenedByHeader = false;
+  let modelEditorClosedByCloseButton = false;
+  if (modelEditorButton && modelEditorModal && modelEditorCloseButton) {
+    modelEditorButton.click();
+    await waitFor(() => !modelEditorModal.classList.contains('hidden'), 4000, 'model editor modal open');
+    modelEditorOpenedByHeader = true;
+    modelEditorCloseButton.click();
+    await waitFor(() => modelEditorModal.classList.contains('hidden'), 4000, 'model editor modal close');
+    modelEditorClosedByCloseButton = true;
+  }
   const modelLogMessage = 'browser-smoke-model-log';
   const soundLogMessage = 'browser-smoke-sound-log';
   window.modelEditor?.log(modelLogMessage);
@@ -750,6 +760,8 @@ export async function browserSmoke() {
     hasModelEditorButton: !!modelEditorButton,
     hasSoundEditorButton: !!soundEditorButton,
     modelEditorClosed: modelEditorModal?.classList.contains('hidden') || false,
+    modelEditorOpenedByHeader,
+    modelEditorClosedByCloseButton,
     soundEditorClosed: soundEditorModal?.classList.contains('hidden') || false,
     modelEditorAssetSelectValue: modelEditorAssetSelect?.value || '',
     modelEditorAssetOptionCount: modelEditorAssetSelect?.options?.length || 0,
@@ -946,6 +958,9 @@ export async function browserSmoke() {
   if (!result.settingsRiskValue) throw new Error('Settings risk select did not sync.');
   if (!result.hasModelEditorButton || !result.hasSoundEditorButton) throw new Error('Header editor buttons did not render.');
   if (!result.modelEditorClosed || !result.soundEditorClosed) throw new Error('Editor modals should start closed.');
+  if (!result.modelEditorOpenedByHeader || !result.modelEditorClosedByCloseButton) {
+    throw new Error('Model editor header/close bindings did not round-trip the modal.');
+  }
   if (result.modelEditorAssetSelectValue !== 'player') throw new Error('Model editor asset select did not default to player.');
   if (result.modelEditorAssetOptionCount !== 8) throw new Error('Model editor asset select options did not render.');
   if (result.modelEditorAssetOptionValues !== 'player|scout|brute|spine|warden|boss|chest|exit') {
