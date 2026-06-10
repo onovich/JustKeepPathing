@@ -76,6 +76,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Treasure cache hidden-room pickup reward state now shares `src/logic/room-reward-state.mjs`, with focused checks for chest reward multipliers, score actions, and floor chest counters while random supply drops remain in `GameController`.
 - Theme-chain bonus state application now routes through `src/logic/room-reward-state.mjs`, with focused checks for next-floor attack caps, hidden-room odds caps, salvage score/supplies, quarantine repairs, damage reduction, and reflex-shield refresh.
 - Finale boss archetype construction, clear-bonus calculation, and boss mechanic state initialization now live in `src/logic/finale-boss-state.mjs`, with focused checks and path guards while combat presentation remains in `GameController`.
+- Finale boss mechanic damage and enemy-attack prep decisions now share `src/logic/finale-boss-state.mjs`, with focused checks for signal jam, seal layers, heat ramp, salvage repair, floating-text plans, and state mutation.
 
 ## 1. Browser Smoke Follow-Up
 

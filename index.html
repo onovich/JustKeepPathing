@@ -745,7 +745,9 @@ import {
 import {
     buildBossMechanicState as buildBossMechanicStatePlan,
     buildFinaleBossArchetype as buildFinaleBossArchetypePlan,
-    getFinaleBossClearBonus as getFinaleBossClearBonusValue
+    getFinaleBossClearBonus as getFinaleBossClearBonusValue,
+    resolveBossMechanicEnemyAttackPrep as resolveBossMechanicEnemyAttackPrepPlan,
+    resolveBossMechanicPlayerDamage as resolveBossMechanicPlayerDamagePlan
 } from './src/logic/finale-boss-state.mjs';
 import {
     applyUpgradePurchase,
@@ -4683,63 +4685,43 @@ class GameController {
     }
 
     applyBossMechanicToPlayerDamage(mechanicState, damage, enemyMesh) {
-        if (!mechanicState) return { damage, message: '' };
-        if (mechanicState.key === 'signal_jam' && mechanicState.pendingJam) {
-            mechanicState.pendingJam = false;
-            const reducedDamage = Math.max(1, Math.floor(damage * mechanicState.playerDamageMult));
-            this.engine.addFloatingText('干扰', enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#67e8f9', true);
-            return {
-                damage: reducedDamage,
-                message: `脉冲干扰压低了锁定精度，这一击只打出了 ${reducedDamage}。`
-            };
+        const resolution = resolveBossMechanicPlayerDamagePlan(mechanicState, damage);
+        if (resolution.floatingText) {
+            this.engine.addFloatingText(
+                resolution.floatingText,
+                enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)),
+                resolution.textColor,
+                resolution.strong
+            );
         }
-        if (mechanicState.key === 'seal_layers' && mechanicState.layers > 0) {
-            mechanicState.layers -= 1;
-            const reducedDamage = Math.max(1, Math.floor(damage * mechanicState.damageMult));
-            this.engine.addFloatingText(`封锁 ${mechanicState.layers}`, enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#c4b5fd', true);
-            return {
-                damage: reducedDamage,
-                message: `封锁护壳吞掉了大半伤害，还剩 ${mechanicState.layers} 层。`
-            };
-        }
-        return { damage, message: '' };
+        return {
+            damage: resolution.damage,
+            message: resolution.message
+        };
     }
 
     applyBossMechanicBeforeEnemyAttack(mechanicState, enemyHp, profile, enemyMesh) {
-        if (!mechanicState) {
-            return { enemyHp, attackMult: 1, message: '' };
+        const resolution = resolveBossMechanicEnemyAttackPrepPlan({
+            mechanicState,
+            enemyHp,
+            enemyMaxHp: profile?.maxHp || 0
+        });
+        if (resolution.updateEnemyHp) {
+            this.updateRPG_HP(resolution.enemyHp, profile.maxHp, this.currentEnemy);
         }
-        if (mechanicState.key === 'heat_ramp') {
-            mechanicState.stacks = Math.min(mechanicState.maxStacks, mechanicState.stacks + 1);
-            this.engine.addFloatingText(`过热 x${mechanicState.stacks}`, enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#fb923c', true);
-            return {
-                enemyHp,
-                attackMult: 1 + mechanicState.stacks * mechanicState.atkGainPerStack,
-                message: `熔压核心继续升温，下一击更重了。`
-            };
+        if (resolution.floatingText) {
+            this.engine.addFloatingText(
+                resolution.floatingText,
+                enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)),
+                resolution.textColor,
+                resolution.strong
+            );
         }
-        if (mechanicState.key === 'salvage_repair' && mechanicState.remainingTriggers > 0 && enemyHp < profile.maxHp) {
-            const heal = Math.max(8, Math.floor(profile.maxHp * mechanicState.healRatio));
-            const nextHp = Math.min(profile.maxHp, enemyHp + heal);
-            mechanicState.remainingTriggers -= 1;
-            this.updateRPG_HP(nextHp, profile.maxHp, this.currentEnemy);
-            this.engine.addFloatingText(`+${nextHp - enemyHp}`, enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#fde68a', true);
-            return {
-                enemyHp: nextHp,
-                attackMult: 1,
-                message: `回收洪流把它重新拼起来了一点。`
-            };
-        }
-        if (mechanicState.key === 'signal_jam') {
-            mechanicState.pendingJam = true;
-            this.engine.addFloatingText('干扰脉冲', enemyMesh.position.clone().add(new THREE.Vector3(0, 0.55, 0)), '#67e8f9', true);
-            return {
-                enemyHp,
-                attackMult: 1,
-                message: `满频干扰已经锁上来了，你下一轮火力会被压住。`
-            };
-        }
-        return { enemyHp, attackMult: 1, message: '' };
+        return {
+            enemyHp: resolution.enemyHp,
+            attackMult: resolution.attackMult,
+            message: resolution.message
+        };
     }
 
     async resolveRunRelicReward(result, anchorPos, contextLabel = '') {
