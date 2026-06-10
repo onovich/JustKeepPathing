@@ -944,6 +944,7 @@ import {
     renderSoundEventOptions
 } from './src/view/editors/sound-editor-meta.mjs';
 import {
+    applyHudCoreStats,
     applyHudSupplyCard,
     applyHudRuntimeStatus,
     initializeHudStatusUi
@@ -1783,8 +1784,10 @@ const GameState = {
         return true;
     },
     updateUI() {
-        document.getElementById('ui-level').innerText = this.level;
-        document.getElementById('rpg-p-lv').innerText = this.player.lvAtk + this.player.lvHp + this.player.lvSpeed;
+        applyHudCoreStats(document, {
+            level: this.level,
+            player: this.player
+        });
         if (this.phase !== 'GENERATING') {
             window.loadingOverlay?.hide(0);
         }

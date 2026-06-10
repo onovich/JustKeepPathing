@@ -8,10 +8,13 @@ import {
     HUD_STATUS_TEXT_CLASS,
     HUD_SUPPLY_EMPTY_DESCRIPTION,
     HUD_SUPPLY_RESERVE_DESCRIPTION,
+    applyHudCoreStats,
+    applyHudCoreStatsState,
     applyHudSupplyCard,
     applyHudSupplyCardState,
     applyHudRuntimeStatus,
     applyHudRuntimeStatusState,
+    buildHudCoreStatsState,
     buildHudSupplyCardState,
     buildHudRuntimeStatusState
 } from '../src/view/hud-status-ui.mjs';
@@ -62,7 +65,9 @@ function createDocument() {
         'ui-supply-pill-text': createElement(),
         'ui-supply-mode': createElement(),
         'ui-supply-status': createElement(),
-        'ui-supply-desc': createElement()
+        'ui-supply-desc': createElement(),
+        'ui-level': createElement(),
+        'rpg-p-lv': createElement()
     };
 
     return {
@@ -72,6 +77,40 @@ function createDocument() {
         }
     };
 }
+
+assert.deepEqual(
+    buildHudCoreStatsState({
+        level: 7,
+        player: {
+            lvAtk: 3,
+            lvHp: 4,
+            lvSpeed: 2
+        }
+    }),
+    {
+        levelText: '7',
+        playerLevelText: '9'
+    },
+    'core HUD stats should format floor level and aggregate player upgrade levels'
+);
+
+{
+    const documentRef = createDocument();
+    const applied = applyHudCoreStats(documentRef, {
+        level: 5,
+        player: {
+            lvAtk: 2,
+            lvHp: 3,
+            lvSpeed: 4
+        }
+    });
+
+    assert.equal(applied.levelEl, documentRef.elements['ui-level']);
+    assert.equal(documentRef.elements['ui-level'].innerText, '5');
+    assert.equal(documentRef.elements['rpg-p-lv'].innerText, '9');
+}
+
+assert.equal(applyHudCoreStatsState(null, buildHudCoreStatsState()), null);
 
 assert.deepEqual(
     buildHudRuntimeStatusState({
@@ -264,10 +303,15 @@ const updateUiEnd = indexHtml.indexOf('        applyScoreText(document, this.sco
 assert.notEqual(updateUiStart, -1, 'updateUI should stay discoverable');
 assert.notEqual(updateUiEnd, -1, 'score text update should stay after HUD runtime status');
 const hudStatusSlice = indexHtml.slice(updateUiStart, updateUiEnd);
+assert.match(
+    hudStatusSlice,
+    /applyHudCoreStats\(document, \{[\s\S]*?level: this\.level,[\s\S]*?player: this\.player[\s\S]*?\}\);/,
+    'GameState.updateUI should route core HUD stats through the shared view helper'
+);
 assert.doesNotMatch(
     hudStatusSlice,
-    /statusMap|themePill\.style|supplyPill\.className/,
-    'GameState.updateUI should not own HUD status, theme pill, or supply pill styling'
+    /document\.getElementById\('(?:ui-level|rpg-p-lv)'\)|statusMap|themePill\.style|supplyPill\.className/,
+    'GameState.updateUI should not own core HUD stat, status, theme pill, or supply pill styling'
 );
 
 const supplyCardStart = indexHtml.indexOf('        applyHudSupplyCard(document, {', updateUiStart);

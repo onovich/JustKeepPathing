@@ -39,6 +39,42 @@ const HUD_SUPPLY_ACTIVE_DESCRIPTIONS = Object.freeze({
 export const HUD_SUPPLY_RESERVE_DESCRIPTION = '系统会在合适的楼层自动消耗补给储备，不需要你重复操作。';
 export const HUD_SUPPLY_EMPTY_DESCRIPTION = '当前没有补给储备。后续可通过宝箱、房间奖励和主题效果自动补充。';
 
+export function buildHudCoreStatsState({
+    level = 1,
+    player = {}
+} = {}) {
+    const playerLevel = Number(player.lvAtk || 0) + Number(player.lvHp || 0) + Number(player.lvSpeed || 0);
+    return {
+        levelText: `${level}`,
+        playerLevelText: `${playerLevel}`
+    };
+}
+
+export function applyHudCoreStatsState(documentRef, state) {
+    if (!documentRef || !state) return null;
+
+    const levelEl = documentRef.getElementById('ui-level');
+    const playerLevelEl = documentRef.getElementById('rpg-p-lv');
+
+    if (levelEl) levelEl.innerText = state.levelText;
+    if (playerLevelEl) playerLevelEl.innerText = state.playerLevelText;
+
+    return {
+        levelEl,
+        playerLevelEl
+    };
+}
+
+export function applyHudCoreStats(documentRef, {
+    level = 1,
+    player = {}
+} = {}) {
+    return applyHudCoreStatsState(
+        documentRef,
+        buildHudCoreStatsState({ level, player })
+    );
+}
+
 export function buildHudRuntimeStatusState({
     phase = 'EXPLORING',
     floorContent = null,

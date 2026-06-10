@@ -18,6 +18,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Hidden room plan generation no longer reads the selected type key before initialization, and `npm run check` now exercises `buildHiddenRoomPlan(...)` directly.
 - A dependency-free browser smoke now launches a temporary static server and headless Chrome to verify startup, canvas sizing, loading overlay state, collection persisted discoveries, and the path debug panel.
 - HUD status UI initialization was extracted into `src/view/hud-status-ui.mjs`, and browser smoke now verifies HUD supply/relic/pill/upgrade nodes.
+- HUD core level and player upgrade-level text now route through `src/view/hud-status-ui.mjs`, with focused checks and a `GameState.updateUI` path guard.
 - HUD runtime status, theme pill, and supply pill state application now share `src/view/hud-status-ui.mjs`, with focused checks for phase classes, theme/finale labels, supply styling, fallback states, and the `GameState.updateUI` path guard.
 - HUD supply card mode/status/description updates now share `src/view/hud-status-ui.mjs`, with focused checks for strategy labels, active supply copy, empty/reserve states, and the `GameState.updateUI` path guard.
 - HUD run-relic card initialization and runtime count/hint/list rendering now live in `src/view/hud-relic-ui.mjs`, with focused checks for empty, owned, Echo-preheated, DOM-apply, initialization, and `GameState.updateUI` path-guard cases.
