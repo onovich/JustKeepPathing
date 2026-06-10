@@ -23,6 +23,41 @@ export function buildModelEditorPreviewSize({
     };
 }
 
+export function applyModelEditorPreviewSize({
+    canvas,
+    camera,
+    renderer,
+    minSize = MODEL_EDITOR_PREVIEW_MIN_SIZE
+} = {}) {
+    if (!canvas || !camera || !renderer) return null;
+
+    const rect = canvas.getBoundingClientRect?.() || {};
+    const size = buildModelEditorPreviewSize({
+        rect,
+        clientWidth: canvas.clientWidth,
+        clientHeight: canvas.clientHeight,
+        minSize
+    });
+    camera.aspect = size.width / size.height;
+    camera.updateProjectionMatrix?.();
+    renderer.setSize?.(size.width, size.height, false);
+    return size;
+}
+
+export function renderModelEditorPreviewFrame({
+    renderer,
+    scene,
+    camera,
+    previewDistance = 3.4
+} = {}) {
+    if (!renderer || !scene || !camera) return null;
+
+    camera.position?.set?.(0, 0.5, previewDistance);
+    camera.lookAt?.(0, 0, 0);
+    renderer.render?.(scene, camera);
+    return { previewDistance };
+}
+
 export function createModelEditorPointerPoint(event = {}) {
     return {
         x: Number(event.clientX) || 0,

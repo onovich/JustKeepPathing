@@ -918,13 +918,14 @@ import {
 import {
     MODEL_EDITOR_PICK_BUTTON,
     MODEL_EDITOR_ROTATE_BUTTON,
+    applyModelEditorPreviewSize,
     applyModelEditorRotationMove,
-    buildModelEditorPreviewSize,
     createModelEditorLeftPointer,
     createModelEditorPointerPoint,
     getModelEditorPointerNdc,
     getModelEditorRotationMove,
     getModelEditorWheelDistance,
+    renderModelEditorPreviewFrame,
     isModelEditorLeftPointerMatch,
     shouldPickModelEditorPointer,
     updateModelEditorLeftPointerMove
@@ -5541,16 +5542,11 @@ class ModelEditor {
     }
 
     handleResize() {
-        if (!this.previewRenderer || !this.previewCamera) return;
-        const rect = this.canvas.getBoundingClientRect();
-        const { width, height } = buildModelEditorPreviewSize({
-            rect,
-            clientWidth: this.canvas.clientWidth,
-            clientHeight: this.canvas.clientHeight
-        });
-        this.previewCamera.aspect = width / height;
-        this.previewCamera.updateProjectionMatrix();
-        this.previewRenderer.setSize(width, height, false);
+        if (!applyModelEditorPreviewSize({
+            canvas: this.canvas,
+            camera: this.previewCamera,
+            renderer: this.previewRenderer
+        })) return;
         this.renderPreview();
     }
 
@@ -5560,10 +5556,12 @@ class ModelEditor {
     }
 
     renderPreview() {
-        if (!this.previewRenderer || !this.previewCamera) return;
-        this.previewCamera.position.set(0, 0.5, this.previewDistance);
-        this.previewCamera.lookAt(0, 0, 0);
-        this.previewRenderer.render(this.previewScene, this.previewCamera);
+        renderModelEditorPreviewFrame({
+            renderer: this.previewRenderer,
+            scene: this.previewScene,
+            camera: this.previewCamera,
+            previewDistance: this.previewDistance
+        });
     }
 
     clearPreviewModel() {

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
     MODEL_EDITOR_DRAG_THRESHOLD_SQ,
     MODEL_EDITOR_PICK_BUTTON,
     MODEL_EDITOR_ROTATE_BUTTON,
+    applyModelEditorPreviewSize,
     applyModelEditorRotationMove,
     buildModelEditorPreviewSize,
     clampNumber,
@@ -12,6 +14,7 @@ import {
     getModelEditorRotationMove,
     getModelEditorWheelDistance,
     isModelEditorLeftPointerMatch,
+    renderModelEditorPreviewFrame,
     shouldPickModelEditorPointer,
     updateModelEditorLeftPointerMove
 } from '../src/view/editors/model-editor-pointer-ui.mjs';
@@ -39,6 +42,63 @@ assert.deepEqual(
     { width: 410, height: 360 },
     'preview dimensions should fall back to client size'
 );
+
+{
+    const calls = [];
+    const canvas = {
+        clientWidth: 100,
+        clientHeight: 100,
+        getBoundingClientRect: () => ({ width: 512.9, height: 240 })
+    };
+    const camera = {
+        aspect: 0,
+        updateProjectionMatrix: () => calls.push(['projection'])
+    };
+    const renderer = {
+        setSize: (...args) => calls.push(['setSize', ...args])
+    };
+
+    assert.deepEqual(
+        applyModelEditorPreviewSize({ canvas, camera, renderer }),
+        { width: 512, height: 320 }
+    );
+    assert.equal(camera.aspect, 512 / 320);
+    assert.deepEqual(calls, [
+        ['projection'],
+        ['setSize', 512, 320, false]
+    ]);
+    assert.equal(applyModelEditorPreviewSize({ canvas: null, camera, renderer }), null);
+}
+
+{
+    const calls = [];
+    const camera = {
+        position: {
+            set: (...args) => calls.push(['position', ...args])
+        },
+        lookAt: (...args) => calls.push(['lookAt', ...args])
+    };
+    const scene = { name: 'scene' };
+    const renderer = {
+        render: (...args) => calls.push(['render', ...args])
+    };
+
+    assert.deepEqual(
+        renderModelEditorPreviewFrame({
+            renderer,
+            scene,
+            camera,
+            previewDistance: 4.2
+        }),
+        { previewDistance: 4.2 }
+    );
+    assert.deepEqual(calls, [
+        ['position', 0, 0.5, 4.2],
+        ['lookAt', 0, 0, 0],
+        ['render', scene, camera]
+    ]);
+    assert.equal(renderModelEditorPreviewFrame({ renderer, scene: null, camera }), null);
+}
 
 assert.deepEqual(
     createModelEditorPointerPoint({ clientX: 12, clientY: 34 }),
@@ -103,5 +163,28 @@ assert.deepEqual(
     { x: 0, y: 0.5 },
     'pointer NDC should map canvas coordinates into normalized device coordinates'
 );
+
+{
+    const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const modelEditorStart = indexHtml.indexOf('class ModelEditor');
+    const modelEditorEnd = indexHtml.indexOf('class SoundEditor', modelEditorStart);
+    const modelEditorClass = indexHtml.slice(modelEditorStart, modelEditorEnd);
+
+    assert.match(
+        modelEditorClass,
+        /handleResize\(\) \{[\s\S]*?applyModelEditorPreviewSize\(\{[\s\S]*?canvas: this\.canvas[\s\S]*?camera: this\.previewCamera[\s\S]*?renderer: this\.previewRenderer[\s\S]*?\}\)[\s\S]*?this\.renderPreview\(\);[\s\S]*?\n    \}/,
+        'ModelEditor.handleResize should route preview sizing through the pointer-ui helper'
+    );
+    assert.match(
+        modelEditorClass,
+        /renderPreview\(\) \{[\s\S]*?renderModelEditorPreviewFrame\(\{[\s\S]*?renderer: this\.previewRenderer[\s\S]*?scene: this\.previewScene[\s\S]*?camera: this\.previewCamera[\s\S]*?previewDistance: this\.previewDistance[\s\S]*?\}\);[\s\S]*?\n    \}/,
+        'ModelEditor.renderPreview should route camera frame/render through the pointer-ui helper'
+    );
+    assert.doesNotMatch(
+        modelEditorClass,
+        /previewCamera\.aspect|previewCamera\.updateProjectionMatrix\(\)|previewRenderer\.setSize\(|previewCamera\.position\.set\(|previewCamera\.lookAt\(|previewRenderer\.render\(/,
+        'ModelEditor should not own preview camera/renderer frame details'
+    );
+}
 
 console.log('model-editor-pointer-ui checks passed');
