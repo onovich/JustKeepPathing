@@ -50,6 +50,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Loading overlay progress/snapshot and delayed-generation reveal checks were extracted into `src/view/loading-overlay.mjs`, with focused checks and browser smoke coverage for delayed text reveal/cleanup.
 - Browser smoke now exercises the `Echo Engine` event-room finalization path with a deterministic fixture and restores runtime state afterward.
 - Browser smoke now covers consecutive elite/boss run-relic rolls for both double-add and single-slot overflow outcomes.
+- Path Debug now surfaces per-room access, gate progress, detour, final diversion score, and lifecycle flags, with browser smoke coverage for a deterministic two-room fixture.
 
 ## 1. Theme Chain And Relic Follow-Up
 
@@ -69,31 +70,7 @@ Acceptance:
 - consecutive elite/event reward flows do not double-apply or silently miss
 - collection discoveries still update after event/trial room entry
 
-## 2. Hidden Room Routing Debug Pass
-
-Goal:
-
-- make room-balance work explainable instead of guesswork
-
-Recommended instrumentation:
-
-- expose per-room values in the existing path debug panel:
-  - `accessScore`
-  - detour cost
-  - gate state and progress
-  - final diversion score after strategy modifiers
-- capture whether each room was:
-  - generated
-  - reachable
-  - entered
-  - cleared
-
-Acceptance:
-
-- we can explain why the autopather took or skipped a special room on a given floor
-- balancing room appetite no longer depends on reading scattered runtime state by hand
-
-## 3. Browser Smoke Follow-Up
+## 2. Browser Smoke Follow-Up
 
 Goal:
 
@@ -110,7 +87,7 @@ Acceptance:
 - browser smoke can be run manually before risky UI/render changes
 - the smoke does not require a production build step or external npm dependency
 
-## 4. Refactor Follow-Up
+## 3. Refactor Follow-Up
 
 Goal:
 

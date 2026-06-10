@@ -511,16 +511,99 @@ async function runSmoke() {
       if (!pathDebugButton || !pathDebugModal || !pathDebugSummary || !pathDebugContext || !pathDebugRoomCount || !pathDebugRoomList) {
         throw new Error('Path debug controls are missing.');
       }
-      pathDebugButton.click();
-      await waitFor(() => !pathDebugModal.classList.contains('hidden'), 4000, 'path debug modal');
-      const pathDebugSummaryCards = pathDebugSummary.children.length;
-      const pathDebugContextText = pathDebugContext.innerText || '';
-      const pathDebugRoomCountText = pathDebugRoomCount.innerText || '';
-      const pathDebugRoomListText = pathDebugRoomList.innerText || '';
-      const pathDebugRoomCards = pathDebugRoomList.querySelectorAll('article').length;
-      const pathDebugRoomListHasContent = pathDebugRoomCards > 0 || pathDebugRoomListText.includes('No hidden rooms');
-      document.getElementById('btn-path-debug-close')?.click();
-      await waitFor(() => pathDebugModal.classList.contains('hidden'), 4000, 'path debug modal close');
+      const pathDebugController = window.gameController;
+      const savedPathDebug = {
+        hiddenRooms: Array.isArray(pathDebugController?.hiddenRooms) ? pathDebugController.hiddenRooms : null,
+        currentPathTarget: pathDebugController?.currentPathTarget,
+        lastDirectExitPathLength: pathDebugController?.lastDirectExitPathLength,
+        floorStats: { ...window.GameState.floorStats }
+      };
+      let pathDebugSummaryCards = 0;
+      let pathDebugContextText = '';
+      let pathDebugRoomCountText = '';
+      let pathDebugRoomListText = '';
+      let pathDebugRoomCards = 0;
+      let pathDebugRoomListHasContent = false;
+      let pathDebugMetricsVisible = false;
+      let pathDebugGateProgressVisible = false;
+      let pathDebugSelectedRoomVisible = false;
+      let pathDebugModalWasOpened = false;
+      try {
+        if (pathDebugController) {
+          pathDebugController.currentPathTarget = 'smoke-event-room';
+          pathDebugController.lastDirectExitPathLength = 12;
+          pathDebugController.hiddenRooms = [
+            {
+              id: 'smoke-event-room',
+              displayName: 'Smoke Event Room',
+              typeKey: 'event',
+              unlocked: true,
+              entered: true,
+              cleared: false,
+              accessScore: 0.612,
+              gateType: 'kills_this_floor',
+              gateThreshold: 3,
+              eventSeed: { label: 'Smoke Anomaly' },
+              routingDebug: {
+                state: 'selected',
+                threshold: 0.52,
+                finalScore: 0.734,
+                detourExtra: 4,
+                pathToRoomLength: 7,
+                pathRoomToExitLength: 9,
+                objective: { c: 4, r: 6 }
+              }
+            },
+            {
+              id: 'smoke-locked-trial',
+              displayName: 'Smoke Locked Trial',
+              typeKey: 'trial',
+              unlocked: false,
+              entered: false,
+              cleared: false,
+              accessScore: 0.421,
+              gateType: 'kills_this_floor',
+              gateThreshold: 5,
+              trialSeed: { label: 'Smoke Trial' },
+              routingDebug: {
+                state: 'locked',
+                threshold: 0.52
+              }
+            }
+          ];
+          window.GameState.floorStats = {
+            ...savedPathDebug.floorStats,
+            kills: 2,
+            hiddenRoomsCleared: 1
+          };
+        }
+        pathDebugButton.click();
+        await waitFor(() => !pathDebugModal.classList.contains('hidden'), 4000, 'path debug modal');
+        pathDebugModalWasOpened = true;
+        pathDebugSummaryCards = pathDebugSummary.children.length;
+        pathDebugContextText = pathDebugContext.innerText || '';
+        pathDebugRoomCountText = pathDebugRoomCount.innerText || '';
+        pathDebugRoomListText = pathDebugRoomList.innerText || '';
+        pathDebugRoomCards = pathDebugRoomList.querySelectorAll('article').length;
+        pathDebugRoomListHasContent = pathDebugRoomCards > 0 || pathDebugRoomListText.includes('No hidden rooms');
+        const pathDebugRoomListSearchText = pathDebugRoomListText.toLowerCase();
+        pathDebugMetricsVisible = ['base access', 'final score', 'threshold', 'detour', 'to room', 'to exit']
+          .every((label) => pathDebugRoomListSearchText.includes(label));
+        pathDebugGateProgressVisible = pathDebugRoomListSearchText.includes('gate: kills 2/3');
+        pathDebugSelectedRoomVisible = pathDebugRoomListSearchText.includes('smoke event room')
+          && pathDebugRoomListSearchText.includes('current target');
+      } finally {
+        if (pathDebugModalWasOpened) {
+          document.getElementById('btn-path-debug-close')?.click();
+          await waitFor(() => pathDebugModal.classList.contains('hidden'), 4000, 'path debug modal close');
+        }
+        if (pathDebugController) {
+          pathDebugController.hiddenRooms = savedPathDebug.hiddenRooms;
+          pathDebugController.currentPathTarget = savedPathDebug.currentPathTarget;
+          pathDebugController.lastDirectExitPathLength = savedPathDebug.lastDirectExitPathLength;
+        }
+        window.GameState.floorStats = savedPathDebug.floorStats;
+      }
 
       if (!settingsButton || !settingsPanel || !settingsHint || !riskSelect) throw new Error('Settings controls are missing.');
       const modelLogMessage = 'browser-smoke-model-log';
@@ -566,6 +649,9 @@ async function runSmoke() {
         pathDebugRoomListText,
         pathDebugRoomCards,
         pathDebugRoomListHasContent,
+        pathDebugMetricsVisible,
+        pathDebugGateProgressVisible,
+        pathDebugSelectedRoomVisible,
         pathDebugHiddenRoomsKnown: Array.isArray(window.gameController?.hiddenRooms),
         settingsPanelHidden: settingsPanel.classList.contains('hidden'),
         settingsRiskValue: riskSelect.value,
@@ -691,6 +777,10 @@ async function runSmoke() {
       if (!result.pathDebugContextText.includes('Current target')) throw new Error('Path debug context did not render current target.');
       if (!result.pathDebugRoomCountText.includes('room')) throw new Error('Path debug room count did not render.');
       if (!result.pathDebugRoomListHasContent) throw new Error('Path debug room list did not render content.');
+      if (result.pathDebugRoomCards < 2) throw new Error('Path debug fixture room cards did not render.');
+      if (!result.pathDebugMetricsVisible) throw new Error('Path debug per-room routing metrics did not render.');
+      if (!result.pathDebugGateProgressVisible) throw new Error('Path debug gate progress did not render.');
+      if (!result.pathDebugSelectedRoomVisible) throw new Error('Path debug selected room marker did not render.');
       if (result.pathDebugRoomCards > 0) {
         for (const flagLabel of ['Generated', 'Reachable', 'Entered', 'Cleared']) {
           if (!result.pathDebugRoomListText.includes(flagLabel)) {
