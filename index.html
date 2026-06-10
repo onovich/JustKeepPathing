@@ -747,6 +747,7 @@ import {
     buildTrialSupplyRewardPlan
 } from './src/logic/room-reward-plans.mjs';
 import {
+    formatRunRelicRewardMessage,
     resolveEchoEngineEventBonus,
     resolveHiddenRoomRewardMessage
 } from './src/logic/room-reward-resolution.mjs';
@@ -5241,24 +5242,19 @@ class GameController {
     }
 
     async resolveRunRelicReward(result, anchorPos, contextLabel = '') {
-        if (!result || result.status === 'miss') return '';
+        const message = formatRunRelicRewardMessage({ result, contextLabel });
+        if (!message) return '';
         if (result.status === 'added' && result.relic) {
             window.soundEngine?.upgrade();
             this.engine.spawnBurst(anchorPos, 0x22d3ee, 22, 2.1);
             this.engine.addFloatingText(result.relic.label, anchorPos, '#67e8f9', true);
-            return `${contextLabel}${contextLabel ? ' ' : ''}掉出了核心「${result.relic.label}」，${result.relic.shortLabel}`;
+            return message;
         }
         if ((result.status === 'overflow' || result.status === 'duplicate' || result.status === 'empty-pool') && result.bonusScore > 0) {
             this.engine.addFloatingText(`+核心残响 ${result.bonusScore}`, anchorPos, '#facc15', true);
-            if (result.status === 'duplicate') {
-                return `这枚核心你已经拿过了，转化成了 ${result.bonusScore} 魂能。`;
-            }
-            if (result.status === 'empty-pool') {
-                return `当前核心池没有新的可用核心，额外掉落转化成了 ${result.bonusScore} 魂能。`;
-            }
-            return `核心槽已经装满，额外掉落转化成了 ${result.bonusScore} 魂能。`;
+            return message;
         }
-        return '';
+        return message;
     }
 
     applyThemeChainBonus(sourceKey, room, anchorPos = null) {

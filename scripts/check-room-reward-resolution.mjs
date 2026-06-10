@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     appendRoomRewardDetails,
+    formatRunRelicRewardMessage,
     finalizeRoomRewardMessage,
     resolveEchoEngineEventBonus,
     resolveHiddenRoomRewardMessage
@@ -142,6 +143,54 @@ assert.deepEqual(
         message: 'Echo Engine preheated next-floor attack by 8%.'
     },
     'Echo Engine event bonus should preserve the current cap'
+);
+
+assert.equal(
+    formatRunRelicRewardMessage({
+        contextLabel: 'Elite Room',
+        result: {
+            status: 'added',
+            relic: {
+                label: 'Echo Engine',
+                shortLabel: 'next floor attack rises'
+            },
+            bonusScore: 0
+        }
+    }),
+    'Elite Room 掉出了核心「Echo Engine」，next floor attack rises',
+    'run relic added rewards should include context, relic label, and short label'
+);
+
+assert.equal(
+    formatRunRelicRewardMessage({
+        result: { status: 'duplicate', relic: null, bonusScore: 120 }
+    }),
+    '这枚核心你已经拿过了，转化成了 120 魂能。',
+    'duplicate run relic rewards should convert into visible score text'
+);
+
+assert.equal(
+    formatRunRelicRewardMessage({
+        result: { status: 'empty-pool', relic: null, bonusScore: 90 }
+    }),
+    '当前核心池没有新的可用核心，额外掉落转化成了 90 魂能。',
+    'empty relic pools should explain that no new core is available'
+);
+
+assert.equal(
+    formatRunRelicRewardMessage({
+        result: { status: 'overflow', relic: null, bonusScore: 75 }
+    }),
+    '核心槽已经装满，额外掉落转化成了 75 魂能。',
+    'overflow run relic rewards should explain full slots'
+);
+
+assert.equal(
+    formatRunRelicRewardMessage({
+        result: { status: 'miss', relic: null, bonusScore: 0 }
+    }),
+    '',
+    'missed run relic rolls should stay silent'
 );
 
 console.log('room-reward-resolution checks passed');

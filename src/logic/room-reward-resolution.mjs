@@ -57,3 +57,27 @@ export function resolveEchoEngineEventBonus({
         message: 'Echo Engine preheated next-floor attack by ' + Math.round(bonus * 100) + '%.'
     };
 }
+
+export function formatRunRelicRewardMessage({
+    result,
+    contextLabel = ''
+} = {}) {
+    if (!result || result.status === 'miss') return '';
+
+    if (result.status === 'added' && result.relic) {
+        const prefix = contextLabel ? `${contextLabel} ` : '';
+        return `${prefix}掉出了核心「${result.relic.label}」，${result.relic.shortLabel}`;
+    }
+
+    if ((result.status === 'overflow' || result.status === 'duplicate' || result.status === 'empty-pool') && result.bonusScore > 0) {
+        if (result.status === 'duplicate') {
+            return `这枚核心你已经拿过了，转化成了 ${result.bonusScore} 魂能。`;
+        }
+        if (result.status === 'empty-pool') {
+            return `当前核心池没有新的可用核心，额外掉落转化成了 ${result.bonusScore} 魂能。`;
+        }
+        return `核心槽已经装满，额外掉落转化成了 ${result.bonusScore} 魂能。`;
+    }
+
+    return '';
+}
