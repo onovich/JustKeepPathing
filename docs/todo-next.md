@@ -53,6 +53,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Path Debug now surfaces per-room access, gate progress, detour, final diversion score, and lifecycle flags, with browser smoke coverage for a deterministic two-room fixture.
 - Browser smoke now covers rest, merchant, trial, and treasure room completion rewards with a deterministic runtime fixture that restores `GameState` afterward.
 - Browser smoke now covers full elite-room clear presentation, including lifecycle clearing, marker/grid cleanup, relic presentation, and theme-chain rewards.
+- Browser smoke's page-side fixture now lives in `scripts/browser-smoke-page.mjs`, leaving `scripts/browser-smoke.mjs` focused on server/browser/CDP orchestration; `npm run check` now syntax-checks both smoke modules.
 
 ## 1. Browser Smoke Follow-Up
 
