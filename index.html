@@ -928,8 +928,8 @@ import {
 import { bindSoundEditorRenderedControls } from './src/view/editors/sound-editor-bindings.mjs';
 import { applySoundEditorControlValue } from './src/view/editors/sound-editor-control-state.mjs';
 import {
-    applySoundEditorControls,
-    formatSoundRangeControlValue
+    applySoundRangeControlDisplay,
+    applySoundEditorControls
 } from './src/view/editors/sound-editor-controls.mjs';
 import {
     applySoundEditorTransportState,
@@ -938,8 +938,8 @@ import {
     shouldSyncSoundEditorPreviewConfig
 } from './src/view/editors/sound-editor-transport-ui.mjs';
 import {
-    applySoundEditorMeta,
-    renderSoundEventOptions
+    applySoundEditorEventOptions,
+    applySoundEditorMeta
 } from './src/view/editors/sound-editor-meta.mjs';
 import {
     applyHudCoreStats,
@@ -6063,8 +6063,11 @@ class SoundEditor {
     }
 
     populateSelect() {
-        this.select.innerHTML = renderSoundEventOptions(SOUND_EVENT_DEFS);
-        this.select.value = this.currentSoundKey;
+        applySoundEditorEventOptions({
+            select: this.select,
+            soundEventDefs: SOUND_EVENT_DEFS,
+            currentSoundKey: this.currentSoundKey
+        });
     }
 
     bindUi() {
@@ -6154,8 +6157,7 @@ class SoundEditor {
             onControlEvent: (el) => {
                 this.applyControlValue(el);
                 if (el.type === 'range') {
-                    const valueEl = document.getElementById(`${el.id}-value`);
-                    if (valueEl) valueEl.innerText = formatSoundRangeControlValue(el);
+                    applySoundRangeControlDisplay({ documentRef: document, control: el });
                 } else {
                     this.render();
                 }

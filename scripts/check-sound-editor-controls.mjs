@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
     applySoundEditorControls,
+    applySoundRangeControlDisplay,
     buildBgmKernelOptions,
     buildSoundTrackOptions,
     buildSoundWaveOptions,
@@ -29,6 +30,22 @@ assert.equal(formatSoundRangeControlValue({ id: 'snd-loop-stepBeats', value: '0.
 assert.equal(formatSoundRangeControlValue({ id: 'snd-bgm-noteLength', value: '0.875', step: '0.01' }), '0.88x');
 assert.equal(formatSoundRangeControlValue({ id: 'snd-bgm-detune', value: '8.6', step: '1' }), '9c');
 assert.equal(formatSoundRangeControlValue({ id: 'snd-oneshot-volume', value: '0.314', step: '0.01' }), '0.31');
+
+{
+    const valueEl = { innerText: '' };
+    const documentRef = {
+        getElementById(id) {
+            assert.equal(id, 'snd-bgm-tempo-value');
+            return valueEl;
+        }
+    };
+    const control = { id: 'snd-bgm-tempo', value: '91.6', step: '1' };
+
+    assert.equal(applySoundRangeControlDisplay({ documentRef, control }), valueEl);
+    assert.equal(valueEl.innerText, '92 BPM');
+    assert.equal(applySoundRangeControlDisplay({ documentRef: null, control }), null);
+    assert.equal(applySoundRangeControlDisplay({ documentRef: { getElementById: () => null }, control }), null);
+}
 
 {
     const markup = renderSoundSliderControl({
@@ -271,8 +288,13 @@ const bgmSound = {
     );
     assert.doesNotMatch(
         soundEditorClass,
-        /renderOneShotControls|renderLoopControls|renderBgmControls|sliderMarkup|selectMarkup|checkboxMarkup|controlsEl\.innerHTML = `/,
+        /renderOneShotControls|renderLoopControls|renderBgmControls|sliderMarkup|selectMarkup|checkboxMarkup|controlsEl\.innerHTML = `|document\.getElementById\(`\$\{el\.id\}-value`\)|formatSoundRangeControlValue\(el\)/,
         'SoundEditor should not own sound control group templates'
+    );
+    assert.match(
+        soundEditorClass,
+        /applySoundRangeControlDisplay\(\{ documentRef: document, control: el \}\)/,
+        'SoundEditor range input handling should route display updates through sound-editor-controls'
     );
 }
 

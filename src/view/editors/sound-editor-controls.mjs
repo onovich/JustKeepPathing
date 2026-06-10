@@ -23,6 +23,17 @@ export function formatSoundRangeControlValue(control) {
     return value.toFixed(hasStep && step < 0.1 ? 2 : 1);
 }
 
+export function applySoundRangeControlDisplay({
+    documentRef,
+    control
+} = {}) {
+    const valueEl = documentRef?.getElementById?.(`${control?.id}-value`);
+    if (!valueEl) return null;
+
+    valueEl.innerText = formatSoundRangeControlValue(control);
+    return valueEl;
+}
+
 export function renderSoundSliderControl({
     label,
     field,

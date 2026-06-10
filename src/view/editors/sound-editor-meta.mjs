@@ -18,6 +18,19 @@ export function renderSoundEventOptions(soundEventDefs) {
         .join('');
 }
 
+export function applySoundEditorEventOptions({
+    select,
+    soundEventDefs,
+    currentSoundKey
+} = {}) {
+    const markup = renderSoundEventOptions(soundEventDefs);
+    if (!select) return markup;
+
+    select.innerHTML = markup;
+    select.value = currentSoundKey;
+    return markup;
+}
+
 export function applySoundEditorMeta({
     typeEl,
     usageEl,
