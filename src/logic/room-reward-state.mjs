@@ -584,6 +584,8 @@ export function applyRoomRewardActions({
             gameState.player.baseAtk += action.amount || 0;
         } else if (action.type === 'damage-player') {
             gameState.player.currentHp = Math.max(1, gameState.player.currentHp - (action.amount || 0));
+        } else if (action.type === 'damage-player-raw') {
+            gameState.player.currentHp -= action.amount || 0;
         } else if (action.type === 'increase-chest-rate') {
             gameState.maze.baseChestRate += action.amount || 0;
         } else if (action.type === 'increase-monster-rate') {

@@ -736,6 +736,7 @@ import {
     sanitizeAutoStrategy as sanitizeAutoStrategyConfig
 } from './src/logic/auto-strategy.mjs';
 import {
+    buildEnemyAttackDamageStatePlan,
     buildCombatBonusScoreStatePlan,
     buildCombatVictoryStatePlan
 } from './src/logic/combat-state.mjs';
@@ -5565,18 +5566,17 @@ class GameController {
                 await this.typeText(bossAttackPrep.message);
                 await this.sleep(420);
             }
-            const reflexShieldTriggered = !!GameState.floorRuntime?.reflexShieldReady;
-            const incomingDamageMult = GameState.floorBuff?.incomingDamageMult || 1;
             const attackRoll = 0.82 + Math.random() * 0.38;
-            const enemyDamageBeforeReflex = Math.floor(profile.atk * attackRoll * incomingDamageMult * (bossAttackPrep.attackMult || 1));
-            let enemyDamage = enemyDamageBeforeReflex;
-            let reflexShieldMessage = '';
-            if (reflexShieldTriggered) {
-                GameState.floorRuntime.reflexShieldReady = false;
-                enemyDamage = Math.floor(enemyDamageBeforeReflex * 0.38);
-                const preventedDamage = Math.max(0, enemyDamageBeforeReflex - enemyDamage);
-                reflexShieldMessage = `反射护盾挡下 ${preventedDamage} 点伤害，本次只承受 ${enemyDamage} 点。`;
-            }
+            const enemyAttackStatePlan = buildEnemyAttackDamageStatePlan({
+                profileAtk: profile.atk,
+                attackRoll,
+                incomingDamageMult: GameState.floorBuff?.incomingDamageMult || 1,
+                attackMult: bossAttackPrep.attackMult || 1,
+                reflexShieldReady: GameState.floorRuntime?.reflexShieldReady
+            });
+            const reflexShieldTriggered = enemyAttackStatePlan.reflexShieldTriggered;
+            const enemyDamage = enemyAttackStatePlan.enemyDamage;
+            const reflexShieldMessage = enemyAttackStatePlan.reflexShieldMessage;
             const enemyOrigPos = enemyMesh.position.clone();
             const enemyDashPos = enemyOrigPos.clone().sub(dir.clone().multiplyScalar(dashDist));
 
@@ -5596,7 +5596,10 @@ class GameController {
             });
 
             await this.sleep(320);
-            GameState.player.currentHp -= enemyDamage;
+            applyRoomRewardActions({
+                gameState: GameState,
+                actions: enemyAttackStatePlan.actions
+            });
             this.updateRPG_HP(enemyHp, profile.maxHp, enemyObj);
             if (reflexShieldMessage) {
                 await this.typeText(reflexShieldMessage);

@@ -78,6 +78,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Finale boss archetype construction, clear-bonus calculation, and boss mechanic state initialization now live in `src/logic/finale-boss-state.mjs`, with focused checks and path guards while combat presentation remains in `GameController`.
 - Finale boss mechanic damage and enemy-attack prep decisions now share `src/logic/finale-boss-state.mjs`, with focused checks for signal jam, seal layers, heat ramp, salvage repair, floating-text plans, and state mutation.
 - Combat victory reward state now lives in `src/logic/combat-state.mjs`, with focused checks for score rewards, kill counters, and finale bonus score while combat animation and messaging remain in `GameController`.
+- Enemy attack damage and reflex-shield consumption now route through `src/logic/combat-state.mjs`, with focused checks for damage multipliers, shield prevention text, raw combat HP loss, and shield state clearing.
 
 ## 1. Browser Smoke Follow-Up
 
