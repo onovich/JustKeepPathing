@@ -708,7 +708,11 @@ import {
     buildEliteEnemyArchetype as buildEliteEnemyArchetypeState,
     buildEliteRoomSupportLoadout,
     buildEliteRoomVariant,
+    buildHiddenCacheEntityState,
+    buildHiddenEliteNodeEntityState,
+    buildHiddenEventNodeEntityState,
     buildHiddenRoomPlan,
+    buildHiddenTrialNodeEntityState,
     getHiddenRoomAccentColor,
     getHiddenRoomDiversionThreshold,
     getHiddenRoomRewardTier
@@ -3666,21 +3670,16 @@ class GameController {
         built.group.scale.setScalar(0.72 + index * 0.03);
         this.engine.scene.add(built.group);
         this.engine.tweens.add(built.group.position, { y: 0.19 }, 0.45, Easing.easeOutBounce);
-        const reward = Math.max(8, Math.floor((18 + room.rewardProfile.chestBonus * 7 + index * 3) * GameState.level * (0.7 + room.rewardProfile.scoreMult)));
+        const entityState = buildHiddenCacheEntityState({
+            room,
+            slot,
+            index,
+            level: GameState.level,
+            hoverOffset: Math.random() * Math.PI * 2
+        });
         return {
-            id: `${room.id}-cache-${index + 1}`,
-            type: 'hidden-cache',
+            ...entityState,
             mesh: built.group,
-            c: slot.c,
-            r: slot.r,
-            hiddenRoomId: room.id,
-            reward,
-            baseY: 0.19,
-            hoverAmplitude: 0.035,
-            hoverSpeed: 2.2,
-            hoverOffset: Math.random() * Math.PI * 2,
-            spinSpeed: 0.92,
-            counterSpinSpeed: 0,
             spinGroup: built.group,
             counterSpinGroup: null
         };
@@ -3694,22 +3693,16 @@ class GameController {
         built.group.scale.setScalar(0.66 + index * 0.04);
         this.engine.scene.add(built.group);
         this.engine.tweens.add(built.group.position, { y: 0.12 }, 0.42, Easing.easeOutBounce);
-        const eventSeed = room.eventSeed || {};
-        const reward = Math.max(10, Math.floor((14 + room.rewardTier * 5 + index * 2) * GameState.level * 0.8 * (eventSeed.rewardMult || 1)));
+        const entityState = buildHiddenEventNodeEntityState({
+            room,
+            slot,
+            index,
+            level: GameState.level,
+            hoverOffset: Math.random() * Math.PI * 2
+        });
         return {
-            id: `${room.id}-event-node-${index + 1}`,
-            type: 'hidden-event-node',
+            ...entityState,
             mesh: built.group,
-            c: slot.c,
-            r: slot.r,
-            hiddenRoomId: room.id,
-            reward,
-            baseY: 0.12,
-            hoverAmplitude: 0.045,
-            hoverSpeed: 2.6,
-            hoverOffset: Math.random() * Math.PI * 2,
-            spinSpeed: 1.35,
-            counterSpinSpeed: 0,
             spinGroup: built.group,
             counterSpinGroup: null
         };
@@ -3731,22 +3724,17 @@ class GameController {
         built.group.scale.setScalar(0.7 + index * 0.05);
         this.engine.scene.add(built.group);
         this.engine.tweens.add(built.group.position, { y: 0.14 }, 0.42, Easing.easeOutBounce);
-        const reward = Math.max(12, Math.floor((16 + room.rewardTier * 6 + index * 3) * GameState.level * (supportDef?.rewardMult || 1)));
+        const entityState = buildHiddenEliteNodeEntityState({
+            room,
+            slot,
+            supportDef,
+            index,
+            level: GameState.level,
+            hoverOffset: Math.random() * Math.PI * 2
+        });
         return {
-            id: `${room.id}-elite-node-${index + 1}`,
-            type: 'hidden-elite-node',
+            ...entityState,
             mesh: built.group,
-            c: slot.c,
-            r: slot.r,
-            hiddenRoomId: room.id,
-            reward,
-            supportData: supportDef,
-            baseY: 0.14,
-            hoverAmplitude: 0.05,
-            hoverSpeed: 2.3,
-            hoverOffset: Math.random() * Math.PI * 2,
-            spinSpeed: 1.24,
-            counterSpinSpeed: 0,
             spinGroup: built.group,
             counterSpinGroup: adornment
         };
@@ -3762,24 +3750,16 @@ class GameController {
         built.group.scale.setScalar(0.64 + index * 0.04);
         this.engine.scene.add(built.group);
         this.engine.tweens.add(built.group.position, { y: 0.15 }, 0.42, Easing.easeOutBounce);
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
-        const trialSeed = room.trialSeed || {};
-        const reward = Math.max(14, Math.floor((18 + room.rewardTier * 7 + index * 4) * GameState.level * (0.82 + rewardProfile.scoreMult * 0.32) * (trialSeed.rewardMult || 1)));
+        const entityState = buildHiddenTrialNodeEntityState({
+            room,
+            slot,
+            index,
+            level: GameState.level,
+            hoverOffset: Math.random() * Math.PI * 2
+        });
         return {
-            id: `${room.id}-trial-node-${index + 1}`,
-            type: 'hidden-trial-node',
+            ...entityState,
             mesh: built.group,
-            c: slot.c,
-            r: slot.r,
-            hiddenRoomId: room.id,
-            reward,
-            hazardRatio: Math.min(0.2, (0.045 + room.rewardTier * 0.012 + index * 0.008) * (trialSeed.hazardMult || 1)),
-            baseY: 0.15,
-            hoverAmplitude: 0.05,
-            hoverSpeed: 2.55,
-            hoverOffset: Math.random() * Math.PI * 2,
-            spinSpeed: 1.2,
-            counterSpinSpeed: 1.55,
             spinGroup: built.group,
             counterSpinGroup: adornment
         };

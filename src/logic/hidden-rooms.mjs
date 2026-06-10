@@ -197,6 +197,130 @@ export function buildEliteEnemyArchetype({
     };
 }
 
+export function buildHiddenCacheEntityState({
+    room = {},
+    slot = {},
+    index = 0,
+    level = 1,
+    hoverOffset = 0
+} = {}) {
+    const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+    const reward = Math.max(
+        8,
+        Math.floor((18 + rewardProfile.chestBonus * 7 + index * 3) * level * (0.7 + rewardProfile.scoreMult))
+    );
+
+    return {
+        id: `${room.id}-cache-${index + 1}`,
+        type: 'hidden-cache',
+        c: slot.c,
+        r: slot.r,
+        hiddenRoomId: room.id,
+        reward,
+        baseY: 0.19,
+        hoverAmplitude: 0.035,
+        hoverSpeed: 2.2,
+        hoverOffset,
+        spinSpeed: 0.92,
+        counterSpinSpeed: 0
+    };
+}
+
+export function buildHiddenEventNodeEntityState({
+    room = {},
+    slot = {},
+    index = 0,
+    level = 1,
+    hoverOffset = 0
+} = {}) {
+    const eventSeed = room.eventSeed || {};
+    const reward = Math.max(
+        10,
+        Math.floor((14 + room.rewardTier * 5 + index * 2) * level * 0.8 * (eventSeed.rewardMult || 1))
+    );
+
+    return {
+        id: `${room.id}-event-node-${index + 1}`,
+        type: 'hidden-event-node',
+        c: slot.c,
+        r: slot.r,
+        hiddenRoomId: room.id,
+        reward,
+        baseY: 0.12,
+        hoverAmplitude: 0.045,
+        hoverSpeed: 2.6,
+        hoverOffset,
+        spinSpeed: 1.35,
+        counterSpinSpeed: 0
+    };
+}
+
+export function buildHiddenEliteNodeEntityState({
+    room = {},
+    slot = {},
+    supportDef = null,
+    index = 0,
+    level = 1,
+    hoverOffset = 0
+} = {}) {
+    const reward = Math.max(
+        12,
+        Math.floor((16 + room.rewardTier * 6 + index * 3) * level * (supportDef?.rewardMult || 1))
+    );
+
+    return {
+        id: `${room.id}-elite-node-${index + 1}`,
+        type: 'hidden-elite-node',
+        c: slot.c,
+        r: slot.r,
+        hiddenRoomId: room.id,
+        reward,
+        supportData: supportDef,
+        baseY: 0.14,
+        hoverAmplitude: 0.05,
+        hoverSpeed: 2.3,
+        hoverOffset,
+        spinSpeed: 1.24,
+        counterSpinSpeed: 0
+    };
+}
+
+export function buildHiddenTrialNodeEntityState({
+    room = {},
+    slot = {},
+    index = 0,
+    level = 1,
+    hoverOffset = 0
+} = {}) {
+    const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+    const trialSeed = room.trialSeed || {};
+    const reward = Math.max(
+        14,
+        Math.floor(
+            (18 + room.rewardTier * 7 + index * 4)
+                * level
+                * (0.82 + rewardProfile.scoreMult * 0.32)
+                * (trialSeed.rewardMult || 1)
+        )
+    );
+
+    return {
+        id: `${room.id}-trial-node-${index + 1}`,
+        type: 'hidden-trial-node',
+        c: slot.c,
+        r: slot.r,
+        hiddenRoomId: room.id,
+        reward,
+        hazardRatio: Math.min(0.2, (0.045 + room.rewardTier * 0.012 + index * 0.008) * (trialSeed.hazardMult || 1)),
+        baseY: 0.15,
+        hoverAmplitude: 0.05,
+        hoverSpeed: 2.55,
+        hoverOffset,
+        spinSpeed: 1.2,
+        counterSpinSpeed: 1.55
+    };
+}
+
 export function getHiddenRoomDiversionThreshold() {
     return HIDDEN_ROOM_ACCESS_PARAMS.diversionThresholdBase;
 }
