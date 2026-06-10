@@ -58,6 +58,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Shared editor select-option rendering now lives in `src/view/editors/editor-select-options.mjs`, and model editor pattern/line style options were extracted into `src/view/editors/model-editor-style-options-ui.mjs` with focused checks and browser smoke coverage.
 - Model editor rendered-control binding now lives in `src/view/editors/model-editor-bindings.mjs`, with focused checks for command/input/backdrop/EyeDropper wiring and browser smoke coverage for header-open/close modal flow.
 - Model editor pointer/preview interaction math now lives in `src/view/editors/model-editor-pointer-ui.mjs`, with focused checks for resize, rotation, drag threshold, wheel zoom, and pointer NDC plus browser smoke coverage for wheel zoom.
+- Model editor pick-selection state decisions now live in `src/view/editors/model-editor-selection-state.mjs`, with focused checks for hit priority, single-select, additive same-kind selection, toggle-clear, miss-clear, and mixed-selection blocking.
 
 ## 1. Browser Smoke Follow-Up
 

@@ -816,6 +816,15 @@ import {
     buildModelEditorSelectionUiState
 } from './src/view/editors/model-editor-selection-ui.mjs';
 import {
+    MODEL_EDITOR_SELECTION_CLEARED,
+    MODEL_EDITOR_SELECTION_MISS,
+    MODEL_EDITOR_SELECTION_MIXED_BLOCKED,
+    chooseModelEditorPickedTarget,
+    buildModelEditorSelectionUpdate,
+    getModelEditorSelectionKey,
+    getModelEditorSelectionKind
+} from './src/view/editors/model-editor-selection-state.mjs';
+import {
     MODEL_EDITOR_PICK_BUTTON,
     MODEL_EDITOR_ROTATE_BUTTON,
     applyModelEditorRotationMove,
@@ -6415,11 +6424,11 @@ class ModelEditor {
     }
 
     getSelectionKind() {
-        return this.selection.length > 0 ? this.selection[0].kind : null;
+        return getModelEditorSelectionKind(this.selection);
     }
 
     getSelectionKey(item) {
-        return `${item.kind}:${item.assetKey}:${item.partKey}:${item.index}`;
+        return getModelEditorSelectionKey(item);
     }
 
     getSelectionEntry(item) {
@@ -6624,37 +6633,34 @@ class ModelEditor {
         const ndc = this.getPointerNdc(event);
         const lineHit = this.pickLineHit(ndc);
         const faceHit = this.pickFaceHit(ndc);
-        const picked = lineHit && (!faceHit || lineHit.distance <= faceHit.distance + 0.06) ? lineHit : faceHit;
+        const picked = chooseModelEditorPickedTarget({ lineHit, faceHit });
+        const selectionUpdate = buildModelEditorSelectionUpdate({
+            selection: this.selection,
+            picked,
+            additive: event.shiftKey
+        });
 
-        if (!picked) {
+        if (selectionUpdate.status === MODEL_EDITOR_SELECTION_MISS) {
             this.clearSelection(false);
-            this.log('No editable face or line was hit.');
+            this.log(selectionUpdate.message);
             return;
         }
 
-        picked.key = this.getSelectionKey(picked);
-        if (event.shiftKey) {
-            const kind = this.getSelectionKind();
-            if (kind && kind !== picked.kind) {
-                this.log('Mixed multi-select is not allowed. Keep face-only or edge-only selections.');
-                return;
-            }
-            const existingIndex = this.selection.findIndex((item) => item.key === picked.key);
-            if (existingIndex >= 0) this.selection.splice(existingIndex, 1);
-            else this.selection.push(picked);
-        } else {
-            this.selection = [picked];
+        if (selectionUpdate.status === MODEL_EDITOR_SELECTION_MIXED_BLOCKED) {
+            this.log(selectionUpdate.message);
+            return;
         }
 
-        if (this.selection.length === 0) {
+        this.selection = selectionUpdate.selection;
+        if (selectionUpdate.status === MODEL_EDITOR_SELECTION_CLEARED) {
             this.clearSelection(false);
-            this.log('Selection cleared.');
+            this.log(selectionUpdate.message);
             return;
         }
 
         this.syncSelectionUi();
         this.updateHighlight();
-        this.log(`Selected ${this.selection.length} ${this.getSelectionKind() === 'mesh' ? 'face' : 'edge'} target(s).`);
+        this.log(selectionUpdate.message);
     }
 
     updateHighlight() {
