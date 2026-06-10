@@ -70,6 +70,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Rest-room hidden reward decisions, state action plans, message assembly, and action application now live in `src/logic/room-reward-state.mjs`, with focused checks for fortify/restock decisions, heal rewards, fallback boosts, and state mutations.
 - Merchant-room hidden reward state plans now share `src/logic/room-reward-state.mjs`, with focused checks for supply purchases, intel fallback bonuses, discounted upgrade rebates, and failed-deal fallback score.
 - Trial-room hidden reward state plans now share `src/logic/room-reward-state.mjs`, with focused checks for repair loops, guard caches, survey scouting, attack overdrive, supply rewards, fallback scouting, and room bonus-supply state.
+- Event-room hidden reward state plans now share `src/logic/room-reward-state.mjs`, with focused checks for healing supplies, repair guards, power penalties, stockpiles, density changes, and Echo Engine next-floor attack capping.
 
 ## 1. Browser Smoke Follow-Up
 

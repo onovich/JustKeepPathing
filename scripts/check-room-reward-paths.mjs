@@ -23,8 +23,15 @@ assert.match(
 
 assert.match(
     indexHtml,
-    /resolveEventRoomV2\(room\)[\s\S]*?resolveEchoEngineEventBonus\(/,
-    'event room final resolution should route Echo Engine handling through resolveEchoEngineEventBonus'
+    /resolveEventRoomV2\(room\)[\s\S]*?buildEventRoomRewardStatePlan\(/,
+    'event room final resolution should route reward state through the shared state-plan helper'
+);
+
+const roomRewardState = fs.readFileSync(path.join(repoRoot, 'src', 'logic', 'room-reward-state.mjs'), 'utf8');
+assert.match(
+    roomRewardState,
+    /buildEventRoomRewardStatePlan\([\s\S]*?resolveEchoEngineEventBonus\(/,
+    'event reward state helper should preserve Echo Engine handling through resolveEchoEngineEventBonus'
 );
 
 const relicRollCalls = [...indexHtml.matchAll(/GameState\.rollRelicReward\(([^)]*)\)/g)].map((match) => match[1].trim());

@@ -1,4 +1,8 @@
-import { buildTrialSupplyRewardPlan } from './room-reward-plans.mjs';
+import {
+    buildEventStockpileSupplyPlan,
+    buildTrialSupplyRewardPlan
+} from './room-reward-plans.mjs';
+import { resolveEchoEngineEventBonus } from './room-reward-resolution.mjs';
 
 export function buildRestRoomRewardDecision({
     hpRatio = 1,
@@ -134,6 +138,131 @@ export function buildMerchantRoomRewardStatePlan({
 
 function getSupplyLabel(supplyLabels = {}, type, fallback = 'supply') {
     return supplyLabels?.[type] || fallback;
+}
+
+export function buildEventRoomRewardStatePlan({
+    roomName = 'Event Room',
+    eventSeed = {},
+    eventRewards = {},
+    playerCurrentHp = 0,
+    playerBaseHp = 1,
+    supplyNeedState = {},
+    supplyPriority = [],
+    supplyLabels = {},
+    hasEchoEngine = false,
+    currentNextFloorAttackBonus = 0
+} = {}) {
+    const effect = eventSeed.effect;
+    const label = eventSeed.label || roomName;
+    const chargeCount = eventRewards.chargeCount || 1;
+    const actions = [];
+    let message = `${label} stabilized the anomaly.`;
+
+    if (effect === 'heal_or_shield') {
+        const heal = eventRewards.healOrShieldHeal || 0;
+        const scoreReward = eventRewards.healOrShieldScore || 0;
+        const nextHp = Math.min(playerBaseHp, playerCurrentHp + heal);
+        actions.push({ type: 'heal-player', amount: heal });
+        actions.push({ type: 'score', amount: scoreReward });
+        if (nextHp >= playerBaseHp * 0.92) {
+            actions.push({ type: 'grant-floor-supply', supplyType: 'salvage', amount: 1 });
+            message = `${label} restored ${heal} HP and added 1 ${getSupplyLabel(supplyLabels, 'salvage')}.`;
+        } else {
+            message = `${label} restored ${heal} HP and granted ${scoreReward} score.`;
+        }
+    } else if (effect === 'next_floor_hidden_room_bonus') {
+        const bonus = eventRewards.nextHiddenRoomBonus || 0;
+        const scoreReward = eventRewards.nextHiddenRoomScore || 0;
+        actions.push({ type: 'increase-next-hidden-room-bonus', amount: bonus, cap: 0.3 });
+        actions.push({ type: 'score', amount: scoreReward });
+        message = `${label} boosted next-floor hidden room odds and granted ${scoreReward} score.`;
+    } else if (effect === 'repair_and_guard') {
+        const heal = eventRewards.repairAndGuardHeal || 0;
+        const reduction = eventRewards.repairAndGuardReduction || 0;
+        actions.push({ type: 'heal-player', amount: heal });
+        actions.push({
+            type: 'multiply-incoming-damage',
+            factor: Math.max(0.56, 1 - reduction)
+        });
+        actions.push({ type: 'score', amount: eventRewards.repairAndGuardScore || 0 });
+        if (chargeCount >= 2) {
+            const supplyType = supplyNeedState.neededType || 'salvage';
+            actions.push({ type: 'grant-floor-supply', supplyType, amount: 1 });
+            message = `${label} repaired for ${heal} HP, reduced incoming damage, and added 1 ${getSupplyLabel(supplyLabels, supplyType)}.`;
+        } else {
+            message = `${label} repaired for ${heal} HP and reduced incoming damage.`;
+        }
+    } else if (effect === 'power_up_with_penalty') {
+        const atkBoost = eventRewards.powerAtkBoost || 0;
+        const hpLoss = eventRewards.powerHpLoss || 0;
+        actions.push({ type: 'increase-player-attack', amount: atkBoost });
+        actions.push({ type: 'damage-player', amount: hpLoss });
+        actions.push({ type: 'score', amount: eventRewards.powerScore || 0 });
+        message = `${label} overclocked attack by +${atkBoost} and lost ${hpLoss} HP.`;
+    } else if (effect === 'chest_density_boost') {
+        const chestBoost = eventRewards.chestBoost || 0;
+        const scoreReward = eventRewards.chestScore || 0;
+        actions.push({ type: 'increase-chest-rate', amount: chestBoost });
+        actions.push({ type: 'score', amount: scoreReward });
+        if (chargeCount >= 2) {
+            actions.push({ type: 'grant-floor-supply', supplyType: 'salvage', amount: 1 });
+            message = `${label} boosted chest density and added 1 ${getSupplyLabel(supplyLabels, 'salvage')}.`;
+        } else {
+            message = `${label} boosted chest density and granted ${scoreReward} score.`;
+        }
+    } else if (effect === 'supply_stockpile') {
+        const stockpilePlan = buildEventStockpileSupplyPlan({
+            firstSupply: supplyNeedState.neededType,
+            priority: supplyPriority,
+            chargeCount
+        });
+        for (const supply of stockpilePlan.supplies) {
+            actions.push({
+                type: 'grant-floor-supply',
+                supplyType: supply.type,
+                amount: supply.amount
+            });
+        }
+        actions.push({ type: 'score', amount: eventRewards.stockpileScore || 0 });
+        const firstSupplyLabel = getSupplyLabel(supplyLabels, stockpilePlan.primary);
+        const secondSupplyLabel = getSupplyLabel(supplyLabels, stockpilePlan.secondary);
+        message = stockpilePlan.grantsSecondSupply
+            ? `${label} granted 1 ${firstSupplyLabel} and 1 ${secondSupplyLabel}.`
+            : `${label} granted 1 ${firstSupplyLabel} and some score.`;
+    } else if (effect === 'monster_density_boost') {
+        const monsterBoost = eventRewards.monsterBoost || 0;
+        const atkBoost = eventRewards.monsterAtkBoost || 0;
+        actions.push({ type: 'increase-monster-rate', amount: monsterBoost });
+        actions.push({ type: 'increase-player-attack', amount: atkBoost });
+        actions.push({ type: 'score', amount: eventRewards.monsterScore || 0 });
+        message = `${label} increased enemy density and attack by ${atkBoost}.`;
+    } else {
+        const unstableReward = eventRewards.unstableReward || 0;
+        const monsterBoost = eventRewards.unstableMonsterBoost || 0;
+        actions.push({ type: 'increase-monster-rate', amount: monsterBoost });
+        actions.push({ type: 'score', amount: unstableReward });
+        message = `${label} granted ${unstableReward} score and increased enemy density.`;
+    }
+
+    const echoBonus = resolveEchoEngineEventBonus({
+        hasEchoEngine,
+        currentNextFloorAttackBonus,
+        attackBonus: eventRewards.echoEngineAttackBonus
+    });
+    if (echoBonus.applied) {
+        actions.push({
+            type: 'set-next-floor-attack-bonus',
+            value: echoBonus.nextFloorAttackBonus
+        });
+    }
+    if (echoBonus.message) message += ` ${echoBonus.message}`;
+
+    return {
+        outcome: effect || 'unstable',
+        actions,
+        message,
+        echoBonus
+    };
 }
 
 function buildTrialSupplyPlan({
@@ -305,8 +434,12 @@ export function applyRoomRewardActions({
             gameState.floorBuff.incomingDamageMult *= action.factor ?? 1;
         } else if (action.type === 'increase-player-attack') {
             gameState.player.baseAtk += action.amount || 0;
+        } else if (action.type === 'damage-player') {
+            gameState.player.currentHp = Math.max(1, gameState.player.currentHp - (action.amount || 0));
         } else if (action.type === 'increase-chest-rate') {
             gameState.maze.baseChestRate += action.amount || 0;
+        } else if (action.type === 'increase-monster-rate') {
+            gameState.maze.baseMonsterRate += action.amount || 0;
         } else if (action.type === 'grant-floor-supply') {
             grantFloorSupply(action.supplyType, action.amount || 1);
         } else if (action.type === 'spend-score') {
@@ -321,6 +454,8 @@ export function applyRoomRewardActions({
                 action.cap ?? Infinity,
                 gameState.meta.nextFloorAttackBonus + (action.amount || 0)
             );
+        } else if (action.type === 'set-next-floor-attack-bonus') {
+            gameState.meta.nextFloorAttackBonus = action.value ?? gameState.meta.nextFloorAttackBonus;
         } else if (action.type === 'buy-upgrade') {
             const bought = !!buyUpgrade(action.upgradeType);
             results.push({

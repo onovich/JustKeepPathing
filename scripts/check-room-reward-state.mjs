@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     applyRoomRewardActions,
+    buildEventRoomRewardStatePlan,
     buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
     buildRestRoomRewardStatePlan,
@@ -48,6 +49,188 @@ assert.deepEqual(
     },
     'restock urgency threshold should preserve current rest-room supply behavior'
 );
+
+{
+    const plan = buildEventRoomRewardStatePlan({
+        roomName: 'Event Room',
+        eventSeed: { effect: 'heal_or_shield', label: 'Heal Seed' },
+        eventRewards: {
+            chargeCount: 1,
+            healOrShieldHeal: 12,
+            healOrShieldScore: 90
+        },
+        playerCurrentHp: 84,
+        playerBaseHp: 100,
+        supplyLabels: { salvage: 'Salvage Supply' }
+    });
+
+    assert.equal(plan.message, 'Heal Seed restored 12 HP and added 1 Salvage Supply.');
+    assert.deepEqual(plan.actions, [
+        { type: 'heal-player', amount: 12 },
+        { type: 'score', amount: 90 },
+        { type: 'grant-floor-supply', supplyType: 'salvage', amount: 1 }
+    ]);
+
+    const state = {
+        score: 0,
+        player: { baseHp: 100, currentHp: 84, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: { salvage: 0 } }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        },
+        grantFloorSupply: (type, amount) => {
+            state.items.supplies[type] = (state.items.supplies[type] || 0) + amount;
+        }
+    });
+
+    assert.equal(state.score, 90);
+    assert.equal(state.player.currentHp, 96);
+    assert.equal(state.items.supplies.salvage, 1);
+}
+
+{
+    const plan = buildEventRoomRewardStatePlan({
+        roomName: 'Guard Event',
+        eventSeed: { effect: 'repair_and_guard', label: 'Repair Guard' },
+        eventRewards: {
+            chargeCount: 2,
+            repairAndGuardHeal: 18,
+            repairAndGuardReduction: 0.12,
+            repairAndGuardScore: 140
+        },
+        playerCurrentHp: 60,
+        playerBaseHp: 100,
+        supplyNeedState: { neededType: 'scout' },
+        supplyLabels: { scout: 'Scout Supply' }
+    });
+
+    assert.equal(
+        plan.message,
+        'Repair Guard repaired for 18 HP, reduced incoming damage, and added 1 Scout Supply.'
+    );
+    assert.deepEqual(plan.actions, [
+        { type: 'heal-player', amount: 18 },
+        { type: 'multiply-incoming-damage', factor: 0.88 },
+        { type: 'score', amount: 140 },
+        { type: 'grant-floor-supply', supplyType: 'scout', amount: 1 }
+    ]);
+}
+
+{
+    const plan = buildEventRoomRewardStatePlan({
+        roomName: 'Power Event',
+        eventSeed: { effect: 'power_up_with_penalty', label: 'Power Seed' },
+        eventRewards: {
+            powerAtkBoost: 5,
+            powerHpLoss: 8,
+            powerScore: 130
+        },
+        playerCurrentHp: 4,
+        playerBaseHp: 100
+    });
+
+    assert.equal(plan.message, 'Power Seed overclocked attack by +5 and lost 8 HP.');
+    assert.deepEqual(plan.actions, [
+        { type: 'increase-player-attack', amount: 5 },
+        { type: 'damage-player', amount: 8 },
+        { type: 'score', amount: 130 }
+    ]);
+
+    const state = {
+        score: 0,
+        player: { baseHp: 100, currentHp: 4, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        }
+    });
+
+    assert.equal(state.player.baseAtk, 25);
+    assert.equal(state.player.currentHp, 1, 'event penalty damage should not defeat the player');
+    assert.equal(state.score, 130);
+}
+
+{
+    const plan = buildEventRoomRewardStatePlan({
+        roomName: 'Stockpile Event',
+        eventSeed: { effect: 'supply_stockpile', label: 'Stockpile Seed' },
+        eventRewards: {
+            chargeCount: 2,
+            stockpileScore: 75
+        },
+        supplyNeedState: { neededType: 'scout' },
+        supplyPriority: ['salvage', 'assault'],
+        supplyLabels: {
+            scout: 'Scout Supply',
+            salvage: 'Salvage Supply'
+        }
+    });
+
+    assert.equal(plan.message, 'Stockpile Seed granted 1 Scout Supply and 1 Salvage Supply.');
+    assert.deepEqual(plan.actions, [
+        { type: 'grant-floor-supply', supplyType: 'scout', amount: 1 },
+        { type: 'grant-floor-supply', supplyType: 'salvage', amount: 1 },
+        { type: 'score', amount: 75 }
+    ]);
+}
+
+{
+    const plan = buildEventRoomRewardStatePlan({
+        roomName: 'Unstable Event',
+        eventSeed: { effect: 'unknown_effect', label: 'Unstable Seed' },
+        eventRewards: {
+            unstableReward: 188,
+            unstableMonsterBoost: 0.012,
+            echoEngineAttackBonus: 0.13
+        },
+        hasEchoEngine: true,
+        currentNextFloorAttackBonus: 0.24
+    });
+
+    assert.equal(
+        plan.message,
+        'Unstable Seed granted 188 score and increased enemy density. Echo Engine preheated next-floor attack by 13%.'
+    );
+    assert.deepEqual(plan.actions, [
+        { type: 'increase-monster-rate', amount: 0.012 },
+        { type: 'score', amount: 188 },
+        { type: 'set-next-floor-attack-bonus', value: 0.32 }
+    ]);
+
+    const state = {
+        score: 0,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0.24 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        }
+    });
+
+    assert.equal(Number(state.maze.baseMonsterRate.toFixed(3)), 0.042);
+    assert.equal(state.score, 188);
+    assert.equal(state.meta.nextFloorAttackBonus, 0.32);
+}
 
 {
     const plan = buildRestRoomRewardStatePlan({

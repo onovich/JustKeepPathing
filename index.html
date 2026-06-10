@@ -756,18 +756,17 @@ import {
     calculateTrialRoomRewards
 } from './src/logic/room-reward-calculations.mjs';
 import {
-    buildEventStockpileSupplyPlan,
     buildMerchantRoomPurchasePlan,
     buildRunRelicRewardRollPlan
 } from './src/logic/room-reward-plans.mjs';
 import {
     buildRunRelicRewardEffectPlan,
     formatRunRelicRewardMessage,
-    resolveEchoEngineEventBonus,
     resolveHiddenRoomRewardMessage
 } from './src/logic/room-reward-resolution.mjs';
 import {
     applyRoomRewardActions,
+    buildEventRoomRewardStatePlan,
     buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
     buildRestRoomRewardStatePlan,
@@ -4219,102 +4218,30 @@ class GameController {
             eventCharge: room.eventCharge,
             playerBaseHp: GameState.player.baseHp
         });
-        const chargeCount = eventRewards.chargeCount;
-        const label = seed.label || room.displayName;
         const supplyNeedState = GameState.getSupportRoomNeedState('event');
-        let message = label + ' stabilized the anomaly.';
+        const supplyLabels = Object.fromEntries(
+            Object.entries(GameState.supplyDefs).map(([type, def]) => [type, def?.label || 'supply'])
+        );
+        const rewardPlan = buildEventRoomRewardStatePlan({
+            roomName: room.displayName,
+            eventSeed: seed,
+            eventRewards,
+            playerCurrentHp: GameState.player.currentHp,
+            playerBaseHp: GameState.player.baseHp,
+            supplyNeedState,
+            supplyPriority: GameState.getSupplyPriority('event'),
+            supplyLabels,
+            hasEchoEngine: GameState.hasRunRelic('echo_engine'),
+            currentNextFloorAttackBonus: GameState.meta.nextFloorAttackBonus
+        });
+        applyRoomRewardActions({
+            gameState: GameState,
+            actions: rewardPlan.actions,
+            addScore: (amount) => GameState.addScore(amount),
+            grantFloorSupply: (type, amount) => GameState.grantFloorSupply(type, amount)
+        });
 
-        if (seed.effect === 'heal_or_shield') {
-            const heal = eventRewards.healOrShieldHeal;
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
-            GameState.addScore(eventRewards.healOrShieldScore);
-            if (GameState.player.currentHp >= GameState.player.baseHp * 0.92) {
-                GameState.grantFloorSupply('salvage', 1);
-                const supplyLabel = GameState.supplyDefs.salvage?.label || 'supply';
-                message = label + ' restored ' + heal + ' HP and added 1 ' + supplyLabel + '.';
-            } else {
-                message = label + ' restored ' + heal + ' HP and granted ' + eventRewards.healOrShieldScore + ' score.';
-            }
-        } else if (seed.effect === 'next_floor_hidden_room_bonus') {
-            const bonus = eventRewards.nextHiddenRoomBonus;
-            GameState.meta.nextHiddenRoomBonus = Math.min(0.3, GameState.meta.nextHiddenRoomBonus + bonus);
-            GameState.addScore(eventRewards.nextHiddenRoomScore);
-            message = label + ' boosted next-floor hidden room odds and granted ' + eventRewards.nextHiddenRoomScore + ' score.';
-        } else if (seed.effect === 'repair_and_guard') {
-            const heal = eventRewards.repairAndGuardHeal;
-            const reduction = eventRewards.repairAndGuardReduction;
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
-            GameState.floorBuff.incomingDamageMult *= Math.max(0.56, 1 - reduction);
-            GameState.addScore(eventRewards.repairAndGuardScore);
-            if (chargeCount >= 2) {
-                const supplyType = supplyNeedState.neededType;
-                const supplyLabel = GameState.supplyDefs[supplyType]?.label || 'supply';
-                GameState.grantFloorSupply(supplyType, 1);
-                message = label + ' repaired for ' + heal + ' HP, reduced incoming damage, and added 1 ' + supplyLabel + '.';
-            } else {
-                message = label + ' repaired for ' + heal + ' HP and reduced incoming damage.';
-            }
-        } else if (seed.effect === 'power_up_with_penalty') {
-            const atkBoost = eventRewards.powerAtkBoost;
-            const hpLoss = eventRewards.powerHpLoss;
-            GameState.player.baseAtk += atkBoost;
-            GameState.player.currentHp = Math.max(1, GameState.player.currentHp - hpLoss);
-            GameState.addScore(eventRewards.powerScore);
-            message = label + ' overclocked attack by +' + atkBoost + ' and lost ' + hpLoss + ' HP.';
-        } else if (seed.effect === 'chest_density_boost') {
-            const chestBoost = eventRewards.chestBoost;
-            GameState.maze.baseChestRate += chestBoost;
-            GameState.addScore(eventRewards.chestScore);
-            if (chargeCount >= 2) {
-                const supplyLabel = GameState.supplyDefs.salvage?.label || 'supply';
-                GameState.grantFloorSupply('salvage', 1);
-                message = label + ' boosted chest density and added 1 ' + supplyLabel + '.';
-            } else {
-                message = label + ' boosted chest density and granted ' + eventRewards.chestScore + ' score.';
-            }
-        } else if (seed.effect === 'supply_stockpile') {
-            const stockpilePlan = buildEventStockpileSupplyPlan({
-                firstSupply: supplyNeedState.neededType,
-                priority: GameState.getSupplyPriority('event'),
-                chargeCount
-            });
-            const firstSupply = stockpilePlan.primary;
-            const secondSupply = stockpilePlan.secondary;
-            const firstSupplyLabel = GameState.supplyDefs[firstSupply]?.label || 'supply';
-            const secondSupplyLabel = GameState.supplyDefs[secondSupply]?.label || 'supply';
-            for (const supply of stockpilePlan.supplies) {
-                GameState.grantFloorSupply(supply.type, supply.amount);
-            }
-            GameState.addScore(eventRewards.stockpileScore);
-            message = stockpilePlan.grantsSecondSupply
-                ? label + ' granted 1 ' + firstSupplyLabel + ' and 1 ' + secondSupplyLabel + '.'
-                : label + ' granted 1 ' + firstSupplyLabel + ' and some score.';
-        } else if (seed.effect === 'monster_density_boost') {
-            const monsterBoost = eventRewards.monsterBoost;
-            const atkBoost = eventRewards.monsterAtkBoost;
-            GameState.maze.baseMonsterRate += monsterBoost;
-            GameState.player.baseAtk += atkBoost;
-            GameState.addScore(eventRewards.monsterScore);
-            message = label + ' increased enemy density and attack by ' + atkBoost + '.';
-        } else {
-            const unstableReward = eventRewards.unstableReward;
-            const monsterBoost = eventRewards.unstableMonsterBoost;
-            GameState.maze.baseMonsterRate += monsterBoost;
-            GameState.addScore(unstableReward);
-            message = label + ' granted ' + unstableReward + ' score and increased enemy density.';
-        }
-
-        if (GameState.hasRunRelic('echo_engine')) {
-            const echoBonus = resolveEchoEngineEventBonus({
-                hasEchoEngine: true,
-                currentNextFloorAttackBonus: GameState.meta.nextFloorAttackBonus,
-                attackBonus: eventRewards.echoEngineAttackBonus
-            });
-            GameState.meta.nextFloorAttackBonus = echoBonus.nextFloorAttackBonus;
-            if (echoBonus.message) message += ' ' + echoBonus.message;
-        }
-
-        return this.finalizeHiddenRoomRewardResolution('event', room, message);
+        return this.finalizeHiddenRoomRewardResolution('event', room, rewardPlan.message);
     }
 
     resolveRestRoom(room) {
