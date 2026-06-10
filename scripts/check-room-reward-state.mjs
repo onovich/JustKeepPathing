@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     applyRoomRewardActions,
+    buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
     buildRestRoomRewardStatePlan
 } from '../src/logic/room-reward-state.mjs';
@@ -163,6 +164,176 @@ assert.deepEqual(
     assert.equal(Number(state.maze.baseChestRate.toFixed(3)), 0.062);
     assert.equal(state.score, 195);
     assert.equal(state.items.supplies.salvage, 0);
+}
+
+{
+    const plan = buildMerchantRoomRewardStatePlan({
+        roomName: 'Smoke Merchant',
+        merchantPlan: { shouldBuySupply: true },
+        merchantRewards: {},
+        neededSupply: 'salvage',
+        neededSupplyLabel: 'Salvage Supply',
+        supplyPrice: 64
+    });
+
+    assert.deepEqual(plan, {
+        outcome: 'supply',
+        actions: [
+            { type: 'spend-score', amount: 64 },
+            { type: 'grant-floor-supply', supplyType: 'salvage', amount: 1 }
+        ],
+        message: 'Smoke Merchant bought 1 Salvage Supply for 64 score.'
+    });
+
+    const state = {
+        score: 100,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05 },
+        meta: { nextHiddenRoomBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: { salvage: 0 } }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: plan.actions,
+        grantFloorSupply: (type, amount) => {
+            state.items.supplies[type] = (state.items.supplies[type] || 0) + amount;
+        }
+    });
+
+    assert.equal(state.score, 36);
+    assert.equal(state.items.supplies.salvage, 1);
+}
+
+{
+    const plan = buildMerchantRoomRewardStatePlan({
+        roomName: 'Intel Merchant',
+        merchantPlan: { shouldBuySupply: false, purchase: null },
+        merchantRewards: {
+            consolation: 161,
+            intelHiddenRoomBonus: 0.05,
+            failedDealFallback: 127
+        },
+        supplyNeedState: {
+            shortfallSeverity: 0.5
+        }
+    });
+
+    assert.equal(plan.outcome, 'intel');
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 161 },
+        { type: 'increase-next-hidden-room-bonus', amount: 0.060000000000000005, cap: 0.24 }
+    ]);
+    assert.equal(
+        plan.message,
+        'Intel Merchant found no good deal, took intel instead, and improved next-floor hidden room odds.'
+    );
+
+    const state = {
+        score: 10,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05 },
+        meta: { nextHiddenRoomBonus: 0.2 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        }
+    });
+
+    assert.equal(state.score, 171);
+    assert.equal(state.meta.nextHiddenRoomBonus, 0.24, 'merchant intel bonus should preserve the existing cap');
+}
+
+{
+    const plan = buildMerchantRoomRewardStatePlan({
+        roomName: 'Upgrade Merchant',
+        merchantPlan: {
+            shouldBuySupply: false,
+            purchase: {
+                type: 'atk',
+                baseCost: 100,
+                discountedCost: 71
+            }
+        },
+        merchantRewards: {
+            failedDealFallback: 127
+        }
+    });
+
+    assert.equal(plan.outcome, 'upgrade');
+    assert.deepEqual(plan.actions, [
+        { type: 'buy-upgrade', upgradeType: 'atk', rebate: 29, failedScore: 127 }
+    ]);
+    assert.equal(plan.message, 'Upgrade Merchant auto-purchased attack upgrade for 71 score.');
+    assert.equal(plan.failureMessage, 'Upgrade Merchant converted the failed deal into 127 score.');
+
+    const state = {
+        score: 120,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05 },
+        meta: { nextHiddenRoomBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    const actionResult = applyRoomRewardActions({
+        gameState: state,
+        actions: plan.actions,
+        buyUpgrade: (type) => {
+            assert.equal(type, 'atk');
+            state.score -= 100;
+            state.player.baseAtk += 1;
+            return true;
+        }
+    });
+
+    assert.deepEqual(actionResult.results, [
+        { type: 'buy-upgrade', upgradeType: 'atk', bought: true }
+    ]);
+    assert.equal(state.score, 49, 'rebate should restore the discount after the normal upgrade purchase');
+    assert.equal(state.player.baseAtk, 21);
+}
+
+{
+    const plan = buildMerchantRoomRewardStatePlan({
+        roomName: 'Failed Merchant',
+        merchantPlan: {
+            shouldBuySupply: false,
+            purchase: {
+                type: 'size',
+                baseCost: 120,
+                discountedCost: 90
+            }
+        },
+        merchantRewards: {
+            failedDealFallback: 88
+        }
+    });
+    const state = {
+        score: 20,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05 },
+        meta: { nextHiddenRoomBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    const actionResult = applyRoomRewardActions({
+        gameState: state,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        },
+        buyUpgrade: () => false
+    });
+
+    assert.deepEqual(actionResult.results, [
+        { type: 'buy-upgrade', upgradeType: 'size', bought: false }
+    ]);
+    assert.equal(state.score, 108);
 }
 
 console.log('room-reward-state checks passed');

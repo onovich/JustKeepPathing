@@ -69,6 +69,67 @@ export function buildRestRoomRewardStatePlan({
     };
 }
 
+export function buildMerchantRoomRewardStatePlan({
+    roomName = 'Merchant Room',
+    merchantPlan = {},
+    merchantRewards = {},
+    neededSupply = 'salvage',
+    neededSupplyLabel = 'supply',
+    supplyPrice = 0,
+    supplyNeedState = {}
+} = {}) {
+    if (merchantPlan.shouldBuySupply) {
+        return {
+            outcome: 'supply',
+            actions: [
+                { type: 'spend-score', amount: supplyPrice },
+                { type: 'grant-floor-supply', supplyType: neededSupply, amount: 1 }
+            ],
+            message: `${roomName} bought 1 ${neededSupplyLabel} for ${supplyPrice} score.`
+        };
+    }
+
+    const purchase = merchantPlan.purchase;
+    if (!purchase) {
+        return {
+            outcome: 'intel',
+            actions: [
+                { type: 'score', amount: merchantRewards.consolation || 0 },
+                {
+                    type: 'increase-next-hidden-room-bonus',
+                    amount: (merchantRewards.intelHiddenRoomBonus || 0) + (supplyNeedState.shortfallSeverity || 0) * 0.02,
+                    cap: 0.24
+                }
+            ],
+            message: `${roomName} found no good deal, took intel instead, and improved next-floor hidden room odds.`
+        };
+    }
+
+    const baseCost = purchase.baseCost || 0;
+    const discountedCost = purchase.discountedCost || baseCost;
+    const rebate = Math.max(0, baseCost - discountedCost);
+    const typeLabels = {
+        atk: 'attack upgrade',
+        hp: 'armor upgrade',
+        chest: 'treasure module',
+        size: 'maze expansion'
+    };
+
+    return {
+        outcome: 'upgrade',
+        actions: [
+            {
+                type: 'buy-upgrade',
+                upgradeType: purchase.type,
+                rebate,
+                failedScore: merchantRewards.failedDealFallback || 0
+            }
+        ],
+        message: `${roomName} auto-purchased ${typeLabels[purchase.type] || 'supplies'} for ${discountedCost} score.`,
+        failureMessage: `${roomName} converted the failed deal into ${merchantRewards.failedDealFallback || 0} score.`
+    };
+}
+
 export function applyRoomRewardActions({
     gameState,
     actions = [],
@@ -77,9 +138,11 @@ export function applyRoomRewardActions({
     },
     grantFloorSupply = (type, amount = 1) => {
         gameState.items.supplies[type] = Math.max(0, (gameState.items.supplies[type] || 0) + amount);
-    }
+    },
+    buyUpgrade = () => false
 } = {}) {
-    if (!gameState) return gameState;
+    const results = [];
+    if (!gameState) return { gameState, results };
 
     for (const action of actions) {
         if (!action) continue;
@@ -98,8 +161,27 @@ export function applyRoomRewardActions({
             gameState.maze.baseChestRate += action.amount || 0;
         } else if (action.type === 'grant-floor-supply') {
             grantFloorSupply(action.supplyType, action.amount || 1);
+        } else if (action.type === 'spend-score') {
+            gameState.score -= action.amount || 0;
+        } else if (action.type === 'increase-next-hidden-room-bonus') {
+            gameState.meta.nextHiddenRoomBonus = Math.min(
+                action.cap ?? Infinity,
+                gameState.meta.nextHiddenRoomBonus + (action.amount || 0)
+            );
+        } else if (action.type === 'buy-upgrade') {
+            const bought = !!buyUpgrade(action.upgradeType);
+            results.push({
+                type: action.type,
+                upgradeType: action.upgradeType,
+                bought
+            });
+            if (bought) {
+                gameState.score += action.rebate || 0;
+            } else {
+                addScore(action.failedScore || 0);
+            }
         }
     }
 
-    return gameState;
+    return { gameState, results };
 }

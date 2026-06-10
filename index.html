@@ -769,6 +769,7 @@ import {
 } from './src/logic/room-reward-resolution.mjs';
 import {
     applyRoomRewardActions,
+    buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
     buildRestRoomRewardStatePlan
 } from './src/logic/room-reward-state.mjs';
@@ -4380,56 +4381,30 @@ class GameController {
             score: GameState.score,
             supplyNeedState
         });
-        if (merchantPlan.shouldBuySupply) {
-            GameState.score -= supplyPrice;
-            GameState.grantFloorSupply(neededSupply, 1);
-            return this.finalizeHiddenRoomRewardResolution(
-                'merchant',
-                room,
-                room.displayName + ' bought 1 ' + neededSupplyLabel + ' for ' + supplyPrice + ' score.'
-            );
-        }
-        const purchase = merchantPlan.purchase;
-        if (!purchase) {
-            const consolation = merchantRewards.consolation;
-            GameState.addScore(consolation);
-            GameState.meta.nextHiddenRoomBonus = Math.min(
-                0.24,
-                GameState.meta.nextHiddenRoomBonus + merchantRewards.intelHiddenRoomBonus + supplyNeedState.shortfallSeverity * 0.02
-            );
-            return this.finalizeHiddenRoomRewardResolution(
-                'merchant',
-                room,
-                room.displayName + ' found no good deal, took intel instead, and improved next-floor hidden room odds.'
-            );
-        }
-
-        const baseCost = purchase.baseCost;
-        const rebate = Math.max(0, baseCost - purchase.discountedCost);
-        const bought = GameState.tryBuy(purchase.type);
-        if (!bought) {
-            const fallback = merchantRewards.failedDealFallback;
-            GameState.addScore(fallback);
-            return this.finalizeHiddenRoomRewardResolution(
-                'merchant',
-                room,
-                room.displayName + ' converted the failed deal into ' + fallback + ' score.'
-            );
-        }
-        if (rebate > 0) {
-            GameState.score += rebate;
-        }
-
-        const typeLabels = {
-            atk: 'attack upgrade',
-            hp: 'armor upgrade',
-            chest: 'treasure module',
-            size: 'maze expansion'
-        };
+        const rewardPlan = buildMerchantRoomRewardStatePlan({
+            roomName: room.displayName,
+            merchantPlan,
+            merchantRewards,
+            neededSupply,
+            neededSupplyLabel,
+            supplyPrice,
+            supplyNeedState
+        });
+        const actionResult = applyRoomRewardActions({
+            gameState: GameState,
+            actions: rewardPlan.actions,
+            addScore: (amount) => GameState.addScore(amount),
+            grantFloorSupply: (type, amount) => GameState.grantFloorSupply(type, amount),
+            buyUpgrade: (type) => GameState.tryBuy(type)
+        });
+        const upgradeResult = actionResult.results.find((result) => result.type === 'buy-upgrade');
+        const message = upgradeResult && !upgradeResult.bought
+            ? rewardPlan.failureMessage
+            : rewardPlan.message;
         return this.finalizeHiddenRoomRewardResolution(
             'merchant',
             room,
-            room.displayName + ' auto-purchased ' + (typeLabels[purchase.type] || 'supplies') + ' for ' + purchase.discountedCost + ' score.'
+            message
         );
     }
     resolveTrialRoomV2(room) {
