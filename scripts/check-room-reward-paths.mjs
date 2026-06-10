@@ -49,6 +49,12 @@ assert.match(
 
 assert.match(
     indexHtml,
+    /resolveHiddenEliteRoomClear\(room, enemyMesh\)[\s\S]*?buildEliteRoomClearRewardStatePlan\(/,
+    'elite hidden room clears should route reward state through the shared state-plan helper'
+);
+
+assert.match(
+    indexHtml,
     /buildRunRelicRewardRollPlan\(\{[\s\S]*?enabled: profile\.boss[\s\S]*?source: 'boss'[\s\S]*?guaranteed: true[\s\S]*?\}\)/,
     'boss clears should build guaranteed relic roll requests through the shared plan helper'
 );

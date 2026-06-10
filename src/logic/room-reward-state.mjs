@@ -406,6 +406,30 @@ export function buildTrialRoomRewardStatePlan({
     };
 }
 
+export function buildEliteRoomClearRewardStatePlan({
+    roomName = 'Elite Room',
+    eliteRewards = {}
+} = {}) {
+    const bonusReward = eliteRewards.bonusReward || 0;
+    const repair = eliteRewards.repair || 0;
+    const actions = [
+        { type: 'score', amount: bonusReward }
+    ];
+    let message = `${roomName} cleared and granted ${bonusReward} bonus score.`;
+
+    if (repair > 0) {
+        actions.push({ type: 'heal-player', amount: repair });
+        message += ` Restored ${repair} HP.`;
+    }
+
+    return {
+        actions,
+        message,
+        bonusReward,
+        repair
+    };
+}
+
 export function applyRoomRewardActions({
     gameState,
     room = null,

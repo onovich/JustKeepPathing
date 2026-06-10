@@ -71,6 +71,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Merchant-room hidden reward state plans now share `src/logic/room-reward-state.mjs`, with focused checks for supply purchases, intel fallback bonuses, discounted upgrade rebates, and failed-deal fallback score.
 - Trial-room hidden reward state plans now share `src/logic/room-reward-state.mjs`, with focused checks for repair loops, guard caches, survey scouting, attack overdrive, supply rewards, fallback scouting, and room bonus-supply state.
 - Event-room hidden reward state plans now share `src/logic/room-reward-state.mjs`, with focused checks for healing supplies, repair guards, power penalties, stockpiles, density changes, and Echo Engine next-floor attack capping.
+- Elite-room clear reward score, repair, and base summary now share `src/logic/room-reward-state.mjs`, with focused checks for HP caps and no-repair summaries while presentation remains in `GameController`.
 
 ## 1. Browser Smoke Follow-Up
 

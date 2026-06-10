@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
     applyRoomRewardActions,
+    buildEliteRoomClearRewardStatePlan,
     buildEventRoomRewardStatePlan,
     buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
@@ -49,6 +50,58 @@ assert.deepEqual(
     },
     'restock urgency threshold should preserve current rest-room supply behavior'
 );
+
+{
+    const plan = buildEliteRoomClearRewardStatePlan({
+        roomName: 'Smoke Elite Room',
+        eliteRewards: {
+            bonusReward: 579,
+            repair: 6
+        }
+    });
+
+    assert.equal(plan.message, 'Smoke Elite Room cleared and granted 579 bonus score. Restored 6 HP.');
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 579 },
+        { type: 'heal-player', amount: 6 }
+    ]);
+    assert.equal(plan.bonusReward, 579);
+    assert.equal(plan.repair, 6);
+
+    const state = {
+        score: 10,
+        player: { baseHp: 80, currentHp: 77, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        }
+    });
+
+    assert.equal(state.score, 589);
+    assert.equal(state.player.currentHp, 80, 'elite repair should cap at max HP');
+}
+
+{
+    const plan = buildEliteRoomClearRewardStatePlan({
+        roomName: 'Dry Elite Room',
+        eliteRewards: {
+            bonusReward: 300,
+            repair: 0
+        }
+    });
+
+    assert.equal(plan.message, 'Dry Elite Room cleared and granted 300 bonus score.');
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 300 }
+    ]);
+}
 
 {
     const plan = buildEventRoomRewardStatePlan({

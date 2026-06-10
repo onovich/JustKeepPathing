@@ -766,6 +766,7 @@ import {
 } from './src/logic/room-reward-resolution.mjs';
 import {
     applyRoomRewardActions,
+    buildEliteRoomClearRewardStatePlan,
     buildEventRoomRewardStatePlan,
     buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
@@ -4544,8 +4545,6 @@ class GameController {
             rewardProfile,
             playerBaseHp: GameState.player.baseHp
         });
-        const bonusReward = eliteRewards.bonusReward;
-        const repair = eliteRewards.repair;
         const relicRollPlan = buildRunRelicRewardRollPlan({
             source: 'elite',
             themeKey: this.floorPlan?.themeKey || GameState.floorContent?.themeKey || null,
@@ -4554,10 +4553,15 @@ class GameController {
         const relicReward = relicRollPlan.shouldRoll
             ? GameState.rollRelicReward(relicRollPlan.request)
             : relicRollPlan.fallback;
-        GameState.addScore(bonusReward);
-        if (repair > 0) {
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + repair);
-        }
+        const rewardPlan = buildEliteRoomClearRewardStatePlan({
+            roomName: room.displayName,
+            eliteRewards
+        });
+        applyRoomRewardActions({
+            gameState: GameState,
+            actions: rewardPlan.actions,
+            addScore: (amount) => GameState.addScore(amount)
+        });
         window.soundEngine?.upgrade();
         this.engine.spawnBurst(enemyMesh.position, 0xa78bfa, 26, 2.4);
         this.engine.addFloatingText(room.displayName + ' cleared', enemyMesh.position, '#c084fc', true);
@@ -4566,14 +4570,10 @@ class GameController {
             enemyMesh.position.clone().add(new THREE.Vector3(0, 0.45, 0)),
             room.displayName
         );
-        let summary = room.displayName + ' cleared and granted ' + bonusReward + ' bonus score.';
-        if (repair > 0) {
-            summary += ' Restored ' + repair + ' HP.';
-        }
-        summary = this.finalizeHiddenRoomRewardResolution(
+        const summary = this.finalizeHiddenRoomRewardResolution(
             'elite',
             room,
-            summary,
+            rewardPlan.message,
             enemyMesh.position.clone(),
             [relicMessage]
         );
