@@ -80,6 +80,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Combat victory reward state now lives in `src/logic/combat-state.mjs`, with focused checks for score rewards, kill counters, and finale bonus score while combat animation and messaging remain in `GameController`.
 - Enemy attack damage and reflex-shield consumption now route through `src/logic/combat-state.mjs`, with focused checks for damage multipliers, shield prevention text, raw combat HP loss, and shield state clearing.
 - Combat profile scaling for rewards, HP, attack, boss multipliers, and elite-support intro text now lives in `src/logic/combat-state.mjs`, with focused checks while hidden-room lookup remains in `GameController`.
+- Player attack damage calculation now routes through `src/logic/combat-state.mjs`, with focused checks for attack multipliers, boss damage dampening, and multiplier fallback while combat animation remains in `GameController`.
 - Exploration chest and level-exit reward state now live in `src/logic/exploration-state.mjs`, with focused checks for chest score multipliers, chest counters, exit score, and level increments while pickup effects remain in `GameController`.
 
 ## 1. Browser Smoke Follow-Up

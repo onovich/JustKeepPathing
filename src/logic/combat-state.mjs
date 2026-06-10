@@ -44,6 +44,22 @@ export function buildCombatProfile({
     };
 }
 
+export function buildPlayerAttackDamageStatePlan({
+    playerBaseAtk = 0,
+    attackMult = 1,
+    attackRoll = 1,
+    boss = false
+} = {}) {
+    const damage = Math.floor(
+        playerBaseAtk
+            * (attackMult || 1)
+            * attackRoll
+            * (boss ? 0.92 : 1)
+    );
+
+    return { damage };
+}
+
 export function buildCombatVictoryStatePlan({
     reward = 0,
     killCount = 1

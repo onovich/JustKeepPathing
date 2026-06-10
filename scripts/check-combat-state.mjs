@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
     buildCombatProfile,
+    buildPlayerAttackDamageStatePlan,
     buildCombatBonusScoreStatePlan,
     buildCombatVictoryStatePlan,
     buildEnemyAttackDamageStatePlan
@@ -91,6 +92,39 @@ const indexHtml = fs.readFileSync(path.join(repoRoot, 'index.html'), 'utf8');
     assert.equal(profile.atk, 24);
     assert.match(profile.intro, /2 个装置/);
     assert.match(profile.intro, /Shield、Amplifier/);
+}
+
+{
+    const plan = buildPlayerAttackDamageStatePlan({
+        playerBaseAtk: 20,
+        attackMult: 1.5,
+        attackRoll: 1.2,
+        boss: false
+    });
+
+    assert.equal(plan.damage, 36);
+}
+
+{
+    const plan = buildPlayerAttackDamageStatePlan({
+        playerBaseAtk: 40,
+        attackMult: 2,
+        attackRoll: 1,
+        boss: true
+    });
+
+    assert.equal(plan.damage, 73);
+}
+
+{
+    const plan = buildPlayerAttackDamageStatePlan({
+        playerBaseAtk: 15,
+        attackMult: 0,
+        attackRoll: 1,
+        boss: false
+    });
+
+    assert.equal(plan.damage, 15);
 }
 
 {
@@ -236,6 +270,12 @@ assert.match(
     indexHtml,
     /buildCombatProfile\(enemyObj\) \{[\s\S]*?buildCombatProfileState\(\{[\s\S]*?activeEliteSupports/,
     'combat profile scaling and elite support summary should route through the shared helper'
+);
+
+assert.match(
+    indexHtml,
+    /startCombatRPG\(enemyObj, enemyNode\)[\s\S]*?buildPlayerAttackDamageStatePlan\([\s\S]*?applyBossMechanicToPlayerDamage/,
+    'player attack damage should route through the shared combat state helper before boss mechanics are applied'
 );
 
 assert.match(

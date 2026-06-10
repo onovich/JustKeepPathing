@@ -737,6 +737,7 @@ import {
 } from './src/logic/auto-strategy.mjs';
 import {
     buildCombatProfile as buildCombatProfileState,
+    buildPlayerAttackDamageStatePlan,
     buildEnemyAttackDamageStatePlan,
     buildCombatBonusScoreStatePlan,
     buildCombatVictoryStatePlan
@@ -5519,7 +5520,13 @@ class GameController {
             await this.typeText(`【玩家的回合】飞碟主炮锁定 ${profile.name}！`);
             await this.sleep(320);
 
-            let damage = Math.floor(GameState.player.baseAtk * (GameState.floorBuff?.attackMult || 1) * (0.84 + Math.random() * 0.42) * (profile.boss ? 0.92 : 1));
+            const playerAttackStatePlan = buildPlayerAttackDamageStatePlan({
+                playerBaseAtk: GameState.player.baseAtk,
+                attackMult: GameState.floorBuff?.attackMult || 1,
+                attackRoll: 0.84 + Math.random() * 0.42,
+                boss: profile.boss
+            });
+            let damage = playerAttackStatePlan.damage;
             const playerDamageResolution = this.applyBossMechanicToPlayerDamage(bossMechanicState, damage, enemyMesh);
             damage = playerDamageResolution.damage;
             const resolvedDamage = damage;
