@@ -1,5 +1,129 @@
 import { RUN_RELIC_SLOTS } from '../data/relics.mjs';
 
+export const HUD_STATUS_LABELS = Object.freeze({
+    GENERATING: '挖掘中',
+    EXPLORING: '自动寻路',
+    COMBAT: 'RPG 战斗模式!',
+    SELFTEST: '自测场景'
+});
+
+export const HUD_STATUS_BOX_CLASS = 'bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]';
+export const HUD_COMBAT_STATUS_BOX_CLASS = 'bg-red-900/95 px-4 py-2 rounded-lg border-2 border-red-500 text-sm shadow-[0_4px_0_rgba(153,27,27,1)] animate-pulse';
+export const HUD_STATUS_TEXT_CLASS = 'text-emerald-400 font-bold ml-1';
+export const HUD_COMBAT_STATUS_TEXT_CLASS = 'text-white font-bold ml-1';
+export const HUD_SUPPLY_PILL_BASE_CLASS = 'px-4 py-2 rounded-lg border-2 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]';
+
+const HUD_SUPPLY_TEXT_CLASSES = Object.freeze({
+    assault: 'text-rose-300',
+    salvage: 'text-amber-300',
+    scout: 'text-cyan-300'
+});
+
+const HUD_SUPPLY_PILL_CLASSES = Object.freeze({
+    assault: 'bg-rose-950/80 border-rose-700/80',
+    salvage: 'bg-amber-950/80 border-amber-700/80',
+    scout: 'bg-cyan-950/80 border-cyan-700/80'
+});
+
+export function buildHudRuntimeStatusState({
+    phase = 'EXPLORING',
+    floorContent = null,
+    floorBuff = {}
+} = {}) {
+    const combat = phase === 'COMBAT';
+    const themeLabel = floorContent?.theme?.label || '';
+    const accent = floorContent?.theme?.accentColor || '#93c5fd';
+    const finaleLabel = floorContent?.isFinaleFloor ? floorContent?.finale?.label || '' : '';
+    const actFloor = floorContent?.actFloor || 1;
+    const actLength = floorContent?.actLength || 6;
+    const supplyActive = !!floorBuff?.supplyActive && !!floorBuff?.supplyLabel;
+    const supplyKey = floorBuff?.supplyKey || '';
+    const themeText = themeLabel
+        ? finaleLabel
+            ? `${themeLabel} · ${actFloor}/${actLength} · ${finaleLabel}`
+            : `${themeLabel} · ${actFloor}/${actLength}`
+        : '';
+
+    return {
+        statusText: HUD_STATUS_LABELS[phase] || '就绪',
+        statusBoxClass: combat ? HUD_COMBAT_STATUS_BOX_CLASS : HUD_STATUS_BOX_CLASS,
+        statusTextClass: combat ? HUD_COMBAT_STATUS_TEXT_CLASS : HUD_STATUS_TEXT_CLASS,
+        theme: {
+            visible: !!themeLabel,
+            borderColor: `${accent}66`,
+            backgroundColor: `${accent}22`,
+            textColor: accent,
+            text: themeText
+        },
+        supply: {
+            visible: supplyActive,
+            label: floorBuff?.supplyLabel || '',
+            pillClass: `${HUD_SUPPLY_PILL_BASE_CLASS} ${HUD_SUPPLY_PILL_CLASSES[supplyKey] || 'bg-slate-900/95 border-slate-700'}`,
+            textClass: `ml-1 inline-block font-bold ${HUD_SUPPLY_TEXT_CLASSES[supplyKey] || 'text-emerald-300'}`
+        }
+    };
+}
+
+export function applyHudRuntimeStatusState(documentRef, state) {
+    if (!documentRef || !state) return null;
+
+    const statusSpan = documentRef.getElementById('ui-status');
+    const statusBox = documentRef.getElementById('ui-status-box');
+    const themePill = documentRef.getElementById('ui-theme-pill');
+    const themePillText = documentRef.getElementById('ui-theme-pill-text');
+    const supplyPill = documentRef.getElementById('ui-supply-pill');
+    const supplyPillText = documentRef.getElementById('ui-supply-pill-text');
+
+    if (statusSpan) {
+        statusSpan.innerText = state.statusText;
+        statusSpan.className = state.statusTextClass;
+    }
+    if (statusBox) statusBox.className = state.statusBoxClass;
+
+    if (themePill && themePillText) {
+        if (state.theme.visible) {
+            themePill.classList.remove('hidden');
+            themePill.style.borderColor = state.theme.borderColor;
+            themePill.style.backgroundColor = state.theme.backgroundColor;
+            themePillText.style.color = state.theme.textColor;
+            themePillText.innerText = state.theme.text;
+        } else {
+            themePill.classList.add('hidden');
+        }
+    }
+
+    if (supplyPill && supplyPillText) {
+        if (state.supply.visible) {
+            supplyPill.classList.remove('hidden');
+            supplyPill.className = state.supply.pillClass;
+            supplyPillText.className = state.supply.textClass;
+            supplyPillText.innerText = state.supply.label;
+        } else {
+            supplyPill.classList.add('hidden');
+        }
+    }
+
+    return {
+        statusSpan,
+        statusBox,
+        themePill,
+        themePillText,
+        supplyPill,
+        supplyPillText
+    };
+}
+
+export function applyHudRuntimeStatus(documentRef, {
+    phase = 'EXPLORING',
+    floorContent = null,
+    floorBuff = {}
+} = {}) {
+    return applyHudRuntimeStatusState(
+        documentRef,
+        buildHudRuntimeStatusState({ phase, floorContent, floorBuff })
+    );
+}
+
 function initializeSupplyCardUi() {
     const card = document.getElementById('ui-supply-card');
     if (!card) return;

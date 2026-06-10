@@ -943,7 +943,10 @@ import {
     applySoundEditorMeta,
     renderSoundEventOptions
 } from './src/view/editors/sound-editor-meta.mjs';
-import { initializeHudStatusUi } from './src/view/hud-status-ui.mjs';
+import {
+    applyHudRuntimeStatus,
+    initializeHudStatusUi
+} from './src/view/hud-status-ui.mjs';
 import {
     applyHudUpgradeStates,
     buildHudUpgradeStates
@@ -1776,58 +1779,11 @@ const GameState = {
             window.loadingOverlay?.hide(0);
         }
 
-        const statusSpan = document.getElementById('ui-status');
-        const statusBox = document.getElementById('ui-status-box');
-        const themePill = document.getElementById('ui-theme-pill');
-        const themePillText = document.getElementById('ui-theme-pill-text');
-        const supplyPill = document.getElementById('ui-supply-pill');
-        const supplyPillText = document.getElementById('ui-supply-pill-text');
-        const statusMap = { GENERATING: '挖掘中', EXPLORING: '自动寻路', COMBAT: 'RPG 战斗模式!', SELFTEST: '自测场景' };
-        statusSpan.innerText = statusMap[this.phase] || '就绪';
-
-        if (this.phase === 'COMBAT') {
-            statusBox.className = 'bg-red-900/95 px-4 py-2 rounded-lg border-2 border-red-500 text-sm shadow-[0_4px_0_rgba(153,27,27,1)] animate-pulse';
-            statusSpan.className = 'text-white font-bold ml-1';
-        } else {
-            statusBox.className = 'bg-slate-900/95 px-4 py-2 rounded-lg border-2 border-slate-700 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)]';
-            statusSpan.className = 'text-emerald-400 font-bold ml-1';
-        }
-        if (themePill && themePillText) {
-            const themeLabel = this.floorContent?.theme?.label;
-            const accent = this.floorContent?.theme?.accentColor || '#93c5fd';
-            if (themeLabel) {
-                themePill.classList.remove('hidden');
-                themePill.style.borderColor = `${accent}66`;
-                themePill.style.backgroundColor = `${accent}22`;
-                themePillText.style.color = accent;
-                const finaleLabel = this.floorContent?.isFinaleFloor ? this.floorContent?.finale?.label : '';
-                themePillText.innerText = finaleLabel
-                    ? `${themeLabel} · ${this.floorContent?.actFloor || 1}/${this.floorContent?.actLength || 6} · ${finaleLabel}`
-                    : `${themeLabel} · ${this.floorContent?.actFloor || 1}/${this.floorContent?.actLength || 6}`;
-            } else {
-                themePill.classList.add('hidden');
-            }
-        }
-        if (supplyPill && supplyPillText) {
-            if (this.floorBuff.supplyActive && this.floorBuff.supplyLabel) {
-                const supplyColors = {
-                    assault: 'text-rose-300',
-                    salvage: 'text-amber-300',
-                    scout: 'text-cyan-300'
-                };
-                const pillClasses = {
-                    assault: 'bg-rose-950/80 border-rose-700/80',
-                    salvage: 'bg-amber-950/80 border-amber-700/80',
-                    scout: 'bg-cyan-950/80 border-cyan-700/80'
-                };
-                supplyPill.classList.remove('hidden');
-                supplyPill.className = `px-4 py-2 rounded-lg border-2 text-sm shadow-[0_4px_0_rgba(0,0,0,0.5)] ${pillClasses[this.floorBuff.supplyKey] || 'bg-slate-900/95 border-slate-700'}`;
-                supplyPillText.className = `ml-1 inline-block font-bold ${supplyColors[this.floorBuff.supplyKey] || 'text-emerald-300'}`;
-                supplyPillText.innerText = this.floorBuff.supplyLabel;
-            } else {
-                supplyPill.classList.add('hidden');
-            }
-        }
+        applyHudRuntimeStatus(document, {
+            phase: this.phase,
+            floorContent: this.floorContent,
+            floorBuff: this.floorBuff
+        });
 
         applyScoreText(document, this.score);
         const collectionBadgeEl = document.getElementById('collection-count-badge');
