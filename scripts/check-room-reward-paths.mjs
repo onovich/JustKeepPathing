@@ -55,6 +55,12 @@ assert.match(
 
 assert.match(
     indexHtml,
+    /resolveHiddenCachePickup\(room, entityObj\)[\s\S]*?buildHiddenCachePickupStatePlan\(/,
+    'treasure cache pickups should route reward state through the shared state-plan helper'
+);
+
+assert.match(
+    indexHtml,
     /resolveHiddenEventNodePickup\(room, entityObj\)[\s\S]*?buildHiddenEventNodePickupStatePlan\(/,
     'event hidden room node pickups should route reward state through the shared state-plan helper'
 );

@@ -73,6 +73,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Event-room hidden reward state plans now share `src/logic/room-reward-state.mjs`, with focused checks for healing supplies, repair guards, power penalties, stockpiles, density changes, and Echo Engine next-floor attack capping.
 - Elite-room clear reward score, repair, and base summary now share `src/logic/room-reward-state.mjs`, with focused checks for HP caps and no-repair summaries while presentation remains in `GameController`.
 - Event, trial, and elite hidden-room node pickup reward state now share `src/logic/room-reward-state.mjs`, with focused checks for charge counters, hazard damage, reward fallbacks, HP floors, and score actions while animations remain in `GameController`.
+- Treasure cache hidden-room pickup reward state now shares `src/logic/room-reward-state.mjs`, with focused checks for chest reward multipliers, score actions, and floor chest counters while random supply drops remain in `GameController`.
 
 ## 1. Browser Smoke Follow-Up
 

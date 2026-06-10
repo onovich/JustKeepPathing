@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
     applyRoomRewardActions,
     buildEliteRoomClearRewardStatePlan,
+    buildHiddenCachePickupStatePlan,
     buildHiddenEliteNodePickupStatePlan,
     buildHiddenEventNodePickupStatePlan,
     buildHiddenTrialNodePickupStatePlan,
@@ -104,6 +105,40 @@ assert.deepEqual(
     assert.deepEqual(plan.actions, [
         { type: 'score', amount: 300 }
     ]);
+}
+
+{
+    const plan = buildHiddenCachePickupStatePlan({
+        level: 3,
+        entityReward: null,
+        chestRewardMult: 1.25
+    });
+
+    assert.equal(plan.reward, 60);
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 60 },
+        { type: 'increment-floor-stat', field: 'chests', amount: 1 }
+    ]);
+
+    const state = {
+        score: 5,
+        floorStats: { chests: 2 },
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05, baseMonsterRate: 0.03 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        }
+    });
+
+    assert.equal(state.score, 65);
+    assert.equal(state.floorStats.chests, 3);
 }
 
 {

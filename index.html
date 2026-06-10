@@ -766,6 +766,7 @@ import {
 } from './src/logic/room-reward-resolution.mjs';
 import {
     applyRoomRewardActions,
+    buildHiddenCachePickupStatePlan,
     buildHiddenEliteNodePickupStatePlan,
     buildHiddenEventNodePickupStatePlan,
     buildHiddenTrialNodePickupStatePlan,
@@ -4445,9 +4446,17 @@ class GameController {
 
     async resolveHiddenCachePickup(room, entityObj) {
         if (!room || room.cleared || !entityObj) return;
-        const reward = Math.floor((entityObj.reward || Math.max(10, 16 * GameState.level)) * (GameState.floorBuff?.chestRewardMult || 1));
-        GameState.addScore(reward);
-        GameState.floorStats.chests += 1;
+        const pickupPlan = buildHiddenCachePickupStatePlan({
+            level: GameState.level,
+            entityReward: entityObj.reward,
+            chestRewardMult: GameState.floorBuff?.chestRewardMult
+        });
+        const reward = pickupPlan.reward;
+        applyRoomRewardActions({
+            gameState: GameState,
+            actions: pickupPlan.actions,
+            addScore: (amount) => GameState.addScore(amount)
+        });
         window.soundEngine?.chest();
         if (entityObj.mesh) {
             this.engine.tweens.add(entityObj.mesh.scale, { x: 1.6, y: 1.6, z: 1.6 }, 0.16, Easing.easeOutQuad, () => {

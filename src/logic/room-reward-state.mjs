@@ -430,6 +430,22 @@ export function buildEliteRoomClearRewardStatePlan({
     };
 }
 
+export function buildHiddenCachePickupStatePlan({
+    level = 1,
+    entityReward = null,
+    chestRewardMult = 1
+} = {}) {
+    const baseReward = entityReward || Math.max(10, 16 * level);
+    const reward = Math.floor(baseReward * (chestRewardMult || 1));
+    return {
+        reward,
+        actions: [
+            { type: 'score', amount: reward },
+            { type: 'increment-floor-stat', field: 'chests', amount: 1 }
+        ]
+    };
+}
+
 export function buildHiddenEventNodePickupStatePlan({
     level = 1,
     entityReward = null
@@ -544,6 +560,9 @@ export function applyRoomRewardActions({
             room[action.field] = action.value ?? null;
         } else if (action.type === 'increment-room-field' && room) {
             room[action.field] = (room[action.field] || 0) + (action.amount || 0);
+        } else if (action.type === 'increment-floor-stat') {
+            if (!gameState.floorStats) gameState.floorStats = {};
+            gameState.floorStats[action.field] = (gameState.floorStats[action.field] || 0) + (action.amount || 0);
         }
     }
 
