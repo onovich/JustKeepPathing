@@ -949,6 +949,10 @@ import {
     buildHudUpgradeStates
 } from './src/view/hud-upgrade-ui.mjs';
 import {
+    applyCombatHpUiState,
+    buildCombatHpUiState
+} from './src/view/combat-hp-ui.mjs';
+import {
     Easing,
     TweenManager
 } from './src/view/tween-manager.mjs';
@@ -5242,50 +5246,13 @@ class GameController {
     }
 
     updateRPG_HP(enemyHp, enemyMaxHp, enemyObj) {
-        const pPercent = Math.max(0, GameState.player.currentHp / GameState.player.baseHp * 100);
-        document.getElementById('rpg-p-hp-bar').style.width = `${pPercent}%`;
-        document.getElementById('rpg-p-hp-text').innerText = `${Math.floor(Math.max(0, GameState.player.currentHp))}/${GameState.player.baseHp}`;
-
-        const mPercent = Math.max(0, enemyHp / enemyMaxHp * 100);
-        const monsterName = document.getElementById('rpg-m-name');
-        const monsterCard = document.getElementById('rpg-m-card');
-        const monsterBar = document.getElementById('rpg-m-hp-bar');
-        const monsterText = document.getElementById('rpg-m-hp-text');
-        monsterName.innerText = enemyObj.enemyData.name;
-        monsterBar.style.width = `${mPercent}%`;
-        monsterText.innerText = `${Math.floor(Math.max(0, enemyHp))}/${Math.floor(enemyMaxHp)}`;
-
-        if (enemyObj.enemyData.boss) {
-            monsterCard.className = 'bg-amber-900/90 border-2 border-amber-400 p-2 md:p-3 rounded-lg w-32 md:w-56 shadow-[0_0_18px_rgba(251,191,36,0.55)] transform skew-x-6 backdrop-blur-sm';
-            monsterName.className = 'text-amber-50 font-bold italic mb-1 text-xs md:text-sm tracking-widest text-right';
-            monsterBar.className = 'bg-amber-400 h-full w-full hp-bar-fill origin-right';
-            monsterText.className = 'text-left text-[10px] md:text-xs text-amber-100 mt-1 font-mono';
-            if (enemyObj.enemyData.finaleBoss) {
-                const accentColor = normalizeColorHex(enemyObj.enemyData.accent || enemyObj.enemyData.color || 0xfbbf24, '#fbbf24');
-                const baseColor = normalizeColorHex(enemyObj.enemyData.color || 0xf59e0b, '#f59e0b');
-                monsterCard.style.borderColor = accentColor;
-                monsterCard.style.boxShadow = `0 0 18px ${accentColor}88`;
-                monsterName.style.color = accentColor;
-                monsterBar.style.background = baseColor;
-                monsterText.style.color = accentColor;
-            } else {
-                monsterCard.style.borderColor = '';
-                monsterCard.style.boxShadow = '';
-                monsterName.style.color = '';
-                monsterBar.style.background = '';
-                monsterText.style.color = '';
-            }
-        } else {
-            monsterCard.className = 'bg-red-900/90 border-2 border-red-500 p-2 md:p-3 rounded-lg w-32 md:w-56 shadow-[0_0_15px_rgba(248,113,113,0.4)] transform skew-x-6 backdrop-blur-sm';
-            monsterName.className = 'text-red-100 font-bold italic mb-1 text-xs md:text-sm tracking-widest text-right';
-            monsterBar.className = 'bg-red-500 h-full w-full hp-bar-fill origin-right';
-            monsterText.className = 'text-left text-[10px] md:text-xs text-red-200 mt-1 font-mono';
-            monsterCard.style.borderColor = '';
-            monsterCard.style.boxShadow = '';
-            monsterName.style.color = '';
-            monsterBar.style.background = '';
-            monsterText.style.color = '';
-        }
+        applyCombatHpUiState(document, buildCombatHpUiState({
+            playerCurrentHp: GameState.player.currentHp,
+            playerBaseHp: GameState.player.baseHp,
+            enemyHp,
+            enemyMaxHp,
+            enemyData: enemyObj.enemyData
+        }));
     }
 
     buildCombatProfile(enemyObj) {
