@@ -45,6 +45,18 @@ function randomInt(min, max, random = Math.random) {
     return Math.floor(min + random() * (max - min + 1));
 }
 
+function normalizeZero(value) {
+    return Object.is(value, -0) ? 0 : value;
+}
+
+function getLeftDir(dir) {
+    return { dc: normalizeZero(dir.dr), dr: normalizeZero(-dir.dc) };
+}
+
+function getRightDir(dir) {
+    return { dc: normalizeZero(-dir.dr), dr: normalizeZero(dir.dc) };
+}
+
 function chooseCandidateForPlacement(candidates, placementKey, usedKeys, random = Math.random) {
     const placement = HIDDEN_ROOM_PLACEMENT_ARCHETYPES[placementKey] || HIDDEN_ROOM_PLACEMENT_ARCHETYPES.branch_pocket;
     const available = candidates.filter((candidate) => !usedKeys.has(candidate.key));
@@ -442,6 +454,76 @@ export function buildTrialRoomNodePrepState({
         trialNodesSpawned: false,
         trialCharge: 0,
         trialHazardTaken: 0
+    };
+}
+
+export function buildHiddenRoomChamberPlan({
+    room = {},
+    cols = 0,
+    rows = 0,
+    endPos = null
+} = {}) {
+    const candidate = room.candidate || {};
+    const entranceDir = candidate.entranceDir || { dc: 0, dr: -1 };
+    const forward = {
+        dc: normalizeZero(-entranceDir.dc),
+        dr: normalizeZero(-entranceDir.dr)
+    };
+    const left = getLeftDir(forward);
+    const right = getRightDir(forward);
+    const offsets = [{ c: 0, r: 0 }];
+    const eliteStyle = room.eliteVariant?.chamberStyle || 'bastion';
+
+    const pushOffset = (c, r) => {
+        if (!offsets.some((offset) => offset.c === c && offset.r === r)) offsets.push({ c, r });
+    };
+
+    if (room.typeKey === 'elite' && eliteStyle === 'corridor') {
+        pushOffset(forward.dc, forward.dr);
+        pushOffset(forward.dc * 2, forward.dr * 2);
+        pushOffset(forward.dc * 3, forward.dr * 3);
+        pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+        pushOffset(forward.dc * 2 + right.dc, forward.dr * 2 + right.dr);
+        pushOffset(forward.dc * 3 + left.dc, forward.dr * 3 + left.dr);
+    } else if (room.typeKey === 'elite' && eliteStyle === 'fork') {
+        pushOffset(forward.dc, forward.dr);
+        pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+        pushOffset(forward.dc + right.dc, forward.dr + right.dr);
+        pushOffset(forward.dc * 2 + left.dc, forward.dr * 2 + left.dr);
+        pushOffset(forward.dc * 2 + right.dc, forward.dr * 2 + right.dr);
+        pushOffset(forward.dc * 2, forward.dr * 2);
+    } else if (room.placementKey === 'deep_route_reward' || room.typeKey === 'elite') {
+        pushOffset(forward.dc, forward.dr);
+        pushOffset(forward.dc * 2, forward.dr * 2);
+        pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+        pushOffset(forward.dc + right.dc, forward.dr + right.dr);
+        pushOffset(forward.dc * 2 + left.dc, forward.dr * 2 + left.dr);
+        pushOffset(forward.dc * 2 + right.dc, forward.dr * 2 + right.dr);
+    } else if (room.placementKey === 'sealed_chamber') {
+        pushOffset(left.dc, left.dr);
+        pushOffset(right.dc, right.dr);
+        pushOffset(forward.dc, forward.dr);
+        pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+        pushOffset(forward.dc + right.dc, forward.dr + right.dr);
+    } else {
+        pushOffset(forward.dc, forward.dr);
+        pushOffset(forward.dc + left.dc, forward.dr + left.dr);
+        pushOffset(forward.dc + right.dc, forward.dr + right.dr);
+    }
+
+    const anchor = room.anchor || {};
+    const candidateCells = offsets
+        .map((offset) => ({
+            c: anchor.c + offset.c,
+            r: anchor.r + offset.r
+        }))
+        .filter((cell) => cell.c > 0 && cell.r > 0 && cell.c < cols - 1 && cell.r < rows - 1)
+        .filter((cell) => !(cell.c === 1 && cell.r === 1))
+        .filter((cell) => !(endPos && cell.c === endPos.c && cell.r === endPos.r));
+
+    return {
+        blueprint: { forward, left, right, offsets },
+        candidateCells
     };
 }
 

@@ -40,6 +40,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Elite enemy archetype construction now lives in `src/logic/hidden-rooms.mjs`, with focused checks for stat scaling, reward tier fallback, variant intro text, and the `GameController` path guard.
 - Hidden cache, event, elite-support, and trial node entity state now lives in `src/logic/hidden-rooms.mjs`, with focused checks for reward formulas, hazard ratio, support data, animation state, and controller path guards.
 - Hidden room cache/event/elite/trial preparation now lives in `src/logic/hidden-rooms.mjs`, with focused checks for slot sorting, node counts, elite support selection, reset state, and controller path guards.
+- Hidden room chamber blueprint and candidate-cell planning now lives in `src/logic/hidden-rooms.mjs`, with focused checks for shape offsets, bounds/exit filtering, and the `GameController` path guard while grid carving remains in `GameController`.
 - Theme-chain bonus formulas were extracted into `src/logic/theme-chain-bonuses.mjs`, with focused checks and `GameController` still owning message/effect presentation.
 - Event, rest, merchant, trial, and elite room reward formulas were extracted into `src/logic/room-reward-calculations.mjs`, with focused checks.
 - Event stockpile, trial supply rewards, and merchant purchase decisions were extracted into `src/logic/room-reward-plans.mjs`, with focused checks.

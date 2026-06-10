@@ -8,6 +8,7 @@ import {
     buildHiddenCacheEntityState,
     buildHiddenEliteNodeEntityState,
     buildHiddenEventNodeEntityState,
+    buildHiddenRoomChamberPlan,
     buildHiddenRoomPlan,
     buildHiddenTrialNodeEntityState,
     buildTreasureRoomCachePrepState,
@@ -49,6 +50,74 @@ assert.ok(rooms[0].typeKey, 'generated room should include a type key');
 assert.ok(rooms[0].placementKey, 'generated room should include a placement key');
 assert.equal(rooms[0].candidate.key, candidates[0].key, 'generated room should keep the selected candidate');
 assert.equal(typeof rooms[0].accessScore, 'number', 'generated room should include access scoring');
+
+{
+    const plan = buildHiddenRoomChamberPlan({
+        room: {
+            id: 'room-a',
+            typeKey: 'event',
+            placementKey: 'sealed_chamber',
+            anchor: { c: 5, r: 5 },
+            candidate: { entranceDir: { dc: 0, dr: 1 } }
+        },
+        cols: 10,
+        rows: 10,
+        endPos: { c: 8, r: 8 }
+    });
+
+    assert.deepEqual(plan.blueprint.forward, { dc: 0, dr: -1 });
+    assert.deepEqual(plan.blueprint.left, { dc: -1, dr: 0 });
+    assert.deepEqual(plan.blueprint.right, { dc: 1, dr: 0 });
+    assert.deepEqual(plan.blueprint.offsets, [
+        { c: 0, r: 0 },
+        { c: -1, r: 0 },
+        { c: 1, r: 0 },
+        { c: 0, r: -1 },
+        { c: -1, r: -1 },
+        { c: 1, r: -1 }
+    ]);
+    assert.deepEqual(plan.candidateCells, [
+        { c: 5, r: 5 },
+        { c: 4, r: 5 },
+        { c: 6, r: 5 },
+        { c: 5, r: 4 },
+        { c: 4, r: 4 },
+        { c: 6, r: 4 }
+    ]);
+}
+
+{
+    const plan = buildHiddenRoomChamberPlan({
+        room: {
+            id: 'elite-corridor',
+            typeKey: 'elite',
+            placementKey: 'outer_extension',
+            eliteVariant: { chamberStyle: 'corridor' },
+            anchor: { c: 2, r: 2 },
+            candidate: { entranceDir: { dc: -1, dr: 0 } }
+        },
+        cols: 6,
+        rows: 6,
+        endPos: { c: 4, r: 2 }
+    });
+
+    assert.deepEqual(plan.blueprint.forward, { dc: 1, dr: 0 });
+    assert.deepEqual(plan.blueprint.offsets, [
+        { c: 0, r: 0 },
+        { c: 1, r: 0 },
+        { c: 2, r: 0 },
+        { c: 3, r: 0 },
+        { c: 1, r: -1 },
+        { c: 2, r: 1 },
+        { c: 3, r: -1 }
+    ]);
+    assert.deepEqual(plan.candidateCells, [
+        { c: 2, r: 2 },
+        { c: 3, r: 2 },
+        { c: 3, r: 1 },
+        { c: 4, r: 3 }
+    ]);
+}
 
 const roomWithInteriorCells = {
     anchor: { c: 0, r: 0 },
@@ -384,6 +453,18 @@ assert.match(
     indexHtml,
     /prepareTrialRoomNodes\(room\) \{[\s\S]*?buildTrialRoomNodePrepState\(/,
     'trial room node preparation should route through the hidden-room helper'
+);
+
+assert.match(
+    indexHtml,
+    /carveHiddenRoomChamber\(room\) \{[\s\S]*?buildHiddenRoomChamberPlan\(/,
+    'hidden-room chamber blueprint and candidate-cell planning should route through the hidden-room helper'
+);
+
+assert.doesNotMatch(
+    indexHtml,
+    /getHiddenRoomChamberBlueprint\(room\)/,
+    'hidden-room chamber blueprint calculation should no longer live in GameController'
 );
 
 console.log('hidden-rooms checks passed');

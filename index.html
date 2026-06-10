@@ -713,6 +713,7 @@ import {
     buildTreasureRoomCachePrepState,
     buildEliteRoomEncounterPrepState,
     buildEventRoomNodePrepState,
+    buildHiddenRoomChamberPlan,
     buildHiddenRoomPlan,
     buildHiddenTrialNodeEntityState,
     buildTrialRoomNodePrepState,
@@ -3342,79 +3343,16 @@ class GameController {
         return group;
     }
 
-    getLeftDir(dir) {
-        return { dc: dir.dr, dr: -dir.dc };
-    }
-
-    getRightDir(dir) {
-        return { dc: -dir.dr, dr: dir.dc };
-    }
-
-    addDir(origin, dir, scale = 1) {
-        return {
-            c: origin.c + dir.dc * scale,
-            r: origin.r + dir.dr * scale
-        };
-    }
-
-    getHiddenRoomChamberBlueprint(room) {
-        const candidate = room.candidate || {};
-        const entranceDir = candidate.entranceDir || { dc: 0, dr: -1 };
-        const forward = { dc: -entranceDir.dc, dr: -entranceDir.dr };
-        const left = this.getLeftDir(forward);
-        const right = this.getRightDir(forward);
-        const offsets = [{ c: 0, r: 0 }];
-        const eliteStyle = room.eliteVariant?.chamberStyle || 'bastion';
-
-        const pushOffset = (c, r) => {
-            if (!offsets.some((offset) => offset.c === c && offset.r === r)) offsets.push({ c, r });
-        };
-
-        if (room.typeKey === 'elite' && eliteStyle === 'corridor') {
-            pushOffset(forward.dc, forward.dr);
-            pushOffset(forward.dc * 2, forward.dr * 2);
-            pushOffset(forward.dc * 3, forward.dr * 3);
-            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
-            pushOffset(forward.dc * 2 + right.dc, forward.dr * 2 + right.dr);
-            pushOffset(forward.dc * 3 + left.dc, forward.dr * 3 + left.dr);
-        } else if (room.typeKey === 'elite' && eliteStyle === 'fork') {
-            pushOffset(forward.dc, forward.dr);
-            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
-            pushOffset(forward.dc + right.dc, forward.dr + right.dr);
-            pushOffset(forward.dc * 2 + left.dc, forward.dr * 2 + left.dr);
-            pushOffset(forward.dc * 2 + right.dc, forward.dr * 2 + right.dr);
-            pushOffset(forward.dc * 2, forward.dr * 2);
-        } else if (room.placementKey === 'deep_route_reward' || room.typeKey === 'elite') {
-            pushOffset(forward.dc, forward.dr);
-            pushOffset(forward.dc * 2, forward.dr * 2);
-            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
-            pushOffset(forward.dc + right.dc, forward.dr + right.dr);
-            pushOffset(forward.dc * 2 + left.dc, forward.dr * 2 + left.dr);
-            pushOffset(forward.dc * 2 + right.dc, forward.dr * 2 + right.dr);
-        } else if (room.placementKey === 'sealed_chamber') {
-            pushOffset(left.dc, left.dr);
-            pushOffset(right.dc, right.dr);
-            pushOffset(forward.dc, forward.dr);
-            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
-            pushOffset(forward.dc + right.dc, forward.dr + right.dr);
-        } else {
-            pushOffset(forward.dc, forward.dr);
-            pushOffset(forward.dc + left.dc, forward.dr + left.dr);
-            pushOffset(forward.dc + right.dc, forward.dr + right.dr);
-        }
-
-        return { forward, left, right, offsets };
-    }
-
     carveHiddenRoomChamber(room) {
-        const blueprint = this.getHiddenRoomChamberBlueprint(room);
+        const chamberPlan = buildHiddenRoomChamberPlan({
+            room,
+            cols: this.cols,
+            rows: this.rows,
+            endPos: this.endPos
+        });
         const cells = [];
 
-        for (const offset of blueprint.offsets) {
-            const c = room.anchor.c + offset.c;
-            const r = room.anchor.r + offset.r;
-            if (c <= 0 || r <= 0 || c >= this.cols - 1 || r >= this.rows - 1) continue;
-            if ((c === 1 && r === 1) || (c === this.endPos.c && r === this.endPos.r)) continue;
+        for (const { c, r } of chamberPlan.candidateCells) {
             const cell = this.grid?.[r]?.[c];
             if (!cell) continue;
             if (cell.hiddenRoomId && cell.hiddenRoomId !== room.id) continue;
@@ -3423,7 +3361,7 @@ class GameController {
         }
 
         room.chamberCells = cells.map((cell) => ({ c: cell.c, r: cell.r }));
-        room.chamberBlueprint = blueprint;
+        room.chamberBlueprint = chamberPlan.blueprint;
         return cells;
     }
 
