@@ -25,6 +25,22 @@ const HUD_SUPPLY_PILL_CLASSES = Object.freeze({
     scout: 'bg-cyan-950/80 border-cyan-700/80'
 });
 
+export const HUD_SUPPLY_MODE_LABELS = Object.freeze({
+    balanced: '自动均衡',
+    combat: '偏战斗',
+    loot: '偏资源',
+    explore: '偏密室'
+});
+
+const HUD_SUPPLY_ACTIVE_DESCRIPTIONS = Object.freeze({
+    assault: '本层当前偏战斗推进。系统会自动消耗储备，不需要手动购买。',
+    salvage: '本层当前偏资源回收。系统会自动消耗储备，不需要手动购买。',
+    scout: '本层当前偏密室探索。系统会自动消耗储备，不需要手动购买。'
+});
+
+export const HUD_SUPPLY_RESERVE_DESCRIPTION = '系统会在合适的楼层自动消耗补给储备，不需要你重复操作。';
+export const HUD_SUPPLY_EMPTY_DESCRIPTION = '当前没有补给储备。后续可通过宝箱、房间奖励和主题效果自动补充。';
+
 export function buildHudRuntimeStatusState({
     phase = 'EXPLORING',
     floorContent = null,
@@ -121,6 +137,50 @@ export function applyHudRuntimeStatus(documentRef, {
     return applyHudRuntimeStatusState(
         documentRef,
         buildHudRuntimeStatusState({ phase, floorContent, floorBuff })
+    );
+}
+
+export function buildHudSupplyCardState({
+    supplyMode = 'balanced',
+    totalSupply = 0,
+    floorBuff = {}
+} = {}) {
+    const count = Number.isFinite(Number(totalSupply)) ? Number(totalSupply) : 0;
+    const supplyKey = floorBuff?.supplyKey || '';
+    const activeDescription = HUD_SUPPLY_ACTIVE_DESCRIPTIONS[supplyKey] || '';
+    return {
+        modeText: HUD_SUPPLY_MODE_LABELS[supplyMode] || HUD_SUPPLY_MODE_LABELS.balanced,
+        statusText: `补给储备 x${count}`,
+        descText: activeDescription || (count > 0 ? HUD_SUPPLY_RESERVE_DESCRIPTION : HUD_SUPPLY_EMPTY_DESCRIPTION)
+    };
+}
+
+export function applyHudSupplyCardState(documentRef, state) {
+    if (!documentRef || !state) return null;
+
+    const supplyModeEl = documentRef.getElementById('ui-supply-mode');
+    const supplyStatusEl = documentRef.getElementById('ui-supply-status');
+    const supplyDescEl = documentRef.getElementById('ui-supply-desc');
+
+    if (supplyModeEl) supplyModeEl.innerText = state.modeText;
+    if (supplyStatusEl) supplyStatusEl.innerText = state.statusText;
+    if (supplyDescEl) supplyDescEl.innerText = state.descText;
+
+    return {
+        supplyModeEl,
+        supplyStatusEl,
+        supplyDescEl
+    };
+}
+
+export function applyHudSupplyCard(documentRef, {
+    supplyMode = 'balanced',
+    totalSupply = 0,
+    floorBuff = {}
+} = {}) {
+    return applyHudSupplyCardState(
+        documentRef,
+        buildHudSupplyCardState({ supplyMode, totalSupply, floorBuff })
     );
 }
 

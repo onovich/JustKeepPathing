@@ -944,6 +944,7 @@ import {
     renderSoundEventOptions
 } from './src/view/editors/sound-editor-meta.mjs';
 import {
+    applyHudSupplyCard,
     applyHudRuntimeStatus,
     initializeHudStatusUi
 } from './src/view/hud-status-ui.mjs';
@@ -1824,35 +1825,11 @@ const GameState = {
             mazeSide: this.getMazeSide(),
             sizeMaxed: this.isMazeSizeMaxed()
         }));
-        const totalSupply = this.getTotalSupplyCount();
-        const supplyModeEl = document.getElementById('ui-supply-mode');
-        const supplyStatusEl = document.getElementById('ui-supply-status');
-        const supplyModeLabels = {
-            balanced: '自动均衡',
-            combat: '偏战斗',
-            loot: '偏资源',
-            explore: '偏密室'
-        };
-        if (supplyModeEl) {
-            supplyModeEl.innerText = supplyModeLabels[this.autoStrategy.supply] || '自动均衡';
-        }
-        if (supplyStatusEl) {
-            supplyStatusEl.innerText = `补给储备 x${totalSupply}`;
-        }
-        const supplyDesc = document.getElementById('ui-supply-desc');
-        if (supplyDesc) {
-            if (this.floorBuff.supplyKey === 'assault') {
-                supplyDesc.innerText = '本层当前偏战斗推进。系统会自动消耗储备，不需要手动购买。';
-            } else if (this.floorBuff.supplyKey === 'salvage') {
-                supplyDesc.innerText = '本层当前偏资源回收。系统会自动消耗储备，不需要手动购买。';
-            } else if (this.floorBuff.supplyKey === 'scout') {
-                supplyDesc.innerText = '本层当前偏密室探索。系统会自动消耗储备，不需要手动购买。';
-            } else {
-                supplyDesc.innerText = totalSupply > 0
-                    ? '系统会在合适的楼层自动消耗补给储备，不需要你重复操作。'
-                    : '当前没有补给储备。后续可通过宝箱、房间奖励和主题效果自动补充。';
-            }
-        }
+        applyHudSupplyCard(document, {
+            supplyMode: this.autoStrategy.supply,
+            totalSupply: this.getTotalSupplyCount(),
+            floorBuff: this.floorBuff
+        });
 
         const sizeDesc = document.getElementById('desc-size');
         if (sizeDesc) {

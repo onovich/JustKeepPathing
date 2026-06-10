@@ -6,8 +6,13 @@ import {
     HUD_COMBAT_STATUS_TEXT_CLASS,
     HUD_STATUS_BOX_CLASS,
     HUD_STATUS_TEXT_CLASS,
+    HUD_SUPPLY_EMPTY_DESCRIPTION,
+    HUD_SUPPLY_RESERVE_DESCRIPTION,
+    applyHudSupplyCard,
+    applyHudSupplyCardState,
     applyHudRuntimeStatus,
     applyHudRuntimeStatusState,
+    buildHudSupplyCardState,
     buildHudRuntimeStatusState
 } from '../src/view/hud-status-ui.mjs';
 
@@ -54,7 +59,10 @@ function createDocument() {
         'ui-theme-pill': createElement('hidden'),
         'ui-theme-pill-text': createElement(),
         'ui-supply-pill': createElement('hidden'),
-        'ui-supply-pill-text': createElement()
+        'ui-supply-pill-text': createElement(),
+        'ui-supply-mode': createElement(),
+        'ui-supply-status': createElement(),
+        'ui-supply-desc': createElement()
     };
 
     return {
@@ -182,10 +190,73 @@ assert.deepEqual(
 
 assert.equal(applyHudRuntimeStatusState(null, buildHudRuntimeStatusState()), null);
 
+assert.deepEqual(
+    buildHudSupplyCardState({
+        supplyMode: 'combat',
+        totalSupply: 3,
+        floorBuff: { supplyKey: 'assault' }
+    }),
+    {
+        modeText: '偏战斗',
+        statusText: '补给储备 x3',
+        descText: '本层当前偏战斗推进。系统会自动消耗储备，不需要手动购买。'
+    },
+    'active assault supply card state should show combat mode and active supply copy'
+);
+
+assert.deepEqual(
+    buildHudSupplyCardState({
+        supplyMode: 'unknown',
+        totalSupply: 2,
+        floorBuff: {}
+    }),
+    {
+        modeText: '自动均衡',
+        statusText: '补给储备 x2',
+        descText: HUD_SUPPLY_RESERVE_DESCRIPTION
+    },
+    'supply card should fall back to balanced mode and reserve copy'
+);
+
+assert.equal(
+    buildHudSupplyCardState({
+        supplyMode: 'loot',
+        totalSupply: 0,
+        floorBuff: {}
+    }).descText,
+    HUD_SUPPLY_EMPTY_DESCRIPTION,
+    'empty supply card should explain how reserves can be refilled'
+);
+
+{
+    const documentRef = createDocument();
+    const applied = applyHudSupplyCard(documentRef, {
+        supplyMode: 'explore',
+        totalSupply: 4,
+        floorBuff: { supplyKey: 'scout' }
+    });
+
+    assert.equal(applied.supplyModeEl, documentRef.elements['ui-supply-mode']);
+    assert.equal(documentRef.elements['ui-supply-mode'].innerText, '偏密室');
+    assert.equal(documentRef.elements['ui-supply-status'].innerText, '补给储备 x4');
+    assert.equal(
+        documentRef.elements['ui-supply-desc'].innerText,
+        '本层当前偏密室探索。系统会自动消耗储备，不需要手动购买。'
+    );
+}
+
+assert.equal(applyHudSupplyCardState(null, buildHudSupplyCardState()), null);
+
 assert.match(
     indexHtml,
     /updateUI\(\) \{[\s\S]*?applyHudRuntimeStatus\(document, \{[\s\S]*?phase: this\.phase[\s\S]*?floorContent: this\.floorContent[\s\S]*?floorBuff: this\.floorBuff/,
     'GameState.updateUI should route HUD runtime status through the shared view helper'
+);
+
+assert.match(
+    indexHtml,
+    /updateUI\(\) \{[\s\S]*?applyHudSupplyCard\(document, \{[\s\S]*?supplyMode: this\.autoStrategy\.supply[\s\S]*?totalSupply: this\.getTotalSupplyCount\(\)[\s\S]*?floorBuff: this\.floorBuff/,
+    'GameState.updateUI should route HUD supply card text through the shared view helper'
 );
 
 const updateUiStart = indexHtml.indexOf('    updateUI() {');
@@ -197,6 +268,17 @@ assert.doesNotMatch(
     hudStatusSlice,
     /statusMap|themePill\.style|supplyPill\.className/,
     'GameState.updateUI should not own HUD status, theme pill, or supply pill styling'
+);
+
+const supplyCardStart = indexHtml.indexOf('        applyHudSupplyCard(document, {', updateUiStart);
+const supplyCardEnd = indexHtml.indexOf('        const sizeDesc = document.getElementById', supplyCardStart);
+assert.notEqual(supplyCardStart, -1, 'supply card update should stay discoverable');
+assert.notEqual(supplyCardEnd, -1, 'size description should stay after supply card update');
+const supplyCardSlice = indexHtml.slice(supplyCardStart, supplyCardEnd);
+assert.doesNotMatch(
+    supplyCardSlice,
+    /supplyModeLabels|ui-supply-mode|ui-supply-status|ui-supply-desc/,
+    'GameState.updateUI should not own HUD supply card text branches'
 );
 
 console.log('hud-status-ui checks passed');
