@@ -183,11 +183,15 @@ export function getHiddenRoomRewardTier(rewardTier) {
     return HIDDEN_ROOM_REWARD_TIERS[rewardTier] || HIDDEN_ROOM_REWARD_TIERS[1];
 }
 
+export function getHiddenRoomRewardProfile(room = {}) {
+    return room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+}
+
 export function buildEliteEnemyArchetype({
     baseEnemy = {},
     room = {}
 } = {}) {
-    const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+    const rewardProfile = getHiddenRoomRewardProfile(room);
     const variantLabel = room.eliteVariant?.label || room.displayName;
     const variantHint = room.eliteVariant?.introHint || '精英正在深处待命。';
 
@@ -216,7 +220,7 @@ export function buildHiddenCacheEntityState({
     level = 1,
     hoverOffset = 0
 } = {}) {
-    const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+    const rewardProfile = getHiddenRoomRewardProfile(room);
     const reward = Math.max(
         8,
         Math.floor((18 + rewardProfile.chestBonus * 7 + index * 3) * level * (0.7 + rewardProfile.scoreMult))
@@ -304,7 +308,7 @@ export function buildHiddenTrialNodeEntityState({
     level = 1,
     hoverOffset = 0
 } = {}) {
-    const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+    const rewardProfile = getHiddenRoomRewardProfile(room);
     const trialSeed = room.trialSeed || {};
     const reward = Math.max(
         14,
@@ -354,7 +358,7 @@ export function buildTreasureRoomCachePrepState({
     room = {}
 } = {}) {
     const slots = buildDistanceSortedRoomSlots(room);
-    const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+    const rewardProfile = getHiddenRoomRewardProfile(room);
     const count = Math.min(slots.length, Math.max(2, rewardProfile.chestBonus));
 
     return {

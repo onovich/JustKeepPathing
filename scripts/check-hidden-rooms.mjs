@@ -13,6 +13,7 @@ import {
     buildHiddenTrialNodeEntityState,
     buildTreasureRoomCachePrepState,
     buildTrialRoomNodePrepState,
+    getHiddenRoomRewardProfile,
     getHiddenRoomRewardTier
 } from '../src/logic/hidden-rooms.mjs';
 
@@ -50,6 +51,20 @@ assert.ok(rooms[0].typeKey, 'generated room should include a type key');
 assert.ok(rooms[0].placementKey, 'generated room should include a placement key');
 assert.equal(rooms[0].candidate.key, candidates[0].key, 'generated room should keep the selected candidate');
 assert.equal(typeof rooms[0].accessScore, 'number', 'generated room should include access scoring');
+
+{
+    const explicitProfile = { chestBonus: 9, scoreMult: 2.5, repairValue: 0.5 };
+    assert.equal(
+        getHiddenRoomRewardProfile({ rewardProfile: explicitProfile, rewardTier: 1 }),
+        explicitProfile,
+        'explicit hidden-room reward profile should be preserved'
+    );
+    assert.deepEqual(
+        getHiddenRoomRewardProfile({ rewardTier: 99 }),
+        getHiddenRoomRewardTier(99),
+        'missing hidden-room reward profile should fall back to the resolved reward tier'
+    );
+}
 
 {
     const plan = buildHiddenRoomChamberPlan({
@@ -465,6 +480,42 @@ assert.doesNotMatch(
     indexHtml,
     /getHiddenRoomChamberBlueprint\(room\)/,
     'hidden-room chamber blueprint calculation should no longer live in GameController'
+);
+
+assert.match(
+    indexHtml,
+    /resolveEventRoomV2\(room\) \{[\s\S]*?getHiddenRoomRewardProfile\(room\)/,
+    'event room reward resolver should use the shared reward-profile helper'
+);
+
+assert.match(
+    indexHtml,
+    /resolveRestRoom\(room\) \{[\s\S]*?getHiddenRoomRewardProfile\(room\)/,
+    'rest room reward resolver should use the shared reward-profile helper'
+);
+
+assert.match(
+    indexHtml,
+    /resolveMerchantRoom\(room\) \{[\s\S]*?getHiddenRoomRewardProfile\(room\)/,
+    'merchant room reward resolver should use the shared reward-profile helper'
+);
+
+assert.match(
+    indexHtml,
+    /resolveTrialRoomV2\(room\) \{[\s\S]*?getHiddenRoomRewardProfile\(room\)/,
+    'trial room reward resolver should use the shared reward-profile helper'
+);
+
+assert.match(
+    indexHtml,
+    /resolveHiddenEliteRoomClear\(room, enemyMesh\) \{[\s\S]*?getHiddenRoomRewardProfile\(room\)/,
+    'elite room clear resolver should use the shared reward-profile helper'
+);
+
+assert.doesNotMatch(
+    indexHtml,
+    /getHiddenRoomRewardTier\(/,
+    'GameController should not duplicate hidden-room reward-profile fallback logic'
 );
 
 console.log('hidden-rooms checks passed');

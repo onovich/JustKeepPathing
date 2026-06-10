@@ -719,7 +719,7 @@ import {
     buildTrialRoomNodePrepState,
     getHiddenRoomAccentColor,
     getHiddenRoomDiversionThreshold,
-    getHiddenRoomRewardTier
+    getHiddenRoomRewardProfile
 } from './src/logic/hidden-rooms.mjs';
 import {
     getHiddenRoomInteractionAccent,
@@ -4077,7 +4077,7 @@ class GameController {
     }
 
     resolveEventRoomV2(room) {
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const rewardProfile = getHiddenRoomRewardProfile(room);
         const seed = room.eventSeed || {};
         const eventRewards = calculateEventRoomRewards({
             level: GameState.level,
@@ -4114,7 +4114,7 @@ class GameController {
     }
 
     resolveRestRoom(room) {
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const rewardProfile = getHiddenRoomRewardProfile(room);
         const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
         const supplyNeedState = GameState.getSupportRoomNeedState('rest');
         const neededSupply = supplyNeedState.neededType;
@@ -4146,7 +4146,7 @@ class GameController {
         return this.finalizeHiddenRoomRewardResolution('rest', room, plan.message);
     }
     resolveMerchantRoom(room) {
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const rewardProfile = getHiddenRoomRewardProfile(room);
         const merchantRewards = calculateMerchantRoomRewards({
             level: GameState.level,
             rewardTier: room.rewardTier,
@@ -4204,7 +4204,7 @@ class GameController {
         );
     }
     resolveTrialRoomV2(room) {
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const rewardProfile = getHiddenRoomRewardProfile(room);
         const trialSeed = room.trialSeed || {};
         const hpRatio = GameState.player.currentHp / Math.max(1, GameState.player.baseHp);
         const trialRewards = calculateTrialRoomRewards({
@@ -4439,7 +4439,7 @@ class GameController {
 
     async resolveHiddenEliteRoomClear(room, enemyMesh) {
         if (!room || room.cleared) return '';
-        const rewardProfile = room.rewardProfile || getHiddenRoomRewardTier(room.rewardTier);
+        const rewardProfile = getHiddenRoomRewardProfile(room);
         const eliteRewards = calculateEliteRoomClearRewards({
             level: GameState.level,
             rewardProfile,
