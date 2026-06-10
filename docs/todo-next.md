@@ -24,6 +24,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - `LoadingOverlay` was extracted into `src/view/loading-overlay.mjs`.
 - The settings/strategy panel was extracted into `src/view/settings-panel.mjs`, with focused hint text checks.
 - `CollectionPanel` and `PathDebugPanel` were extracted into `src/view/panels/` with explicit `GameState`/controller dependencies; PathDebugPanel routing summary counts and room lifecycle flags now have focused checks.
+- Collection badge progress aggregation and DOM application now live with `CollectionPanel` in `src/view/panels/collection-panel.mjs`, with focused checks and a `GameState.updateUI` path guard.
 - Header editor button binding was extracted into `src/view/header-actions.mjs`, with focused checks and browser smoke coverage for the editor buttons' startup state.
 - Model editor header button chrome was extracted into `src/view/editors/model-editor-chrome.mjs`, with focused checks and browser smoke coverage for command labels and close-button icon/accessibility state.
 - Shared editor chrome and sound editor transport button chrome were extracted into `src/view/editors/editor-chrome.mjs` and `src/view/editors/sound-editor-chrome.mjs`, with focused checks and browser smoke coverage for preview/stop/read/reset/save/close startup state.

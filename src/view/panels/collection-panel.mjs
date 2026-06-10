@@ -25,6 +25,27 @@ function getRoomSeedEffectSummary(effect) {
     return summaryMap[effect] || 'special effect';
 }
 
+export function buildCollectionBadgeState(progress = {}) {
+    const buckets = ['eventRoomSeeds', 'trialRoomSeeds', 'relics', 'finaleBosses'];
+    const found = buckets.reduce((sum, key) => sum + Number(progress?.[key]?.found || 0), 0);
+    const total = buckets.reduce((sum, key) => sum + Number(progress?.[key]?.total || 0), 0);
+    return {
+        text: `${found}/${total}`
+    };
+}
+
+export function applyCollectionBadgeState(documentRef, state) {
+    if (!documentRef || !state) return null;
+
+    const badgeEl = documentRef.getElementById('collection-count-badge');
+    if (badgeEl) badgeEl.innerText = state.text;
+    return { badgeEl };
+}
+
+export function applyCollectionBadge(documentRef, { progress = {} } = {}) {
+    return applyCollectionBadgeState(documentRef, buildCollectionBadgeState(progress));
+}
+
 export class CollectionPanel {
     constructor({ gameState }) {
         this.gameState = gameState;

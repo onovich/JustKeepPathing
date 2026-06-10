@@ -971,7 +971,10 @@ import {
     TweenManager
 } from './src/view/tween-manager.mjs';
 import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
-import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
+import {
+    CollectionPanel,
+    applyCollectionBadge
+} from './src/view/panels/collection-panel.mjs';
 import { PathDebugPanel } from './src/view/panels/path-debug-panel.mjs';
 
 class SoundEngine {
@@ -1793,13 +1796,7 @@ const GameState = {
         });
 
         applyScoreText(document, this.score);
-        const collectionBadgeEl = document.getElementById('collection-count-badge');
-        if (collectionBadgeEl) {
-            const progress = this.getCollectionProgress();
-            const found = progress.eventRoomSeeds.found + progress.trialRoomSeeds.found + progress.relics.found + progress.finaleBosses.found;
-            const total = progress.eventRoomSeeds.total + progress.trialRoomSeeds.total + progress.relics.total + progress.finaleBosses.total;
-            collectionBadgeEl.innerText = `${found}/${total}`;
-        }
+        applyCollectionBadge(document, { progress: this.getCollectionProgress() });
         applyHudRelicCard(document, {
             relicDefs: this.getRunRelicDefs(),
             relicSlots: this.relicSlots,
