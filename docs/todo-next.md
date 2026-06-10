@@ -29,6 +29,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Header editor button binding was extracted into `src/view/header-actions.mjs`, with focused checks and browser smoke coverage for the editor buttons' startup state.
 - Model editor header button chrome was extracted into `src/view/editors/model-editor-chrome.mjs`, with focused checks and browser smoke coverage for command labels and close-button icon/accessibility state.
 - Shared editor chrome and sound editor transport button chrome were extracted into `src/view/editors/editor-chrome.mjs` and `src/view/editors/sound-editor-chrome.mjs`, with focused checks and browser smoke coverage for preview/stop/read/reset/save/close startup state.
+- Shared editor modal open/close hidden-class application now lives in `src/view/editors/editor-chrome.mjs`, with focused checks and `ModelEditor`/`SoundEditor` path guards.
 - Model/sound editor DOM id maps were extracted into `src/view/editors/editor-dom.mjs`, with focused checks and browser smoke coverage for editor instance refs.
 - Shared editor log formatting/writing was extracted into `src/view/editors/editor-log.mjs`, with focused checks and browser smoke coverage for model/sound editor log DOM updates.
 - Model editor selection UI state orchestration and DOM application were extracted into `src/view/editors/model-editor-selection-ui.mjs`, with focused checks and browser smoke coverage for idle disabled controls.

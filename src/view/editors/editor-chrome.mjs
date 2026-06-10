@@ -36,3 +36,15 @@ export function setButtonTexts(entries) {
         button.textContent = text;
     }
 }
+
+export function applyEditorModalOpenState({
+    modal,
+    isOpen
+} = {}) {
+    if (isOpen) {
+        modal?.classList?.remove?.('hidden');
+    } else {
+        modal?.classList?.add?.('hidden');
+    }
+    return !!isOpen;
+}

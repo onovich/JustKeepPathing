@@ -888,6 +888,7 @@ import {
     shouldRevealGenerationLoading
 } from './src/view/loading-overlay.mjs';
 import { bindSoundEditorHeaderButton } from './src/view/header-actions.mjs';
+import { applyEditorModalOpenState } from './src/view/editors/editor-chrome.mjs';
 import { configureModelEditorHeaderButtons } from './src/view/editors/model-editor-chrome.mjs';
 import { configureSoundEditorTransportButtons } from './src/view/editors/sound-editor-chrome.mjs';
 import {
@@ -5528,17 +5529,15 @@ class ModelEditor {
 
     open() {
         this.initPreview();
-        this.isOpen = true;
-        this.modal.classList.remove('hidden');
+        this.isOpen = applyEditorModalOpenState({ modal: this.modal, isOpen: true });
         this.handleResize();
         this.log('Editor opened. Right drag rotates, wheel zooms, left click selects.');
         this.renderPreview();
     }
 
     close() {
-        this.isOpen = false;
         this.cancelPointerState();
-        this.modal.classList.add('hidden');
+        this.isOpen = applyEditorModalOpenState({ modal: this.modal, isOpen: false });
     }
 
     handleResize() {
@@ -6100,17 +6099,15 @@ class SoundEditor {
     }
 
     open() {
-        this.isOpen = true;
+        this.isOpen = applyEditorModalOpenState({ modal: this.modal, isOpen: true });
         this.soundEngine.setGameplayMuted(true);
-        this.modal.classList.remove('hidden');
         this.render();
         this.updateTransportUi();
         this.log('音效编辑器已打开。');
     }
 
     close() {
-        this.isOpen = false;
-        this.modal.classList.add('hidden');
+        this.isOpen = applyEditorModalOpenState({ modal: this.modal, isOpen: false });
         this.stopPreview(false);
         this.soundEngine.setGameplayMuted(false);
         this.updateTransportUi();
