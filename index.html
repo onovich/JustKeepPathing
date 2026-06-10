@@ -769,7 +769,6 @@ import {
     BGM_KERNELS,
     ENEMY_ARCHETYPES,
     MODEL_EDITOR_ASSET_LABELS,
-    MODEL_EDITOR_DEFAULT_CONFIG,
     MODEL_EDITOR_DEFAULT_FACE_PATTERN,
     MODEL_EDITOR_DEFAULT_LINE_STYLE,
     MODEL_EDITOR_FACE_PATTERN_IDS,
@@ -780,6 +779,15 @@ import {
     SOUND_WAVE_TYPES,
     createOneShotSoundConfig
 } from './src/data/game-config.mjs';
+import {
+    cloneAppearanceConfig,
+    getAppearancePart,
+    getFaceAppearanceEntry,
+    getLineAppearanceEntry,
+    normalizeColorHex,
+    sanitizeAppearanceConfig,
+    writeAppearanceSelectionEntry
+} from './src/logic/model-appearance-config.mjs';
 import {
     RELIC_DEFS,
     RUN_RELIC_SLOTS,
@@ -861,21 +869,6 @@ import { initializeSettingsPanel } from './src/view/settings-panel.mjs';
 import { CollectionPanel } from './src/view/panels/collection-panel.mjs';
 import { PathDebugPanel } from './src/view/panels/path-debug-panel.mjs';
 
-function normalizeColorHex(value, fallback = '#ffffff') {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        return `#${value.toString(16).padStart(6, '0').slice(-6)}`;
-    }
-    if (value && typeof value.getHexString === 'function') {
-        return `#${value.getHexString()}`;
-    }
-    if (typeof value === 'string') {
-        const trimmed = value.trim();
-        if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed.toLowerCase();
-        if (/^[0-9a-fA-F]{6}$/.test(trimmed)) return `#${trimmed.toLowerCase()}`;
-    }
-    return fallback.toLowerCase();
-}
-
 function createBaseFloorBuff(overrides = {}) {
     return {
         supplyActive: false,
@@ -892,110 +885,6 @@ function createBaseFloorBuff(overrides = {}) {
         incomingDamageMult: 1,
         bossRewardMult: 1,
         ...overrides
-    };
-}
-
-function sanitizeAppearanceConfig(rawConfig) {
-    const clean = { version: 1, assets: {} };
-    if (!rawConfig || typeof rawConfig !== 'object' || !rawConfig.assets || typeof rawConfig.assets !== 'object') {
-        return clean;
-    }
-
-    for (const [assetKey, parts] of Object.entries(rawConfig.assets)) {
-        if (!parts || typeof parts !== 'object') continue;
-        const cleanParts = {};
-
-        for (const [partKey, partConfig] of Object.entries(parts)) {
-            if (!partConfig || typeof partConfig !== 'object') continue;
-            const faces = {};
-            const lines = {};
-
-            if (partConfig.faces && typeof partConfig.faces === 'object') {
-                for (const [index, faceValue] of Object.entries(partConfig.faces)) {
-                    if (Number.isNaN(Number(index))) continue;
-                    if (typeof faceValue === 'string' || typeof faceValue === 'number') {
-                        faces[index] = { color: normalizeColorHex(faceValue) };
-                        continue;
-                    }
-                    if (!faceValue || typeof faceValue !== 'object') continue;
-                    const pattern = MODEL_EDITOR_FACE_PATTERN_KEYS.includes(faceValue.pattern) ? faceValue.pattern : 'none';
-                    const patternScale = Number(faceValue.patternScale);
-                    faces[index] = {
-                        color: normalizeColorHex(faceValue.color),
-                        pattern,
-                        patternColor: normalizeColorHex(faceValue.patternColor, MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor),
-                        patternScale: Number.isFinite(patternScale)
-                            ? THREE.MathUtils.clamp(patternScale, 2, 24)
-                            : MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale
-                    };
-                }
-            }
-            if (partConfig.lines && typeof partConfig.lines === 'object') {
-                for (const [index, lineValue] of Object.entries(partConfig.lines)) {
-                    if (Number.isNaN(Number(index))) continue;
-                    if (typeof lineValue === 'string' || typeof lineValue === 'number') {
-                        lines[index] = { color: normalizeColorHex(lineValue) };
-                        continue;
-                    }
-                    if (!lineValue || typeof lineValue !== 'object') continue;
-                    const width = Number(lineValue.width);
-                    lines[index] = {
-                        color: normalizeColorHex(lineValue.color),
-                        style: lineValue.style === 'dashed' ? 'dashed' : 'solid',
-                        width: Number.isFinite(width)
-                            ? THREE.MathUtils.clamp(width, 1, 6)
-                            : MODEL_EDITOR_DEFAULT_LINE_STYLE.width
-                    };
-                }
-            }
-
-            if (Object.keys(faces).length > 0 || Object.keys(lines).length > 0) {
-                cleanParts[partKey] = { faces, lines };
-            }
-        }
-
-        if (Object.keys(cleanParts).length > 0) clean.assets[assetKey] = cleanParts;
-    }
-
-    return clean;
-}
-
-function cloneAppearanceConfig(config = MODEL_EDITOR_DEFAULT_CONFIG) {
-    return sanitizeAppearanceConfig(JSON.parse(JSON.stringify(config)));
-}
-
-function getAppearancePart(config, assetKey, partKey, createIfMissing = false) {
-    if (!config.assets[assetKey]) {
-        if (!createIfMissing) return null;
-        config.assets[assetKey] = {};
-    }
-    if (!config.assets[assetKey][partKey]) {
-        if (!createIfMissing) return null;
-        config.assets[assetKey][partKey] = { faces: {}, lines: {} };
-    }
-    return config.assets[assetKey][partKey];
-}
-
-function getFaceAppearanceEntry(part, faceIndex, defaultColor) {
-    const raw = part?.faces?.[faceIndex] || {};
-    return {
-        color: normalizeColorHex(raw.color, defaultColor),
-        pattern: MODEL_EDITOR_FACE_PATTERN_KEYS.includes(raw.pattern) ? raw.pattern : MODEL_EDITOR_DEFAULT_FACE_PATTERN.pattern,
-        patternColor: normalizeColorHex(raw.patternColor, MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor),
-        patternScale: Number.isFinite(Number(raw.patternScale))
-            ? THREE.MathUtils.clamp(Number(raw.patternScale), 2, 24)
-            : MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale
-    };
-}
-
-function getLineAppearanceEntry(part, lineIndex, defaultColor) {
-    const raw = part?.lines?.[lineIndex] || {};
-    return {
-        color: normalizeColorHex(raw.color, defaultColor),
-        style: raw.style === 'dashed' ? 'dashed' : MODEL_EDITOR_DEFAULT_LINE_STYLE.style,
-        width: Number.isFinite(Number(raw.width))
-            ? THREE.MathUtils.clamp(Number(raw.width), 1, 6)
-            : MODEL_EDITOR_DEFAULT_LINE_STYLE.width
     };
 }
 
@@ -6737,40 +6626,13 @@ class ModelEditor {
         }
     }
 
-    cleanupWorkingConfig(assetKey, partKey) {
-        const parts = this.workingConfig.assets[assetKey];
-        const part = parts?.[partKey];
-        if (!part) return;
-        if (Object.keys(part.faces).length === 0 && Object.keys(part.lines).length === 0) delete parts[partKey];
-        if (parts && Object.keys(parts).length === 0) delete this.workingConfig.assets[assetKey];
-    }
-
-    writeSelectionEntry(item, nextEntry) {
-        const part = getAppearancePart(this.workingConfig, item.assetKey, item.partKey, true);
-        if (item.kind === 'mesh') {
-            const isDefault = nextEntry.color === item.defaultColor
-                && nextEntry.pattern === MODEL_EDITOR_DEFAULT_FACE_PATTERN.pattern
-                && nextEntry.patternColor === MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternColor
-                && Math.abs(nextEntry.patternScale - MODEL_EDITOR_DEFAULT_FACE_PATTERN.patternScale) < 0.001;
-            if (isDefault) delete part.faces[item.index];
-            else part.faces[item.index] = { ...nextEntry };
-        } else {
-            const isDefault = nextEntry.color === item.defaultColor
-                && nextEntry.style === MODEL_EDITOR_DEFAULT_LINE_STYLE.style
-                && Math.abs(nextEntry.width - MODEL_EDITOR_DEFAULT_LINE_STYLE.width) < 0.001;
-            if (isDefault) delete part.lines[item.index];
-            else part.lines[item.index] = { ...nextEntry };
-        }
-        this.cleanupWorkingConfig(item.assetKey, item.partKey);
-    }
-
     mutateSelection(label, updater) {
         if (this.selection.length === 0) return;
         this.pushUndoState(label);
         for (const item of this.selection) {
             const current = this.getSelectionEntry(item);
             const next = updater({ ...current }, item);
-            this.writeSelectionEntry(item, next);
+            writeAppearanceSelectionEntry(this.workingConfig, item, next);
         }
         if (this.previewModel) this.engine.applyAppearanceConfigToObject(this.previewModel, this.workingConfig);
         this.syncSelectionUi();
