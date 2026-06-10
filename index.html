@@ -970,6 +970,7 @@ import {
     finishHideCombatOverlay,
     showCombatOverlay
 } from './src/view/combat-hp-ui.mjs';
+import { typeCombatDialogue } from './src/view/combat-dialogue-ui.mjs';
 import {
     Easing,
     TweenManager
@@ -5140,12 +5141,9 @@ class GameController {
     }
 
     async typeText(text) {
-        const el = document.getElementById('rpg-dialogue');
-        el.innerText = '';
-        for (let i = 0; i < text.length; i++) {
-            el.innerText += text[i];
-            await this.sleep(24);
-        }
+        return typeCombatDialogue(document, text, {
+            sleep: (ms) => this.sleep(ms)
+        });
     }
 
     updateRPG_HP(enemyHp, enemyMaxHp, enemyObj) {
