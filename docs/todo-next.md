@@ -69,6 +69,7 @@ Updated 2026-06-10 after reviewing the current runtime state.
 - Maze cell keys, grid lookup, walkable-neighbor filtering, BFS pathing, hidden-room transit guards, and distance-map generation now live in `src/logic/maze-navigation.mjs`, with focused checks for shortest paths, unreachable targets, hidden-room allowances, and distance maps.
 - Rest-room hidden reward decisions, state action plans, message assembly, and action application now live in `src/logic/room-reward-state.mjs`, with focused checks for fortify/restock decisions, heal rewards, fallback boosts, and state mutations.
 - Merchant-room hidden reward state plans now share `src/logic/room-reward-state.mjs`, with focused checks for supply purchases, intel fallback bonuses, discounted upgrade rebates, and failed-deal fallback score.
+- Trial-room hidden reward state plans now share `src/logic/room-reward-state.mjs`, with focused checks for repair loops, guard caches, survey scouting, attack overdrive, supply rewards, fallback scouting, and room bonus-supply state.
 
 ## 1. Browser Smoke Follow-Up
 

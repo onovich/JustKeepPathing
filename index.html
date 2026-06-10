@@ -758,8 +758,7 @@ import {
 import {
     buildEventStockpileSupplyPlan,
     buildMerchantRoomPurchasePlan,
-    buildRunRelicRewardRollPlan,
-    buildTrialSupplyRewardPlan
+    buildRunRelicRewardRollPlan
 } from './src/logic/room-reward-plans.mjs';
 import {
     buildRunRelicRewardEffectPlan,
@@ -771,7 +770,8 @@ import {
     applyRoomRewardActions,
     buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
-    buildRestRoomRewardStatePlan
+    buildRestRoomRewardStatePlan,
+    buildTrialRoomRewardStatePlan
 } from './src/logic/room-reward-state.mjs';
 import {
     buildBgmStepPlan,
@@ -4420,90 +4420,30 @@ class GameController {
             hpRatio,
             playerBaseHp: GameState.player.baseHp
         });
-        const chargeCount = trialRewards.chargeCount;
-        const bonusReward = trialRewards.bonusReward;
-        GameState.addScore(bonusReward);
-
-        let bonusText = '';
-        if (trialSeed.effect === 'repair_loop') {
-            const heal = trialRewards.repairLoopHeal;
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
-            room.trialBonusSupply = null;
-            bonusText = ' Restored ' + heal + ' HP.';
-        } else if (trialSeed.effect === 'guard_cache') {
-            const heal = trialRewards.guardCacheHeal;
-            const reduction = trialRewards.guardCacheReduction;
-            GameState.player.currentHp = Math.min(GameState.player.baseHp, GameState.player.currentHp + heal);
-            GameState.floorBuff.incomingDamageMult *= Math.max(0.56, 1 - reduction);
-            const supplyPlan = buildTrialSupplyRewardPlan({
-                effect: trialSeed.effect,
-                rewardTier: room.rewardTier,
-                chargeCount,
-                supplyThreshold: trialRewards.supplyThreshold,
-                neededType: GameState.getSupportRoomNeedState('trial').neededType,
-                mostNeededType: GameState.getMostNeededSupplyType()
-            });
-            if (supplyPlan) {
-                const supplyType = supplyPlan.type;
-                const supplyLabel = GameState.supplyDefs[supplyType]?.label || 'supply';
-                GameState.grantFloorSupply(supplyType, supplyPlan.amount);
-                room.trialBonusSupply = supplyType;
-                bonusText = ' Restored ' + heal + ' HP, reduced incoming damage, and added 1 ' + supplyLabel + '.';
-            } else {
-                room.trialBonusSupply = null;
-                bonusText = ' Restored ' + heal + ' HP and reduced incoming damage.';
-            }
-        } else if (trialSeed.effect === 'survey') {
-            const scoutBonus = trialRewards.surveyScoutBonus;
-            GameState.meta.nextHiddenRoomBonus = Math.min(0.28, GameState.meta.nextHiddenRoomBonus + scoutBonus);
-            room.trialBonusSupply = null;
-            bonusText = ' Boosted next-floor hidden room scouting.';
-        } else if (trialSeed.effect === 'attack_overdrive') {
-            const atkBoost = trialRewards.attackBoost;
-            const attackBonus = trialRewards.attackBonus;
-            GameState.player.baseAtk += atkBoost;
-            GameState.meta.nextFloorAttackBonus = Math.min(0.4, GameState.meta.nextFloorAttackBonus + attackBonus);
-            const supplyPlan = buildTrialSupplyRewardPlan({
-                effect: trialSeed.effect,
-                rewardTier: room.rewardTier,
-                chargeCount,
-                supplyThreshold: trialRewards.supplyThreshold,
-                neededType: GameState.getSupportRoomNeedState('trial').neededType,
-                mostNeededType: GameState.getMostNeededSupplyType()
-            });
-            if (supplyPlan) {
-                const supplyLabel = GameState.supplyDefs[supplyPlan.type]?.label || 'assault supply';
-                GameState.grantFloorSupply(supplyPlan.type, supplyPlan.amount);
-                room.trialBonusSupply = supplyPlan.type;
-                bonusText = ' Attack +' + atkBoost + ', next-floor attack +' + Math.round(attackBonus * 100) + '%, and added 1 ' + supplyLabel + '.';
-            } else {
-                room.trialBonusSupply = null;
-                bonusText = ' Attack +' + atkBoost + ' and next-floor attack +' + Math.round(attackBonus * 100) + '%.';
-            }
-        } else if (chargeCount >= trialRewards.supplyThreshold) {
-            const supplyPlan = buildTrialSupplyRewardPlan({
-                effect: trialSeed.effect,
-                rewardTier: room.rewardTier,
-                chargeCount,
-                supplyThreshold: trialRewards.supplyThreshold,
-                neededType: GameState.getSupportRoomNeedState('trial').neededType,
-                mostNeededType: GameState.getMostNeededSupplyType()
-            });
-            const supplyLabel = GameState.supplyDefs[supplyPlan.type]?.label || 'supply';
-            GameState.grantFloorSupply(supplyPlan.type, supplyPlan.amount);
-            room.trialBonusSupply = supplyPlan.type;
-            bonusText = ' Added 1 ' + supplyLabel + '.';
-        } else {
-            const scoutBonus = trialRewards.fallbackScoutBonus;
-            GameState.meta.nextHiddenRoomBonus = Math.min(0.24, GameState.meta.nextHiddenRoomBonus + scoutBonus);
-            room.trialBonusSupply = null;
-            bonusText = ' Added a small next-floor scouting bonus.';
-        }
+        const supplyLabels = Object.fromEntries(
+            Object.entries(GameState.supplyDefs).map(([type, def]) => [type, def?.label || 'supply'])
+        );
+        const rewardPlan = buildTrialRoomRewardStatePlan({
+            roomName: room.displayName,
+            trialSeed,
+            trialRewards,
+            rewardTier: room.rewardTier,
+            neededType: GameState.getSupportRoomNeedState('trial').neededType,
+            mostNeededType: GameState.getMostNeededSupplyType(),
+            supplyLabels
+        });
+        applyRoomRewardActions({
+            gameState: GameState,
+            room,
+            actions: rewardPlan.actions,
+            addScore: (amount) => GameState.addScore(amount),
+            grantFloorSupply: (type, amount) => GameState.grantFloorSupply(type, amount)
+        });
 
         return this.finalizeHiddenRoomRewardResolution(
             'trial',
             room,
-            (trialSeed.label || room.displayName) + ' completed the trial and granted ' + bonusReward + ' score.' + bonusText
+            rewardPlan.message
         );
     }
     clearHiddenRoom(room) {

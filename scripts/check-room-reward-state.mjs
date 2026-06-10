@@ -3,7 +3,8 @@ import {
     applyRoomRewardActions,
     buildMerchantRoomRewardStatePlan,
     buildRestRoomRewardDecision,
-    buildRestRoomRewardStatePlan
+    buildRestRoomRewardStatePlan,
+    buildTrialRoomRewardStatePlan
 } from '../src/logic/room-reward-state.mjs';
 
 assert.deepEqual(
@@ -334,6 +335,244 @@ assert.deepEqual(
         { type: 'buy-upgrade', upgradeType: 'size', bought: false }
     ]);
     assert.equal(state.score, 108);
+}
+
+{
+    const plan = buildTrialRoomRewardStatePlan({
+        roomName: 'Repair Trial',
+        trialSeed: { effect: 'repair_loop', label: 'Repair Loop' },
+        trialRewards: {
+            chargeCount: 1,
+            supplyThreshold: 2,
+            bonusReward: 300,
+            repairLoopHeal: 24
+        }
+    });
+
+    assert.equal(plan.trialBonusSupply, null);
+    assert.equal(plan.message, 'Repair Loop completed the trial and granted 300 score. Restored 24 HP.');
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 300 },
+        { type: 'heal-player', amount: 24 },
+        { type: 'set-room-field', field: 'trialBonusSupply', value: null }
+    ]);
+
+    const room = { trialBonusSupply: 'assault' };
+    const state = {
+        score: 0,
+        player: { baseHp: 100, currentHp: 90, baseAtk: 20 },
+        maze: { baseChestRate: 0.05 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        room,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        }
+    });
+
+    assert.equal(state.score, 300);
+    assert.equal(state.player.currentHp, 100);
+    assert.equal(room.trialBonusSupply, null);
+}
+
+{
+    const plan = buildTrialRoomRewardStatePlan({
+        roomName: 'Guard Trial',
+        trialSeed: { effect: 'guard_cache', label: 'Guard Cache' },
+        trialRewards: {
+            chargeCount: 2,
+            supplyThreshold: 2,
+            bonusReward: 420,
+            guardCacheHeal: 18,
+            guardCacheReduction: 0.15
+        },
+        rewardTier: 2,
+        neededType: 'scout',
+        mostNeededType: 'salvage',
+        supplyLabels: { scout: 'Scout Supply' }
+    });
+
+    assert.equal(plan.trialBonusSupply, 'scout');
+    assert.equal(
+        plan.message,
+        'Guard Cache completed the trial and granted 420 score. Restored 18 HP, reduced incoming damage, and added 1 Scout Supply.'
+    );
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 420 },
+        { type: 'heal-player', amount: 18 },
+        { type: 'multiply-incoming-damage', factor: 0.85 },
+        { type: 'grant-floor-supply', supplyType: 'scout', amount: 1 },
+        { type: 'set-room-field', field: 'trialBonusSupply', value: 'scout' }
+    ]);
+
+    const room = {};
+    const state = {
+        score: 0,
+        player: { baseHp: 100, currentHp: 70, baseAtk: 20 },
+        maze: { baseChestRate: 0.05 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 0.8 },
+        items: { supplies: { scout: 0 } }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        room,
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        },
+        grantFloorSupply: (type, amount) => {
+            state.items.supplies[type] = (state.items.supplies[type] || 0) + amount;
+        }
+    });
+
+    assert.equal(state.score, 420);
+    assert.equal(state.player.currentHp, 88);
+    assert.equal(Number(state.floorBuff.incomingDamageMult.toFixed(2)), 0.68);
+    assert.equal(state.items.supplies.scout, 1);
+    assert.equal(room.trialBonusSupply, 'scout');
+}
+
+{
+    const plan = buildTrialRoomRewardStatePlan({
+        roomName: 'Survey Trial',
+        trialSeed: { effect: 'survey', label: 'Survey Seed' },
+        trialRewards: {
+            chargeCount: 1,
+            supplyThreshold: 2,
+            bonusReward: 210,
+            surveyScoutBonus: 0.11
+        }
+    });
+
+    assert.equal(plan.message, 'Survey Seed completed the trial and granted 210 score. Boosted next-floor hidden room scouting.');
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 210 },
+        { type: 'increase-next-hidden-room-bonus', amount: 0.11, cap: 0.28 },
+        { type: 'set-room-field', field: 'trialBonusSupply', value: null }
+    ]);
+
+    const state = {
+        score: 0,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05 },
+        meta: { nextHiddenRoomBonus: 0.24, nextFloorAttackBonus: 0 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: {} }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        room: {},
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        }
+    });
+    assert.equal(state.meta.nextHiddenRoomBonus, 0.28);
+}
+
+{
+    const plan = buildTrialRoomRewardStatePlan({
+        roomName: 'Overdrive Trial',
+        trialSeed: { effect: 'attack_overdrive', label: 'Overdrive Seed' },
+        trialRewards: {
+            chargeCount: 3,
+            supplyThreshold: 2,
+            bonusReward: 684,
+            attackBoost: 7,
+            attackBonus: 0.135
+        },
+        rewardTier: 3,
+        neededType: 'scout',
+        mostNeededType: 'salvage',
+        supplyLabels: { assault: 'Assault Supply' }
+    });
+
+    assert.equal(plan.trialBonusSupply, 'assault');
+    assert.equal(
+        plan.message,
+        'Overdrive Seed completed the trial and granted 684 score. Attack +7, next-floor attack +14%, and added 1 Assault Supply.'
+    );
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 684 },
+        { type: 'increase-player-attack', amount: 7 },
+        { type: 'increase-next-floor-attack-bonus', amount: 0.135, cap: 0.4 },
+        { type: 'grant-floor-supply', supplyType: 'assault', amount: 1 },
+        { type: 'set-room-field', field: 'trialBonusSupply', value: 'assault' }
+    ]);
+
+    const state = {
+        score: 0,
+        player: { baseHp: 100, currentHp: 100, baseAtk: 20 },
+        maze: { baseChestRate: 0.05 },
+        meta: { nextHiddenRoomBonus: 0, nextFloorAttackBonus: 0.3 },
+        floorBuff: { incomingDamageMult: 1 },
+        items: { supplies: { assault: 0 } }
+    };
+    applyRoomRewardActions({
+        gameState: state,
+        room: {},
+        actions: plan.actions,
+        addScore: (amount) => {
+            state.score += amount;
+        },
+        grantFloorSupply: (type, amount) => {
+            state.items.supplies[type] = (state.items.supplies[type] || 0) + amount;
+        }
+    });
+    assert.equal(state.player.baseAtk, 27);
+    assert.equal(state.meta.nextFloorAttackBonus, 0.4);
+    assert.equal(state.items.supplies.assault, 1);
+}
+
+{
+    const plan = buildTrialRoomRewardStatePlan({
+        roomName: 'Cache Trial',
+        trialSeed: { effect: 'salvage_cache', label: 'Cache Seed' },
+        trialRewards: {
+            chargeCount: 2,
+            supplyThreshold: 2,
+            bonusReward: 260
+        },
+        rewardTier: 1,
+        neededType: 'scout',
+        mostNeededType: 'assault',
+        supplyLabels: { salvage: 'Salvage Supply' }
+    });
+
+    assert.equal(plan.trialBonusSupply, 'salvage');
+    assert.equal(plan.message, 'Cache Seed completed the trial and granted 260 score. Added 1 Salvage Supply.');
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 260 },
+        { type: 'grant-floor-supply', supplyType: 'salvage', amount: 1 },
+        { type: 'set-room-field', field: 'trialBonusSupply', value: 'salvage' }
+    ]);
+}
+
+{
+    const plan = buildTrialRoomRewardStatePlan({
+        roomName: 'Fallback Trial',
+        trialSeed: { effect: 'minor', label: 'Fallback Seed' },
+        trialRewards: {
+            chargeCount: 1,
+            supplyThreshold: 2,
+            bonusReward: 120,
+            fallbackScoutBonus: 0.08
+        }
+    });
+
+    assert.equal(plan.trialBonusSupply, null);
+    assert.equal(plan.message, 'Fallback Seed completed the trial and granted 120 score. Added a small next-floor scouting bonus.');
+    assert.deepEqual(plan.actions, [
+        { type: 'score', amount: 120 },
+        { type: 'increase-next-hidden-room-bonus', amount: 0.08, cap: 0.24 },
+        { type: 'set-room-field', field: 'trialBonusSupply', value: null }
+    ]);
 }
 
 console.log('room-reward-state checks passed');

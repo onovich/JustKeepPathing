@@ -1,3 +1,5 @@
+import { buildTrialSupplyRewardPlan } from './room-reward-plans.mjs';
+
 export function buildRestRoomRewardDecision({
     hpRatio = 1,
     supplyNeedState = {}
@@ -130,8 +132,154 @@ export function buildMerchantRoomRewardStatePlan({
     };
 }
 
+function getSupplyLabel(supplyLabels = {}, type, fallback = 'supply') {
+    return supplyLabels?.[type] || fallback;
+}
+
+function buildTrialSupplyPlan({
+    effect,
+    rewardTier,
+    trialRewards,
+    neededType,
+    mostNeededType
+}) {
+    return buildTrialSupplyRewardPlan({
+        effect,
+        rewardTier,
+        chargeCount: trialRewards.chargeCount,
+        supplyThreshold: trialRewards.supplyThreshold,
+        neededType,
+        mostNeededType
+    });
+}
+
+export function buildTrialRoomRewardStatePlan({
+    roomName = 'Trial Room',
+    trialSeed = {},
+    trialRewards = {},
+    rewardTier = 1,
+    neededType = 'salvage',
+    mostNeededType = 'salvage',
+    supplyLabels = {}
+} = {}) {
+    const effect = trialSeed.effect;
+    const chargeCount = trialRewards.chargeCount || 1;
+    const supplyThreshold = trialRewards.supplyThreshold ?? 2;
+    const bonusReward = trialRewards.bonusReward || 0;
+    const actions = [
+        { type: 'score', amount: bonusReward }
+    ];
+    let bonusText = '';
+    let trialBonusSupply = null;
+
+    const setTrialBonusSupply = (supplyType) => {
+        trialBonusSupply = supplyType || null;
+        actions.push({
+            type: 'set-room-field',
+            field: 'trialBonusSupply',
+            value: trialBonusSupply
+        });
+    };
+    const addSupplyReward = (supplyPlan, fallbackLabel = 'supply') => {
+        if (!supplyPlan) return null;
+        actions.push({
+            type: 'grant-floor-supply',
+            supplyType: supplyPlan.type,
+            amount: supplyPlan.amount
+        });
+        setTrialBonusSupply(supplyPlan.type);
+        return getSupplyLabel(supplyLabels, supplyPlan.type, fallbackLabel);
+    };
+
+    if (effect === 'repair_loop') {
+        const heal = trialRewards.repairLoopHeal || 0;
+        actions.push({ type: 'heal-player', amount: heal });
+        setTrialBonusSupply(null);
+        bonusText = ` Restored ${heal} HP.`;
+    } else if (effect === 'guard_cache') {
+        const heal = trialRewards.guardCacheHeal || 0;
+        const reduction = trialRewards.guardCacheReduction || 0;
+        actions.push({ type: 'heal-player', amount: heal });
+        actions.push({
+            type: 'multiply-incoming-damage',
+            factor: Math.max(0.56, 1 - reduction)
+        });
+        const supplyPlan = buildTrialSupplyPlan({
+            effect,
+            rewardTier,
+            trialRewards,
+            neededType,
+            mostNeededType
+        });
+        const supplyLabel = addSupplyReward(supplyPlan);
+        if (supplyLabel) {
+            bonusText = ` Restored ${heal} HP, reduced incoming damage, and added 1 ${supplyLabel}.`;
+        } else {
+            setTrialBonusSupply(null);
+            bonusText = ` Restored ${heal} HP and reduced incoming damage.`;
+        }
+    } else if (effect === 'survey') {
+        actions.push({
+            type: 'increase-next-hidden-room-bonus',
+            amount: trialRewards.surveyScoutBonus || 0,
+            cap: 0.28
+        });
+        setTrialBonusSupply(null);
+        bonusText = ' Boosted next-floor hidden room scouting.';
+    } else if (effect === 'attack_overdrive') {
+        const atkBoost = trialRewards.attackBoost || 0;
+        const attackBonus = trialRewards.attackBonus || 0;
+        actions.push({ type: 'increase-player-attack', amount: atkBoost });
+        actions.push({
+            type: 'increase-next-floor-attack-bonus',
+            amount: attackBonus,
+            cap: 0.4
+        });
+        const supplyPlan = buildTrialSupplyPlan({
+            effect,
+            rewardTier,
+            trialRewards,
+            neededType,
+            mostNeededType
+        });
+        const supplyLabel = addSupplyReward(supplyPlan, 'assault supply');
+        if (supplyLabel) {
+            bonusText = ` Attack +${atkBoost}, next-floor attack +${Math.round(attackBonus * 100)}%, and added 1 ${supplyLabel}.`;
+        } else {
+            setTrialBonusSupply(null);
+            bonusText = ` Attack +${atkBoost} and next-floor attack +${Math.round(attackBonus * 100)}%.`;
+        }
+    } else if (chargeCount >= supplyThreshold) {
+        const supplyPlan = buildTrialSupplyPlan({
+            effect,
+            rewardTier,
+            trialRewards,
+            neededType,
+            mostNeededType
+        });
+        const supplyLabel = addSupplyReward(supplyPlan);
+        bonusText = supplyLabel ? ` Added 1 ${supplyLabel}.` : '';
+    } else {
+        actions.push({
+            type: 'increase-next-hidden-room-bonus',
+            amount: trialRewards.fallbackScoutBonus || 0,
+            cap: 0.24
+        });
+        setTrialBonusSupply(null);
+        bonusText = ' Added a small next-floor scouting bonus.';
+    }
+
+    return {
+        outcome: effect || 'fallback',
+        trialBonusSupply,
+        actions,
+        message: `${trialSeed.label || roomName} completed the trial and granted ${bonusReward} score.${bonusText}`
+    };
+}
+
 export function applyRoomRewardActions({
     gameState,
+    room = null,
     actions = [],
     addScore = (amount) => {
         gameState.score += amount;
@@ -168,6 +316,11 @@ export function applyRoomRewardActions({
                 action.cap ?? Infinity,
                 gameState.meta.nextHiddenRoomBonus + (action.amount || 0)
             );
+        } else if (action.type === 'increase-next-floor-attack-bonus') {
+            gameState.meta.nextFloorAttackBonus = Math.min(
+                action.cap ?? Infinity,
+                gameState.meta.nextFloorAttackBonus + (action.amount || 0)
+            );
         } else if (action.type === 'buy-upgrade') {
             const bought = !!buyUpgrade(action.upgradeType);
             results.push({
@@ -180,6 +333,8 @@ export function applyRoomRewardActions({
             } else {
                 addScore(action.failedScore || 0);
             }
+        } else if (action.type === 'set-room-field' && room) {
+            room[action.field] = action.value ?? null;
         }
     }
 
